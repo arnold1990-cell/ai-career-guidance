@@ -14,6 +14,19 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface StudentRegisterPayload {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+export interface CompanyRegisterPayload {
+  companyName: string;
+  email: string;
+  password: string;
+  industry?: string;
+}
+
 export interface StudentProfile {
   id: string;
   fullName: string;

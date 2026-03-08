@@ -1,14 +1,14 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import { authStore } from '@/features/auth/authStore';
 import { authService } from '@/services/authService';
-import type { Role, User } from '@/types';
+import type { Role, StudentRegisterPayload, User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (payload: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
-  registerStudent: (payload: Record<string, unknown>) => Promise<void>;
+  registerStudent: (payload: StudentRegisterPayload) => Promise<void>;
   registerCompany: (payload: Record<string, unknown>) => Promise<void>;
   hasRole: (role: Role) => boolean;
 }
