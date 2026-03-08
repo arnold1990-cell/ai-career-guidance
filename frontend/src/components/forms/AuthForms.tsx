@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
 const loginSchema = z.object({
-  email: z.string().trim().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters')
+  email: z.string().trim().min(1, 'Email is required').email('Enter a valid email address'),
+  password: z.string().min(1, 'Password is required').min(8, 'Password must be at least 8 characters')
 });
 
 const passwordRuleMessage = 'Password must be at least 8 characters and include a number';
@@ -19,7 +19,7 @@ const registerSchema = z.object({
     .refine((value) => value.split(/\s+/).length >= 2, 'Full name must include first and last name'),
   email: z.string().trim().min(1, 'Email is required').email('Enter a valid email address'),
   password: z.string().refine((value) => value.length >= 8 && /\d/.test(value), passwordRuleMessage),
-  organizationName: z.string().trim().optional()
+  companyName: z.string().trim().optional()
 });
 
 const inputErrorClass = 'border-red-500 focus:ring-red-500';
@@ -35,7 +35,7 @@ export const LoginForm = ({ onSubmit }: { onSubmit: (data: LoginFormValues) => P
   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+    <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
       <label className="block text-sm">Email<Input {...register('email')} type="email" /></label>
       {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
       <label className="block text-sm">Password<Input {...register('password')} type="password" /></label>
@@ -58,7 +58,7 @@ export const RegisterForm = ({ type, onSubmit }: { type: 'student' | 'company'; 
       fullName: '',
       email: '',
       password: '',
-      organizationName: ''
+      companyName: ''
     }
   });
 
@@ -83,7 +83,7 @@ export const RegisterForm = ({ type, onSubmit }: { type: 'student' | 'company'; 
       <p className="text-xs text-slate-500">{passwordRuleMessage}.</p>
       {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
 
-      {type === 'company' && <label className="block text-sm">Company Name<Input {...register('organizationName')} /></label>}
+      {type === 'company' && <label className="block text-sm">Company Name<Input {...register('companyName')} /></label>}
       <Button disabled={isSubmitting} type="submit">Create account</Button>
     </form>
   );

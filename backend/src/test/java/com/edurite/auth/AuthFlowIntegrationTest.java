@@ -57,6 +57,28 @@ class AuthFlowIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
+
+    @Test
+    void arnoldStudentCanRegisterAndLoginEndToEnd() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register/student")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Arnold Madamombe","email":"arnoldmadaz@gmail.com","password":"Arnold@123"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.user.email").value("arnoldmadaz@gmail.com"))
+                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_STUDENT"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"arnoldmadaz@gmail.com","password":"Arnold@123"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.user.email").value("arnoldmadaz@gmail.com"));
+    }
+
     @Test
     void studentRegistrationSuccess() throws Exception {
         mockMvc.perform(post("/api/v1/auth/register/student")

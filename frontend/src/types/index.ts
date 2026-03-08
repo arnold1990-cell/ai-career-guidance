@@ -1,16 +1,18 @@
 export type Role = 'STUDENT' | 'COMPANY' | 'ADMIN';
+export type BackendRole = `ROLE_${Role}`;
 
 export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: Role;
-  active: boolean;
+  roles: BackendRole[];
 }
 
 export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
+  tokenType?: string;
+  accessTokenExpiresIn?: number;
   user: User;
 }
 

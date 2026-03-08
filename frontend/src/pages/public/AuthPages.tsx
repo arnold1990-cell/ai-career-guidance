@@ -47,7 +47,13 @@ export const RegisterCompanyPage = () => {
   const navigate = useNavigate();
   return (
     <AuthCard title="Register your company" subtitle="Launch bursaries and connect with high-potential student talent.">
-      <RegisterForm type="company" onSubmit={async (data) => { await registerCompany(data); navigate('/company/dashboard'); }} />
+      <RegisterForm
+        type="company"
+        onSubmit={async ({ companyName, email, password }) => {
+          await registerCompany({ companyName: companyName ?? '', email, password });
+          navigate('/company/dashboard');
+        }}
+      />
     </AuthCard>
   );
 };

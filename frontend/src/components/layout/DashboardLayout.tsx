@@ -21,12 +21,15 @@ export const DashboardLayout = () => {
   const [open, setOpen] = useState(false);
   if (!user) return null;
 
+  const primaryRole = user.roles[0]?.replace('ROLE_', '') as Role | undefined;
+  if (!primaryRole) return null;
+
   return (
     <div className="flex min-h-screen">
       <aside className={`fixed z-20 h-full w-64 bg-slate-900 p-4 text-white md:static ${open ? 'block' : 'hidden md:block'}`}>
         <h2 className="mb-8 text-xl font-bold">EduRite</h2>
         <nav className="space-y-2">
-          {navByRole[user.role].map((item) => (
+          {navByRole[primaryRole].map((item) => (
             <Link key={item.to} className="block rounded-lg px-3 py-2 hover:bg-slate-800" to={item.to}>{item.label}</Link>
           ))}
         </nav>
@@ -34,7 +37,7 @@ export const DashboardLayout = () => {
       <div className="flex-1">
         <header className="flex items-center justify-between border-b bg-white p-4">
           <button className="md:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu"><Menu size={20} /></button>
-          <div className="text-sm text-slate-500">Role: {user.role}</div>
+          <div className="text-sm text-slate-500">Role: {primaryRole}</div>
           <div className="flex items-center gap-3">
             <button aria-label="Notifications"><Bell size={18} /></button>
             <button onClick={() => logout()} className="rounded p-1 hover:bg-slate-100" aria-label="Logout"><LogOut size={18} /></button>
