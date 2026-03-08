@@ -2,7 +2,7 @@ import axios from 'axios';
 import { authStore } from '@/features/auth/authStore';
 import type { ApiError } from '@/types';
 
-const baseURL = import.meta.env.VITE_API_URL ?? '/api/v1';
+const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
 export const apiClient = axios.create({
   baseURL,

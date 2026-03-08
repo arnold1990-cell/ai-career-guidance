@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Default API base URL is `/api/v1`. Override with `VITE_API_URL` if required.
+Default API base URL is `/api/v1`, which uses the Vite dev proxy (`/api` -> `http://localhost:8080`). Override with `VITE_API_BASE_URL` for other environments (for example, `https://api.example.com/api/v1`).
 
 ## Architecture Highlights
 - `src/app`: root app composition and providers
