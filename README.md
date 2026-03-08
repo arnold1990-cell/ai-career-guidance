@@ -74,7 +74,8 @@ Security details:
 
 - Stateless Spring Security filter chain
 - BCrypt password hashing
-- JWT access token generation + validation
+- JWT access + refresh token generation + validation
+- Database-backed authentication via custom `UserDetailsService` (no in-memory users)
 - Swagger/OpenAPI endpoints allowed anonymously
 
 ## 6) Student module
@@ -229,3 +230,32 @@ mvn spring-boot:run
 Swagger UI:
 
 - `http://localhost:8080/swagger-ui.html`
+
+
+## Security configuration notes (JWT stateless auth)
+
+Why the generated password disappeared:
+
+- Spring Boot logs `Using generated security password` only when its fallback default security is active.
+- EduRite now provides a full custom security stack (`SecurityFilterChain`, `DaoAuthenticationProvider`, `UserDetailsService`, JWT filter, `AuthenticationManager`), so Boot no longer auto-creates the default in-memory user.
+
+How login works now:
+
+1. Client calls `POST /api/v1/auth/login` with email/password.
+2. Credentials are validated by Spring Security `AuthenticationManager` using the database-backed `CustomUserDetailsService`.
+3. On success, EduRite returns Bearer access + refresh JWT tokens.
+4. Client sends `Authorization: Bearer <access-token>` on protected endpoints.
+5. `JwtAuthenticationFilter` validates the token and sets the authenticated principal in the security context.
+
+Endpoint access policy:
+
+- Public: `/api/v1/auth/**`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`, `/actuator/health`
+- Protected: all `/api/**` endpoints (except the public auth routes above)
+
+Required JWT properties/env placeholders:
+
+- `security.jwt.secret` via `EDURITE_JWT_SECRET`
+- `security.jwt.access-token-expiration` via `EDURITE_JWT_ACCESS_TOKEN_EXPIRATION`
+- `security.jwt.refresh-token-expiration` via `EDURITE_JWT_REFRESH_TOKEN_EXPIRATION`
+
+Never use real production secrets in source control; inject them via environment variables or secret managers.
