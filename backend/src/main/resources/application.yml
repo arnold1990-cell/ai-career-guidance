@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: edurite-backend
+  profiles:
+    active: dev
+
+# TODO: add global configuration for logging, observability, and module-level defaults.

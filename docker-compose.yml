@@ -1,0 +1,2 @@
+# Root compose file intentionally points contributors to the canonical stack file.
+# TODO: If needed, wire this file to include ./docker/docker-compose.yml.
