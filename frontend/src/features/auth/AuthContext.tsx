@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import { authStore } from '@/features/auth/authStore';
 import { authService } from '@/services/authService';
-import type { Role, StudentRegisterPayload, User } from '@/types';
+import type { CompanyRegisterPayload, Role, StudentRegisterPayload, User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -9,7 +9,7 @@ interface AuthContextType {
   login: (payload: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   registerStudent: (payload: StudentRegisterPayload) => Promise<void>;
-  registerCompany: (payload: Record<string, unknown>) => Promise<void>;
+  registerCompany: (payload: CompanyRegisterPayload) => Promise<void>;
   hasRole: (role: Role) => boolean;
 }
 
@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         authStore.clear();
         setUser(null);
       },
-      hasRole: (role) => user?.role === role,
+      hasRole: (role) => Boolean(user?.roles?.includes(`ROLE_${role}`)),
     }),
     [user],
   );
