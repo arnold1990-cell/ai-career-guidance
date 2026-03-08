@@ -3,6 +3,10 @@ spring:
     name: edurite-backend
   profiles:
     active: dev
+  data:
+    redis:
+      repositories:
+        enabled: false
   cache:
     type: redis
 

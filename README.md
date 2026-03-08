@@ -161,6 +161,54 @@ Services:
 5. **Rule engine now, ML later**: immediate recommendation value with clean upgrade path.
 6. **S3 abstraction via storage service**: provider-agnostic upload integration surface.
 
+## Local development requirements
+
+- Java 21
+- Maven 3.9+
+- PostgreSQL **16.x** (Flyway in this stack is validated against PostgreSQL 16 for local/dev)
+- Redis 7.x
+
+## Backend local run (dev profile)
+
+1. Start PostgreSQL 16 and Redis 7 locally (or with Docker Compose below).
+2. Run the backend:
+
+```sh
+cd backend
+mvn spring-boot:run
+```
+
+The default `dev` profile points to:
+
+- PostgreSQL: `jdbc:postgresql://localhost:5432/edurite`
+- Redis: `localhost:6379`
+
+## Docker local stack
+
+Use Docker Compose from project root:
+
+```sh
+docker compose up -d postgres redis
+cd backend
+mvn spring-boot:run
+```
+
+Or run the full stack:
+
+```sh
+docker compose up -d
+```
+
+Compose pins PostgreSQL to `postgres:16` for Flyway compatibility in local development.
+
+## Flyway migrations
+
+Flyway is enabled in the `dev` profile and migrations are loaded from:
+
+- `classpath:db/migration`
+
+To run migrations during startup, start the backend with the dev profile (default in this project).
+
 ## Run backend locally
 
 ```sh
