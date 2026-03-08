@@ -60,11 +60,11 @@ All inherit common timestamps + UUID identity from `BaseEntity`.
 
 ## 5) Security and JWT authentication
 
-Implemented:
+Implemented and verified:
 
-- `POST /api/v1/auth/register/student`
-- `POST /api/v1/auth/register/company`
-- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/register/student` (201 Created)
+- `POST /api/v1/auth/register/company` (201 Created)
+- `POST /api/v1/auth/login` (200 OK)
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/forgot-password`
@@ -72,11 +72,77 @@ Implemented:
 
 Security details:
 
-- Stateless Spring Security filter chain
-- BCrypt password hashing
+- Stateless Spring Security filter chain (`SessionCreationPolicy.STATELESS`)
+- BCrypt password hashing for every persisted user password
 - JWT access + refresh token generation + validation
 - Database-backed authentication via custom `UserDetailsService` (no in-memory users)
-- Swagger/OpenAPI endpoints allowed anonymously
+- Public endpoints: `/api/v1/auth/**`, docs/health endpoints
+- All other `/api/**` endpoints require valid Bearer JWT
+
+### Registration payloads
+
+Student registration request:
+
+```json
+{
+  "fullName": "Jane Student",
+  "email": "jane.student@example.com",
+  "password": "StrongPass@123"
+}
+```
+
+Company registration request:
+
+```json
+{
+  "companyName": "Acme Corp",
+  "email": "hr@acme.com",
+  "password": "StrongPass@123",
+  "industry": "Technology"
+}
+```
+
+Successful registration/login response shape:
+
+```json
+{
+  "accessToken": "<jwt>",
+  "refreshToken": "<jwt>",
+  "tokenType": "Bearer",
+  "accessTokenExpiresIn": 3600,
+  "user": {
+    "id": "<uuid>",
+    "email": "jane.student@example.com",
+    "fullName": "Jane Student",
+    "roles": ["ROLE_STUDENT"]
+  }
+}
+```
+
+### Admin account seeding
+
+Admin registration endpoint is intentionally not exposed. Instead, startup seeding guarantees an admin user exists:
+
+- default admin email: `admin@edurite.local`
+- default admin password: `Admin@12345`
+- default role: `ROLE_ADMIN`
+
+Override with environment variables/properties:
+
+- `edurite.auth.seed.admin.email`
+- `edurite.auth.seed.admin.password`
+- `edurite.auth.seed.admin.first-name`
+- `edurite.auth.seed.admin.last-name`
+
+Flyway migration `V2__seed_roles.sql` seeds `ROLE_STUDENT`, `ROLE_COMPANY`, and `ROLE_ADMIN`.
+
+### Error responses
+
+Validation/auth conflicts return structured JSON errors:
+
+- `400` validation failure
+- `409` duplicate email conflict
+- `401` invalid credentials
 
 ## 6) Student module
 
@@ -259,3 +325,13 @@ Required JWT properties/env placeholders:
 - `security.jwt.refresh-token-expiration` via `EDURITE_JWT_REFRESH_TOKEN_EXPIRATION`
 
 Never use real production secrets in source control; inject them via environment variables or secret managers.
+
+
+## Run backend tests
+
+```sh
+cd backend
+mvn test
+```
+
+The auth integration suite covers student/company/admin registration/login, duplicate email handling, JWT protection, and password hashing assertions.

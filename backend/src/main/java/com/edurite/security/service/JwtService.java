@@ -1,5 +1,6 @@
 package com.edurite.security.service;
 
+import com.edurite.user.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -36,6 +37,18 @@ public class JwtService {
 
     public String generateRefreshToken(UserDetails userDetails) {
         return generateToken(userDetails.getUsername(), refreshTokenExpiration, Map.of("type", "refresh"));
+    }
+
+    public String generateAccessToken(User user) {
+        return generateToken(user.getEmail(), accessTokenExpiration, Map.of());
+    }
+
+    public String generateRefreshToken(User user) {
+        return generateToken(user.getEmail(), refreshTokenExpiration, Map.of("type", "refresh"));
+    }
+
+    public long accessTokenExpirationSeconds() {
+        return accessTokenExpiration;
     }
 
     public String extractUsername(String token) {
