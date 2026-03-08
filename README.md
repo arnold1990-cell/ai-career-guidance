@@ -47,3 +47,10 @@ This starts:
 - PostgreSQL on `5432`
 - Redis on `6379`
 - Backend placeholder container on `8080` (TODO runtime wiring)
+
+## Planning Artifacts
+
+- Architecture summary: `docs/architecture.md`
+- Backend module/package breakdown: `docs/modules.md`
+- Entity relationship summary: `docs/data-model-summary.md`
+- MVP delivery order: `docs/mvp-delivery-order.md`
