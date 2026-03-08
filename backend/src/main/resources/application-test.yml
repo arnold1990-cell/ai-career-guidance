@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/edurite_test
+    username: edurite
+    password: edurite
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration,filesystem:../database/migrations
+
+# TODO: tune isolated test profile settings for deterministic integration tests.

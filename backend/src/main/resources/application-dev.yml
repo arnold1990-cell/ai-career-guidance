@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/edurite
+    username: edurite
+    password: edurite
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration,filesystem:../database/migrations
+
+# TODO: add local development integrations (mail sandbox, storage mocks, and debug logging).
