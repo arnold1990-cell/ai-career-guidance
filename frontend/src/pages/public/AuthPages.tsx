@@ -31,7 +31,13 @@ export const RegisterStudentPage = () => {
   const navigate = useNavigate();
   return (
     <AuthCard title="Create student account" subtitle="Set up your profile to access careers, courses, and bursaries.">
-      <RegisterForm type="student" onSubmit={async (data) => { await registerStudent(data); navigate('/student/dashboard'); }} />
+      <RegisterForm
+        type="student"
+        onSubmit={async ({ fullName, email, password }) => {
+          await registerStudent({ fullName, email, password });
+          navigate('/student/dashboard');
+        }}
+      />
     </AuthCard>
   );
 };
