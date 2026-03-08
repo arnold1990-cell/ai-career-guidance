@@ -1,0 +1,8 @@
+*.md text
+*.yml text
+*.yaml text
+*.sql text
+*.java text
+*.ts text
+*.tsx text
+*.json text
