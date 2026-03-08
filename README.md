@@ -161,6 +161,14 @@ Services:
 5. **Rule engine now, ML later**: immediate recommendation value with clean upgrade path.
 6. **S3 abstraction via storage service**: provider-agnostic upload integration surface.
 
+## Why startup failed with PostgreSQL 17.7
+
+The backend failed during Flyway initialization (before JPA startup completed) because the Flyway version in the Spring Boot 3.3.2 stack did not support PostgreSQL `17.7`, producing:
+
+- `Unsupported Database: PostgreSQL 17.7`
+
+For local development, this repository pins Docker PostgreSQL to `16.x`, which is compatible with this stack.
+
 ## Local development requirements
 
 - Java 21
@@ -198,6 +206,8 @@ Or run the full stack:
 ```sh
 docker compose up -d
 ```
+
+The backend service in Compose sets `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/edurite` and `SPRING_DATA_REDIS_HOST=redis` so it can start correctly inside the Docker network.
 
 Compose pins PostgreSQL to `postgres:16` for Flyway compatibility in local development.
 

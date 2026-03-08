@@ -25,6 +25,8 @@ services:
     command: sh -c "mvn spring-boot:run"
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/edurite
+      SPRING_DATA_REDIS_HOST: redis
     ports:
       - "8080:8080"
     depends_on:
