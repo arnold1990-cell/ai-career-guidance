@@ -1,10 +1,11 @@
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoginForm, RegisterForm } from '@/components/forms/AuthForms';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { authService } from '@/services/authService';
+import type { Role, User } from '@/types';
 
 const AuthCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
   <div className="mx-auto max-w-md card p-6">
@@ -14,12 +15,31 @@ const AuthCard = ({ title, subtitle, children }: { title: string; subtitle: stri
   </div>
 );
 
+const getRoleDashboard = (user: User): string => {
+  const primaryRole = user.roles[0]?.replace('ROLE_', '') as Role | undefined;
+  if (primaryRole === 'COMPANY') return '/company/dashboard';
+  if (primaryRole === 'ADMIN') return '/admin/dashboard';
+  return '/student/dashboard';
+};
+
 export const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated, user, isHydrated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
+
+  if (isHydrated && isAuthenticated && user) {
+    return <Navigate to={getRoleDashboard(user)} replace />;
+  }
+
   return (
     <AuthCard title="Welcome back" subtitle="Sign in to continue your EduRite journey.">
-      <LoginForm onSubmit={async (data) => { await login(data); navigate('/'); }} />
+      <LoginForm
+        onSubmit={async (data) => {
+          const loggedInUser = await login(data);
+          navigate(from && from !== '/auth/login' ? from : getRoleDashboard(loggedInUser), { replace: true });
+        }}
+      />
       <p className="mt-4 text-sm">Forgot password? <Link className="text-primary-600" to="/auth/forgot-password">Reset it</Link></p>
       <p className="mt-2 text-sm">New here? <Link className="text-primary-600" to="/auth/register/student">Create student account</Link></p>
     </AuthCard>

@@ -4,7 +4,8 @@ export type BackendRole = `ROLE_${Role}`;
 export interface User {
   id: string;
   email: string;
-  fullName: string;
+  fullName?: string;
+  companyName?: string;
   roles: BackendRole[];
 }
 
@@ -14,6 +15,16 @@ export interface AuthResponse {
   tokenType?: string;
   accessTokenExpiresIn?: number;
   user: User;
+}
+
+export interface AuthResponseRaw {
+  accessToken?: string;
+  refreshToken?: string;
+  tokenType?: string;
+  accessTokenExpiresIn?: number;
+  role?: string;
+  roles?: string[];
+  user?: Partial<User> & { role?: string; roles?: string[] };
 }
 
 export interface StudentRegisterPayload {

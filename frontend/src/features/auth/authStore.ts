@@ -7,11 +7,22 @@ export const authStore = {
   getRefreshToken: () => localStorage.getItem(REFRESH_TOKEN_KEY),
   getUser: () => {
     const user = localStorage.getItem(USER_KEY);
-    return user ? JSON.parse(user) : null;
+    if (!user) return null;
+
+    try {
+      return JSON.parse(user);
+    } catch {
+      localStorage.removeItem(USER_KEY);
+      return null;
+    }
   },
   setTokens: (accessToken: string, refreshToken?: string) => {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    }
   },
   setUser: (user: unknown) => localStorage.setItem(USER_KEY, JSON.stringify(user)),
   clear: () => {
