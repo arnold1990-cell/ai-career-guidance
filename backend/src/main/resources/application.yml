@@ -3,5 +3,16 @@ spring:
     name: edurite-backend
   profiles:
     active: dev
+  cache:
+    type: redis
 
-# TODO: add global configuration for logging, observability, and module-level defaults.
+security:
+  jwt:
+    secret: 0123456789012345678901234567890123456789012345678901234567890123
+    access-ttl-seconds: 3600
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

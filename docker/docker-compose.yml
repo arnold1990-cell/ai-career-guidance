@@ -1,9 +1,8 @@
-version: '3.9'
+version: "3.9"
 
 services:
   postgres:
     image: postgres:16
-    container_name: edurite-postgres
     environment:
       POSTGRES_DB: edurite
       POSTGRES_USER: edurite
@@ -15,20 +14,31 @@ services:
 
   redis:
     image: redis:7
-    container_name: edurite-redis
     ports:
       - "6379:6379"
 
   backend:
-    image: eclipse-temurin:21-jre
-    container_name: edurite-backend
-    working_dir: /app
-    command: ["sh", "-c", "echo 'TODO: replace with backend runtime command' && tail -f /dev/null"]
+    image: maven:3.9.8-eclipse-temurin-21
+    working_dir: /workspace/backend
+    volumes:
+      - ../backend:/workspace/backend
+    command: sh -c "mvn spring-boot:run"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+    ports:
+      - "8080:8080"
     depends_on:
       - postgres
       - redis
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /workspace/frontend
+    volumes:
+      - ../frontend:/workspace/frontend
+    command: sh -c "echo 'Frontend Vite shell scaffold in place' && tail -f /dev/null"
     ports:
-      - "8080:8080"
+      - "5173:5173"
 
 volumes:
   postgres_data:
