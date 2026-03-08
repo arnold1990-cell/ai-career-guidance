@@ -12,8 +12,9 @@ spring:
 
 security:
   jwt:
-    secret: 0123456789012345678901234567890123456789012345678901234567890123
-    access-ttl-seconds: 3600
+    secret: ${EDURITE_JWT_SECRET:change-me-with-a-very-long-random-64-byte-secret-change-me-with-a-very-long-random-64-byte-secret}
+    access-token-expiration: ${EDURITE_JWT_ACCESS_TOKEN_EXPIRATION:3600}
+    refresh-token-expiration: ${EDURITE_JWT_REFRESH_TOKEN_EXPIRATION:604800}
 
 springdoc:
   api-docs:

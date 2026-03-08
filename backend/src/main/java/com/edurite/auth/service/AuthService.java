@@ -3,10 +3,15 @@ package com.edurite.auth.service;
 import com.edurite.auth.dto.AuthResponse;
 import com.edurite.auth.dto.LoginRequest;
 import com.edurite.auth.dto.RegisterRequest;
+import com.edurite.security.service.CustomUserDetailsService;
 import com.edurite.security.service.JwtService;
 import com.edurite.user.entity.User;
 import com.edurite.user.entity.UserStatus;
 import com.edurite.user.repository.UserRepository;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +21,21 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+    private final CustomUserDetailsService customUserDetailsService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            AuthenticationManager authenticationManager,
+            CustomUserDetailsService customUserDetailsService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.authenticationManager = authenticationManager;
+        this.customUserDetailsService = customUserDetailsService;
     }
 
     public AuthResponse registerStudent(RegisterRequest request) {
@@ -32,15 +47,19 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
-
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password())
+            );
+        } catch (BadCredentialsException ex) {
             throw new IllegalArgumentException("Invalid credentials");
         }
 
-        String token = jwtService.generateAccessToken(user.getEmail());
-        return new AuthResponse(token, token, "Bearer");
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.email());
+        String accessToken = jwtService.generateAccessToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails);
+
+        return new AuthResponse(accessToken, refreshToken, "Bearer");
     }
 
     private AuthResponse register(RegisterRequest request) {
@@ -52,7 +71,9 @@ public class AuthService {
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        String token = jwtService.generateAccessToken(user.getEmail());
-        return new AuthResponse(token, token, "Bearer");
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(user.getEmail());
+        String accessToken = jwtService.generateAccessToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails);
+        return new AuthResponse(accessToken, refreshToken, "Bearer");
     }
 }
