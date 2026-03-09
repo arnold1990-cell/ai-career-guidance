@@ -6,7 +6,7 @@ import type { Role } from '@/types';
 
 const navByRole: Record<Role, Array<{ to: string; label: string }>> = {
   STUDENT: [
-    { to: '/student/dashboard', label: 'Dashboard' }, { to: '/student/profile', label: 'My Profile' }, { to: '/student/recommendations', label: 'Recommendations' }, { to: '/student/applications', label: 'Applications' }, { to: '/student/settings', label: 'Settings' },
+    { to: '/student/dashboard', label: 'Dashboard' }, { to: '/student/profile', label: 'My Profile' }, { to: '/student/recommendations/careers', label: 'AI Guidance' }, { to: '/student/saved', label: 'Career Search' }, { to: '/student/applications', label: 'Bursary Finder' }, { to: '/student/subscription', label: 'Subscription' }, { to: '/student/notifications', label: 'Notifications' }, { to: '/student/settings', label: 'Settings' },
   ],
   COMPANY: [
     { to: '/company/dashboard', label: 'Dashboard' }, { to: '/company/profile', label: 'Company Profile' }, { to: '/company/bursaries', label: 'My Bursaries' }, { to: '/company/applicants', label: 'Applicants' }, { to: '/company/settings', label: 'Settings' },

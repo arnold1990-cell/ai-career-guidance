@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { authService } from '@/services/authService';
+import { studentService } from '@/services/studentService';
 import type { Role, User } from '@/types';
 
 const AuthCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
@@ -37,6 +38,11 @@ export const LoginPage = () => {
       <LoginForm
         onSubmit={async (data) => {
           const loggedInUser = await login(data);
+          if (loggedInUser.roles.includes('ROLE_STUDENT')) {
+            const me = await studentService.getMe();
+            navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', { replace: true });
+            return;
+          }
           navigate(from && from !== '/auth/login' ? from : getRoleDashboard(loggedInUser), { replace: true });
         }}
       />

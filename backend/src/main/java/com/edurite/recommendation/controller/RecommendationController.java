@@ -20,6 +20,6 @@ public class RecommendationController {
 
     @GetMapping("/me")
     public List<RecommendationResultDto> myRecommendations(Principal principal) {
-        return recommendationService.generateForStudent(principal.getName());
+        return recommendationService.generateForStudent(principal);
     }
 }

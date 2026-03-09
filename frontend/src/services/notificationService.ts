@@ -1,2 +1,6 @@
 import { apiClient } from '@/services/apiClient';
-export const notificationService = { mine: () => apiClient.get('/notifications').then((r) => r.data) };
+import type { Notification } from '@/types';
+export const notificationService = {
+  mine: () => apiClient.get<Notification[]>('/notifications').then((r) => r.data),
+  markRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
+};

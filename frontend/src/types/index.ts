@@ -1,80 +1,41 @@
 export type Role = 'STUDENT' | 'COMPANY' | 'ADMIN';
 export type BackendRole = `ROLE_${Role}`;
 
-export interface User {
-  id: string;
-  email: string;
-  fullName?: string;
-  companyName?: string;
-  roles: BackendRole[];
-}
+export interface User { id: string; email: string; fullName?: string; companyName?: string; roles: BackendRole[]; }
+export interface AuthResponse { accessToken: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; user: User; }
+export interface AuthResponseRaw { accessToken?: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; role?: string; roles?: string[]; user?: Partial<User> & { role?: string; roles?: string[] }; }
 
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken?: string;
-  tokenType?: string;
-  accessTokenExpiresIn?: number;
-  user: User;
-}
-
-export interface AuthResponseRaw {
-  accessToken?: string;
-  refreshToken?: string;
-  tokenType?: string;
-  accessTokenExpiresIn?: number;
-  role?: string;
-  roles?: string[];
-  user?: Partial<User> & { role?: string; roles?: string[] };
-}
-
-export interface StudentRegisterPayload {
-  fullName: string;
-  email: string;
-  password: string;
-}
-
-export interface CompanyRegisterPayload {
-  companyName: string;
-  email: string;
-  password: string;
-  industry?: string;
-}
+export interface StudentRegisterPayload { fullName: string; email: string; password: string; }
+export interface CompanyRegisterPayload { companyName: string; email: string; password: string; industry?: string; }
 
 export interface StudentProfile {
   id: string;
-  fullName: string;
-  gradeLevel?: string;
-  profileCompleteness: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  qualificationLevel?: string;
+  qualifications: string[];
+  experience: string[];
   skills: string[];
+  interests: string[];
+  careerGoals?: string;
+  cvFileUrl?: string;
+  transcriptFileUrl?: string;
+  profileCompleted: boolean;
+  profileCompleteness: number;
 }
 
-export interface CompanyProfile {
-  id: string;
-  companyName: string;
-  industry?: string;
-  verified: boolean;
-}
+export interface Career { id: string; title: string; description?: string; industry?: string; location?: string; qualificationLevel?: string; matchScore?: number; }
+export interface Bursary { id: string; title: string; provider?: string; qualificationLevel?: string; region?: string; eligibility?: string; deadline?: string; status: string; }
 
-export interface Career { id: string; title: string; description: string; matchScore?: number; }
 export interface Course { id: string; name: string; institutionName: string; duration: string; }
 export interface Institution { id: string; name: string; location: string; }
-export interface Bursary { id: string; title: string; provider: string; status: 'DRAFT' | 'PUBLISHED' | 'PENDING' | 'APPROVED' | 'REJECTED'; }
-export interface Application { id: string; opportunityType: 'BURSARY' | 'COURSE'; status: string; submittedAt: string; }
-export interface Recommendation { id: string; type: 'CAREER' | 'BURSARY'; title: string; score: number; rationale: string; }
+
+export interface Application { id: string; status: string; createdAt: string; bursaryId: string; }
+export interface Recommendation { id: string; type: string; title: string; score: number; rationale: string; }
 export interface Notification { id: string; title: string; message: string; read: boolean; }
-export interface Subscription { id: string; plan: string; status: string; renewalDate: string; }
-export interface Payment { id: string; amount: number; currency: string; status: string; paidAt: string; }
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-}
-
-export interface ApiError {
-  message: string;
-  status?: number;
-  details?: Record<string, string[]>;
-}
+export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }
+export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; number: number; size: number; }
+export interface ApiError { message: string; status?: number; details?: Record<string, string[]>; }
