@@ -1,5 +1,4 @@
 package com.edurite.student.service;
-
 import com.edurite.application.repository.ApplicationRepository;
 import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.security.service.CurrentUserService;
@@ -20,6 +19,7 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -95,13 +95,28 @@ public class StudentService {
         User user = currentUserService.requireUser(principal);
         StudentProfile profile = repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
         var subscription = subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId());
-        return Map.of(
-                "profileCompleteness", calculateCompleteness(profile),
-                "savedOpportunities", savedCareerRepository.countByStudentId(profile.getId()) + savedBursaryRepository.countByStudentId(profile.getId()),
-                "activeApplications", applicationRepository.countByStudentId(profile.getId()),
-                "notifications", notificationRepository.countByUserIdAndReadFalse(user.getId()),
-                "subscriptionTier", subscription.map(s -> s.getPlanCode().replace("PLAN_", "")).orElse("BASIC")
-        );
+        long savedCareers = savedCareerRepository.countByStudentId(profile.getId());
+        long savedBursaries = savedBursaryRepository.countByStudentId(profile.getId());
+        long activeApplications = applicationRepository.countByStudentId(profile.getId());
+        List<String> skillGaps = List.of("Advanced communication", "Data analysis");
+        List<String> improvements = List.of("Upload latest transcript", "Add one internship experience item");
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("profileCompleteness", calculateCompleteness(profile));
+        response.put("savedCareers", savedCareers);
+        response.put("savedBursaries", savedBursaries);
+        response.put("savedOpportunities", savedCareers + savedBursaries);
+        response.put("activeApplications", activeApplications);
+        response.put("applicationProgress", List.of(
+                Map.of("label", "Draft", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "DRAFT")),
+                Map.of("label", "Submitted", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "SUBMITTED")),
+                Map.of("label", "In review", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "IN_REVIEW")),
+                Map.of("label", "Shortlisted", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "SHORTLISTED"))
+        ));
+        response.put("skillGaps", skillGaps);
+        response.put("recommendedImprovements", improvements);
+        response.put("notifications", notificationRepository.countByUserIdAndReadFalse(user.getId()));
+        response.put("subscriptionTier", subscription.map(s -> s.getPlanCode().replace("PLAN_", "")).orElse("BASIC"));
+        return response;
     }
 
     public void saveCareer(Principal principal, UUID careerId) {
@@ -122,6 +137,27 @@ public class StudentService {
             saved.setBursaryId(bursaryId);
             savedBursaryRepository.save(saved);
         }
+    }
+
+
+    public void unsaveCareer(Principal principal, UUID careerId) {
+        StudentProfile profile = getProfileEntity(principal);
+        savedCareerRepository.deleteByStudentIdAndCareerId(profile.getId(), careerId);
+    }
+
+    public void unsaveBursary(Principal principal, UUID bursaryId) {
+        StudentProfile profile = getProfileEntity(principal);
+        savedBursaryRepository.deleteByStudentIdAndBursaryId(profile.getId(), bursaryId);
+    }
+
+    public List<UUID> savedCareerIds(Principal principal) {
+        StudentProfile profile = getProfileEntity(principal);
+        return savedCareerRepository.findByStudentId(profile.getId()).stream().map(SavedCareer::getCareerId).toList();
+    }
+
+    public List<UUID> savedBursaryIds(Principal principal) {
+        StudentProfile profile = getProfileEntity(principal);
+        return savedBursaryRepository.findByStudentId(profile.getId()).stream().map(SavedBursary::getBursaryId).toList();
     }
 
     public StudentProfile getProfileEntity(Principal principal) {

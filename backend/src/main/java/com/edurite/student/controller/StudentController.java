@@ -9,6 +9,7 @@ import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/v1/students")
+@RequestMapping("/api/v1/student")
 public class StudentController {
 
     private final StudentService studentService;
@@ -28,35 +29,63 @@ public class StudentController {
         this.studentService = studentService;
     }
 
-    @GetMapping("/me")
+    @GetMapping("/profile")
     public StudentProfileDto profile(Principal principal) {
         return studentService.getProfile(principal);
     }
 
-    @PutMapping("/me")
+    @PutMapping("/profile")
     public StudentProfileDto upsert(Principal principal, @Valid @org.springframework.web.bind.annotation.RequestBody StudentProfileUpsertRequest request) {
         return studentService.upsertProfile(principal, request);
     }
 
-    @PostMapping("/me/upload")
-    public StudentProfileDto upload(Principal principal, @RequestParam("file") MultipartFile file, @RequestParam("type") String type) throws IOException {
-        return studentService.uploadDocument(principal, file, type);
+    @PostMapping("/profile/cv")
+    public StudentProfileDto uploadCv(Principal principal, @RequestParam("file") MultipartFile file) throws IOException {
+        return studentService.uploadDocument(principal, file, "cv");
     }
 
-    @GetMapping("/me/dashboard")
+    @PostMapping("/profile/transcript")
+    public StudentProfileDto uploadTranscript(Principal principal, @RequestParam("file") MultipartFile file) throws IOException {
+        return studentService.uploadDocument(principal, file, "transcript");
+    }
+
+    @GetMapping("/dashboard")
     public Map<String, Object> dashboard(Principal principal) {
         return studentService.dashboard(principal);
     }
 
-    @PostMapping("/me/saved-careers/{careerId}")
+    @PostMapping("/careers/{careerId}/save")
     public ResponseEntity<Map<String, String>> saveCareer(Principal principal, @PathVariable UUID careerId) {
         studentService.saveCareer(principal, careerId);
         return ResponseEntity.ok(Map.of("message", "Career saved"));
     }
 
-    @PostMapping("/me/saved-bursaries/{bursaryId}")
+    @PostMapping("/bursaries/{bursaryId}/save")
     public ResponseEntity<Map<String, String>> saveBursary(Principal principal, @PathVariable UUID bursaryId) {
         studentService.saveBursary(principal, bursaryId);
         return ResponseEntity.ok(Map.of("message", "Bursary saved"));
     }
+
+    @DeleteMapping("/careers/{careerId}/save")
+    public ResponseEntity<Map<String, String>> unsaveCareer(Principal principal, @PathVariable UUID careerId) {
+        studentService.unsaveCareer(principal, careerId);
+        return ResponseEntity.ok(Map.of("message", "Career removed"));
+    }
+
+    @DeleteMapping("/bursaries/{bursaryId}/save")
+    public ResponseEntity<Map<String, String>> unsaveBursary(Principal principal, @PathVariable UUID bursaryId) {
+        studentService.unsaveBursary(principal, bursaryId);
+        return ResponseEntity.ok(Map.of("message", "Bursary removed"));
+    }
+
+    @GetMapping("/careers/saved")
+    public Map<String, Object> savedCareers(Principal principal) {
+        return Map.of("items", studentService.savedCareerIds(principal));
+    }
+
+    @GetMapping("/bursaries/saved")
+    public Map<String, Object> savedBursaries(Principal principal) {
+        return Map.of("items", studentService.savedBursaryIds(principal));
+    }
 }
+

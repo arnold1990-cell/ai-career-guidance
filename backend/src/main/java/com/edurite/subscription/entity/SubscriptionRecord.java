@@ -21,4 +21,7 @@ public class SubscriptionRecord extends BaseEntity {
     @Column(nullable = false)
     private String status;
     private LocalDate renewalDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private String paymentReference;
 }
