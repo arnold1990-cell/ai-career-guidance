@@ -43,4 +43,7 @@ public class StudentProfile extends BaseEntity {
     private String cvFileUrl;
     private String transcriptFileUrl;
     private boolean profileCompleted;
+    private boolean inAppNotificationsEnabled = true;
+    private boolean emailNotificationsEnabled = false;
+    private boolean smsNotificationsEnabled = false;
 }
