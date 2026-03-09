@@ -19,6 +19,7 @@ import com.edurite.user.entity.UserStatus;
 import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -39,7 +40,15 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, StudentProfileRepository studentProfileRepository, CompanyProfileRepository companyProfileRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AuthenticationManager authenticationManager) {
+    public AuthService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            StudentProfileRepository studentProfileRepository,
+            CompanyProfileRepository companyProfileRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            AuthenticationManager authenticationManager
+    ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.studentProfileRepository = studentProfileRepository;
@@ -63,20 +72,55 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerCompany(CompanyRegisterRequest request) {
-        if (companyProfileRepository.existsByRegistrationNumberIgnoreCase(request.registrationNumber().trim())) {
+        String officialEmail = request.officialEmail();
+        if (officialEmail == null || officialEmail.isBlank()) {
+            officialEmail = request.email();
+        }
+        officialEmail = normalizeEmail(officialEmail);
+
+        if (officialEmail == null || officialEmail.isBlank()) {
+            throw new ResourceConflictException("Company email is required");
+        }
+
+        String companyName = request.companyName() == null ? "" : request.companyName().trim();
+        if (companyName.isBlank()) {
+            throw new ResourceConflictException("Company name is required");
+        }
+
+        String contactPersonName = request.contactPersonName();
+        if (contactPersonName == null || contactPersonName.isBlank()) {
+            contactPersonName = companyName;
+        } else {
+            contactPersonName = contactPersonName.trim();
+        }
+
+        String registrationNumber = request.registrationNumber();
+        if (registrationNumber == null || registrationNumber.isBlank()) {
+            registrationNumber = "PENDING-" + UUID.randomUUID();
+        } else {
+            registrationNumber = registrationNumber.trim();
+        }
+
+        if (companyProfileRepository.existsByRegistrationNumberIgnoreCase(registrationNumber)) {
             throw new ResourceConflictException("Company registration number already exists");
         }
 
-        User user = createUser(request.officialEmail(), request.password(), request.contactPersonName(), request.companyName(), "ROLE_COMPANY");
+        User user = createUser(
+                officialEmail,
+                request.password(),
+                contactPersonName,
+                companyName,
+                "ROLE_COMPANY"
+        );
 
         CompanyProfile profile = new CompanyProfile();
         profile.setUserId(user.getId());
-        profile.setCompanyName(request.companyName().trim());
-        profile.setRegistrationNumber(request.registrationNumber().trim());
+        profile.setCompanyName(companyName);
+        profile.setRegistrationNumber(registrationNumber);
         profile.setIndustry(request.industry());
-        profile.setOfficialEmail(normalizeEmail(request.officialEmail()));
+        profile.setOfficialEmail(officialEmail);
         profile.setMobileNumber(request.mobileNumber());
-        profile.setContactPersonName(request.contactPersonName());
+        profile.setContactPersonName(contactPersonName);
         profile.setAddress(request.address());
         profile.setWebsite(request.website());
         profile.setDescription(request.description());
