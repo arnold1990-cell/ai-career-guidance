@@ -4,6 +4,7 @@ import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.security.service.CurrentUserService;
 import com.edurite.student.dto.StudentProfileDto;
 import com.edurite.student.dto.StudentProfileUpsertRequest;
+import com.edurite.student.dto.StudentSettingsDto;
 import com.edurite.student.entity.SavedBursary;
 import com.edurite.student.entity.SavedCareer;
 import com.edurite.student.entity.StudentProfile;
@@ -115,8 +116,25 @@ public class StudentService {
         response.put("skillGaps", skillGaps);
         response.put("recommendedImprovements", improvements);
         response.put("notifications", notificationRepository.countByUserIdAndReadFalse(user.getId()));
-        response.put("subscriptionTier", subscription.map(s -> s.getPlanCode().replace("PLAN_", "")).orElse("BASIC"));
+        response.put("subscriptionTier", subscription.map(s -> {
+            String planCode = s.getPlanCode();
+            return planCode == null || planCode.isBlank() ? "BASIC" : planCode.replace("PLAN_", "");
+        }).orElse("BASIC"));
         return response;
+    }
+
+    public StudentSettingsDto getSettings(Principal principal) {
+        StudentProfile profile = getProfileEntity(principal);
+        return toSettingsDto(profile);
+    }
+
+    public StudentSettingsDto updateSettings(Principal principal, StudentSettingsDto request) {
+        StudentProfile profile = getProfileEntity(principal);
+        profile.setInAppNotificationsEnabled(request.inAppNotificationsEnabled());
+        profile.setEmailNotificationsEnabled(request.emailNotificationsEnabled());
+        profile.setSmsNotificationsEnabled(request.smsNotificationsEnabled());
+        repository.save(profile);
+        return toSettingsDto(profile);
     }
 
     public void saveCareer(Principal principal, UUID careerId) {
@@ -171,6 +189,9 @@ public class StudentService {
         profile.setFirstName(user.getFirstName());
         profile.setLastName(user.getLastName());
         profile.setProfileCompleted(false);
+        profile.setInAppNotificationsEnabled(true);
+        profile.setEmailNotificationsEnabled(false);
+        profile.setSmsNotificationsEnabled(false);
         return repository.save(profile);
     }
 
@@ -181,6 +202,10 @@ public class StudentService {
                 split(profile.getSkills()), split(profile.getInterests()), profile.getCareerGoals(), profile.getCvFileUrl(), profile.getTranscriptFileUrl(),
                 profile.isProfileCompleted(), calculateCompleteness(profile)
         );
+    }
+
+    private StudentSettingsDto toSettingsDto(StudentProfile profile) {
+        return new StudentSettingsDto(profile.isInAppNotificationsEnabled(), profile.isEmailNotificationsEnabled(), profile.isSmsNotificationsEnabled());
     }
 
     private List<String> split(String value) {

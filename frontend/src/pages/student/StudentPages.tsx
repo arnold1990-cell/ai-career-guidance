@@ -8,6 +8,7 @@ import { bursaryService } from '@/services/bursaryService';
 import { notificationService } from '@/services/notificationService';
 import { applicationService } from '@/services/applicationService';
 import { subscriptionService } from '@/services/subscriptionService';
+import { settingsService } from '@/services/settingsService';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback/States';
@@ -85,8 +86,16 @@ export const StudentCareerRecommendationsPage = () => {
   if (rec.isError) return <ErrorState message="Could not load guidance right now. Please try again." />;
 
   const data = rec.data;
+  const hasRecommendations = Boolean(
+    (data?.suggestedCareers?.length ?? 0) ||
+    (data?.suggestedBursaries?.length ?? 0) ||
+    (data?.suggestedCoursesOrImprovements?.length ?? 0) ||
+    (data?.profileImprovementTips?.length ?? 0),
+  );
+
   return <Section title="AI Guidance">
     <p className="text-sm text-slate-500">Model: {data?.modelVersion ?? 'rule-engine'}</p>
+    {!hasRecommendations && <EmptyState title="No guidance yet" message="Complete your profile to generate recommendations." />}
     <div className="space-y-2">
       <h3 className="font-semibold">Suggested careers</h3>
       {(data?.suggestedCareers ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
@@ -165,10 +174,24 @@ export const StudentSubscriptionPage = () => {
   const qc = useQueryClient();
   const [purchaseMessage, setPurchaseMessage] = useState('');
   const current = useAppQuery({ queryKey: ['sub'], queryFn: subscriptionService.current });
-  const purchase = useMutation({ mutationFn: (plan: 'BASIC' | 'PREMIUM') => subscriptionService.purchase(plan), onSuccess: () => { setPurchaseMessage('Plan updated successfully.'); qc.invalidateQueries({ queryKey: ['sub'] }); } });
+  const purchase = useMutation({
+    mutationFn: (plan: 'BASIC' | 'PREMIUM') => subscriptionService.purchase(plan),
+    onSuccess: (response, plan) => {
+      const planCode = response?.subscription?.planCode ?? (plan === 'PREMIUM' ? 'PLAN_PREMIUM' : 'PLAN_BASIC');
+      setPurchaseMessage(`Plan updated successfully: ${planCode.replace('PLAN_', '')}.`);
+      qc.invalidateQueries({ queryKey: ['sub'] });
+      qc.invalidateQueries({ queryKey: ['dash'] });
+      qc.invalidateQueries({ queryKey: ['recs'] });
+    },
+  });
+
+  if (current.isLoading) return <LoadingState />;
+  if (current.isError) return <ErrorState message="Could not load your subscription." />;
+
   return <Section title="Subscription & Payment">
     <p>Current: {current.data?.planCode ?? 'PLAN_BASIC'} ({current.data?.status ?? 'ACTIVE'})</p>
     {purchaseMessage && <p className="text-sm text-emerald-700">{purchaseMessage}</p>}
+    {purchase.isError && <p className="text-sm text-red-600">Could not update subscription. Please retry.</p>}
     <div className="grid gap-3 md:grid-cols-2">
       <div className="rounded border p-3"><h3 className="font-semibold">Basic</h3><p className="text-sm">Essential recommendations and profile tools.</p><Button onClick={() => purchase.mutate('BASIC')} disabled={purchase.isPending}>Choose Basic</Button></div>
       <div className="rounded border p-3"><h3 className="font-semibold">Premium</h3><p className="text-sm">Advanced AI guidance, deeper insight analytics.</p><Button onClick={() => purchase.mutate('PREMIUM')} disabled={purchase.isPending}>Checkout Premium</Button></div>
@@ -176,4 +199,39 @@ export const StudentSubscriptionPage = () => {
   </Section>;
 };
 
-export const StudentSettingsPage = () => <Section title="Settings">Notification channels ready for in-app now, with backend email/SMS stubs configured.</Section>;
+export const StudentSettingsPage = () => {
+  const qc = useQueryClient();
+  const settings = useAppQuery({ queryKey: ['student-settings'], queryFn: settingsService.get });
+  const save = useMutation({
+    mutationFn: settingsService.update,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['student-settings'] }),
+  });
+
+  if (settings.isLoading) return <LoadingState />;
+  if (settings.isError || !settings.data) return <ErrorState message="Could not load settings." />;
+
+  const data = settings.data;
+  const toggle = (key: 'inAppNotificationsEnabled' | 'emailNotificationsEnabled' | 'smsNotificationsEnabled') => {
+    save.mutate({ ...data, [key]: !data[key] });
+  };
+
+  return <Section title="Settings">
+    <p className="text-sm text-slate-600">Manage how EduRite sends student notifications.</p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between rounded border p-3">
+        <div><p className="font-medium">In-app notifications</p><p className="text-sm text-slate-500">Receive alerts in your dashboard and notifications page.</p></div>
+        <Button onClick={() => toggle('inAppNotificationsEnabled')} disabled={save.isPending}>{data.inAppNotificationsEnabled ? 'Enabled' : 'Disabled'}</Button>
+      </div>
+      <div className="flex items-center justify-between rounded border p-3">
+        <div><p className="font-medium">Email notifications</p><p className="text-sm text-slate-500">Receive bursary and subscription updates via email.</p></div>
+        <Button onClick={() => toggle('emailNotificationsEnabled')} disabled={save.isPending}>{data.emailNotificationsEnabled ? 'Enabled' : 'Disabled'}</Button>
+      </div>
+      <div className="flex items-center justify-between rounded border p-3">
+        <div><p className="font-medium">SMS notifications</p><p className="text-sm text-slate-500">Receive urgent reminders by SMS.</p></div>
+        <Button onClick={() => toggle('smsNotificationsEnabled')} disabled={save.isPending}>{data.smsNotificationsEnabled ? 'Enabled' : 'Disabled'}</Button>
+      </div>
+    </div>
+    {save.isSuccess && <p className="text-sm text-emerald-700">Settings saved.</p>}
+    {save.isError && <p className="text-sm text-red-600">Unable to save settings right now.</p>}
+  </Section>;
+};

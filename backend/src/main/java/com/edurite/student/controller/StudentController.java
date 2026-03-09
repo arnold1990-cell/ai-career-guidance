@@ -2,6 +2,7 @@ package com.edurite.student.controller;
 
 import com.edurite.student.dto.StudentProfileDto;
 import com.edurite.student.dto.StudentProfileUpsertRequest;
+import com.edurite.student.dto.StudentSettingsDto;
 import com.edurite.student.service.StudentService;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -52,6 +53,16 @@ public class StudentController {
     @GetMapping("/dashboard")
     public Map<String, Object> dashboard(Principal principal) {
         return studentService.dashboard(principal);
+    }
+
+    @GetMapping("/settings")
+    public StudentSettingsDto settings(Principal principal) {
+        return studentService.getSettings(principal);
+    }
+
+    @PutMapping("/settings")
+    public StudentSettingsDto updateSettings(Principal principal, @org.springframework.web.bind.annotation.RequestBody StudentSettingsDto request) {
+        return studentService.updateSettings(principal, request);
     }
 
     @PostMapping("/careers/{careerId}/save")

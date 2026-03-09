@@ -2,6 +2,7 @@ package com.edurite.notification.service;
 
 import com.edurite.notification.entity.NotificationRecord;
 import com.edurite.notification.repository.NotificationRepository;
+import com.edurite.student.repository.StudentProfileRepository;
 import com.edurite.security.service.CurrentUserService;
 import java.security.Principal;
 import java.time.OffsetDateTime;
@@ -13,10 +14,12 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final CurrentUserService currentUserService;
+    private final StudentProfileRepository studentProfileRepository;
 
-    public NotificationService(NotificationRepository notificationRepository, CurrentUserService currentUserService) {
+    public NotificationService(NotificationRepository notificationRepository, CurrentUserService currentUserService, StudentProfileRepository studentProfileRepository) {
         this.notificationRepository = notificationRepository;
         this.currentUserService = currentUserService;
+        this.studentProfileRepository = studentProfileRepository;
     }
 
     public List<NotificationRecord> mine(Principal principal) {
@@ -36,6 +39,12 @@ public class NotificationService {
     public void sendSms(String to, String template) {}
 
     public NotificationRecord createInApp(java.util.UUID userId, String eventType, String title, String message) {
+        boolean inAppEnabled = studentProfileRepository.findByUserId(userId)
+                .map(profile -> profile.isInAppNotificationsEnabled())
+                .orElse(true);
+        if (!inAppEnabled) {
+            return null;
+        }
         NotificationRecord record = new NotificationRecord();
         record.setUserId(userId);
         record.setEventType(eventType);
