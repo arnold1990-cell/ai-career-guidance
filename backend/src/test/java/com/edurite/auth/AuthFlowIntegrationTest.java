@@ -96,7 +96,7 @@ class AuthFlowIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register/company")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"companyName":"Acme Corp","email":"hr@acme.com","password":"StrongPass@123","industry":"Tech"}
+                                {"companyName":"Acme Corp","email":"hr@acme.com","officialEmail":"hr@acme.com","contactPersonName":"Alex Recruiter","registrationNumber":"ACME-REG-001","password":"StrongPass@123","industry":"Tech"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
@@ -139,7 +139,7 @@ class AuthFlowIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register/company")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"companyName":"Contoso","email":"contact@contoso.com","password":"StrongPass@123","industry":"Education"}
+                        {"companyName":"Contoso","email":"contact@contoso.com","officialEmail":"contact@contoso.com","contactPersonName":"Taylor Hiring","registrationNumber":"CONTOSO-REG-001","password":"StrongPass@123","industry":"Education"}
                         """)).andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/auth/login")
