@@ -1,31 +1,25 @@
-package com.edurite.bursary.entity;
+package com.edurite.subscription.entity;
 
 import com.edurite.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "bursaries")
+@Table(name = "payments")
 @Getter
 @Setter
-public class Bursary extends BaseEntity {
-
+public class PaymentRecord extends BaseEntity {
     @Column(nullable = false)
-    private String title;
-
+    private UUID subscriptionId;
     @Column(nullable = false)
-    private UUID companyId;
-
-    private LocalDate deadline;
-    private String status;
-    private String region;
-    private String qualificationLevel;
-    private String eligibility;
     private BigDecimal amount;
+    @Column(nullable = false)
+    private String currency;
+    @Column(nullable = false)
+    private String status;
 }

@@ -58,8 +58,8 @@ const FilterBar = ({ placeholder }: { placeholder: string }) => (
 );
 
 export const CareersPage = () => {
-  const careers = useAppQuery<Career[]>({ queryKey: ['public', 'careers'], queryFn: () => careerService.list() });
-  const rows = Array.isArray(careers.data) ? careers.data : [{ id: '1', title: 'Software Engineer', description: 'Build scalable digital products.', matchScore: 89 }];
+  const careers = useAppQuery({ queryKey: ['public', 'careers'], queryFn: () => careerService.list() });
+  const rows: any[] = Array.isArray(careers.data) ? careers.data : (careers.data as any)?.content ?? [{ id: '1', title: 'Software Engineer', description: 'Build scalable digital products.', matchScore: 89 }];
   return (
     <section className="space-y-6">
       <PageIntro title="Career Listings" subtitle="Explore in-demand careers, role expectations, and growth potential." />
@@ -100,7 +100,7 @@ export const InstitutionDetailsPage = () => {
 };
 
 export const BursariesPage = () => {
-  const bursaries = useAppQuery<Bursary[]>({ queryKey: ['public', 'bursaries'], queryFn: () => bursaryService.list() });
+  const bursaries = useAppQuery({ queryKey: ['public', 'bursaries'], queryFn: () => bursaryService.list() });
   const rows = Array.isArray(bursaries.data) ? bursaries.data : [{ id: 'b1', title: 'Women in STEM Fund', provider: 'FutureTech', status: 'PUBLISHED' }];
   return <section className="space-y-6"><PageIntro title="Bursaries" subtitle="Browse funding opportunities by field, location, and eligibility criteria." /><FilterBar placeholder="Search bursaries" /><DataTable columns={[{ key: 'title', header: 'Bursary' }, { key: 'provider', header: 'Provider' }, { key: 'status', header: 'Status', render: (row) => <Badge color={row.status === 'PUBLISHED' ? 'emerald' : 'amber'}>{row.status}</Badge> }]} data={rows} /></section>;
 };

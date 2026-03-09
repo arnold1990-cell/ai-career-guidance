@@ -17,4 +17,9 @@ public class Career extends BaseEntity {
     private String title;
 
     private String description;
+    private String industry;
+    private String qualificationLevel;
+    private String location;
+    private String salaryRange;
+    private String demandLevel;
 }
