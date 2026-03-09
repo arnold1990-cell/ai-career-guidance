@@ -1,4 +1,12 @@
 package com.edurite.recommendation.dto;
 
-public record RecommendationResultDto(String id, String type, String title, int score, String rationale, String modelVersion) {
+import java.util.List;
+
+public record RecommendationResultDto(
+        List<RecommendationItemDto> suggestedCareers,
+        List<RecommendationItemDto> suggestedBursaries,
+        List<RecommendationItemDto> suggestedCoursesOrImprovements,
+        List<String> profileImprovementTips,
+        String modelVersion
+) {
 }

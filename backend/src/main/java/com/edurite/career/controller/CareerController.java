@@ -24,14 +24,24 @@ public class CareerController {
     @GetMapping
     public Page<Career> list(
             @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "") String field,
             @RequestParam(defaultValue = "") String industry,
             @RequestParam(defaultValue = "") String qualificationLevel,
             @RequestParam(defaultValue = "") String location,
+            @RequestParam(defaultValue = "") String demand,
+            @RequestParam(defaultValue = "") String salaryRange,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return careerRepository.findByTitleContainingIgnoreCaseAndIndustryContainingIgnoreCaseAndQualificationLevelContainingIgnoreCaseAndLocationContainingIgnoreCase(
-                q, industry, qualificationLevel, location, PageRequest.of(page, size));
+        String industryFilter = !industry.isBlank() ? industry : field;
+        return careerRepository.search(
+                q,
+                industryFilter,
+                qualificationLevel,
+                location,
+                demand,
+                salaryRange,
+                PageRequest.of(page, size));
     }
 
     @GetMapping("/{id}")

@@ -3,7 +3,6 @@ package com.edurite.recommendation.controller;
 import com.edurite.recommendation.dto.RecommendationResultDto;
 import com.edurite.recommendation.service.RecommendationService;
 import java.security.Principal;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,7 +18,7 @@ public class RecommendationController {
     }
 
     @GetMapping("/me")
-    public List<RecommendationResultDto> myRecommendations(Principal principal) {
+    public RecommendationResultDto myRecommendations(Principal principal) {
         return recommendationService.generateForStudent(principal);
     }
 }
