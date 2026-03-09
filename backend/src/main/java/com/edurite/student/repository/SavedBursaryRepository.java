@@ -9,4 +9,5 @@ public interface SavedBursaryRepository extends JpaRepository<SavedBursary, UUID
     long countByStudentId(UUID studentId);
     List<SavedBursary> findByStudentId(UUID studentId);
     boolean existsByStudentIdAndBursaryId(UUID studentId, UUID bursaryId);
+    void deleteByStudentIdAndBursaryId(UUID studentId, UUID bursaryId);
 }

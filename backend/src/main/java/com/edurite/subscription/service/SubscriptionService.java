@@ -34,6 +34,8 @@ public class SubscriptionService {
             s.setPlanCode("PLAN_BASIC");
             s.setStatus("ACTIVE");
             s.setRenewalDate(LocalDate.now().plusMonths(1));
+            s.setStartDate(LocalDate.now());
+            s.setEndDate(LocalDate.now().plusMonths(1));
             return subscriptionRepository.save(s);
         });
     }
@@ -43,6 +45,8 @@ public class SubscriptionService {
         subscription.setPlanCode("PREMIUM".equalsIgnoreCase(planCode) ? "PLAN_PREMIUM" : "PLAN_BASIC");
         subscription.setStatus("ACTIVE");
         subscription.setRenewalDate(LocalDate.now().plusMonths(1));
+        subscription.setStartDate(LocalDate.now());
+        subscription.setEndDate(LocalDate.now().plusMonths(1));
         subscriptionRepository.save(subscription);
 
         PaymentRecord payment = new PaymentRecord();
@@ -51,6 +55,8 @@ public class SubscriptionService {
         payment.setCurrency("ZAR");
         payment.setStatus("SUCCESS");
         paymentRepository.save(payment);
+        subscription.setPaymentReference("PAY-" + payment.getId());
+        subscriptionRepository.save(subscription);
 
         notificationService.createInApp(subscription.getUserId(), "SUBSCRIPTION", "Subscription updated",
                 "You are now on " + subscription.getPlanCode().replace("PLAN_", "") + " plan.");

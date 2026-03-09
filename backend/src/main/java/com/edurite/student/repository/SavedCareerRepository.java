@@ -9,4 +9,5 @@ public interface SavedCareerRepository extends JpaRepository<SavedCareer, UUID> 
     long countByStudentId(UUID studentId);
     List<SavedCareer> findByStudentId(UUID studentId);
     boolean existsByStudentIdAndCareerId(UUID studentId, UUID careerId);
+    void deleteByStudentIdAndCareerId(UUID studentId, UUID careerId);
 }

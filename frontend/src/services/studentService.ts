@@ -2,15 +2,23 @@ import { apiClient } from '@/services/apiClient';
 import type { StudentProfile } from '@/types';
 
 export const studentService = {
-  getMe: () => apiClient.get<StudentProfile>('/students/me').then((r) => r.data),
-  updateMe: (payload: Partial<StudentProfile>) => apiClient.put<StudentProfile>('/students/me', payload).then((r) => r.data),
-  upload: (file: File, type: 'cv' | 'transcript') => {
+  getMe: () => apiClient.get<StudentProfile>('/student/profile').then((r) => r.data),
+  updateMe: (payload: Partial<StudentProfile>) => apiClient.put<StudentProfile>('/student/profile', payload).then((r) => r.data),
+  uploadCv: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', type);
-    return apiClient.post<StudentProfile>('/students/me/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+    return apiClient.post<StudentProfile>('/student/profile/cv', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   },
-  getDashboard: () => apiClient.get('/students/me/dashboard').then((r) => r.data),
-  saveCareer: (careerId: string) => apiClient.post(`/students/me/saved-careers/${careerId}`),
-  saveBursary: (bursaryId: string) => apiClient.post(`/students/me/saved-bursaries/${bursaryId}`),
+  uploadTranscript: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<StudentProfile>('/student/profile/transcript', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+  },
+  getDashboard: () => apiClient.get('/student/dashboard').then((r) => r.data),
+  saveCareer: (careerId: string) => apiClient.post(`/student/careers/${careerId}/save`),
+  unsaveCareer: (careerId: string) => apiClient.delete(`/student/careers/${careerId}/save`),
+  savedCareers: () => apiClient.get<{ items: string[] }>('/student/careers/saved').then((r) => r.data.items),
+  saveBursary: (bursaryId: string) => apiClient.post(`/student/bursaries/${bursaryId}/save`),
+  unsaveBursary: (bursaryId: string) => apiClient.delete(`/student/bursaries/${bursaryId}/save`),
+  savedBursaries: () => apiClient.get<{ items: string[] }>('/student/bursaries/saved').then((r) => r.data.items),
 };
