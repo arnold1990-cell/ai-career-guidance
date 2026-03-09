@@ -15,7 +15,7 @@ import com.edurite.subscription.repository.SubscriptionRepository;
 import com.edurite.upload.service.StorageService;
 import com.edurite.user.entity.User;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -174,7 +174,7 @@ public class StudentService {
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is required");
         if (file.getSize() > (5 * 1024 * 1024)) throw new IllegalArgumentException("File must be under 5MB");
-        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(StandardCharsets.UTF_8);
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         if (!(name.endsWith(".pdf") || name.endsWith(".doc") || name.endsWith(".docx"))) {
             throw new IllegalArgumentException("Supported file types: pdf, doc, docx");
         }
