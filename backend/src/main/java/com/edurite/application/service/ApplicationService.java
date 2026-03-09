@@ -4,7 +4,7 @@ import com.edurite.application.entity.ApplicationRecord;
 import com.edurite.application.repository.ApplicationRepository;
 import com.edurite.security.service.CurrentUserService;
 import com.edurite.student.entity.StudentProfile;
-import com.edurite.student.repository.StudentProfileRepository;
+import com.edurite.student.service.StudentService;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
@@ -15,12 +15,12 @@ public class ApplicationService {
 
     private final ApplicationRepository repository;
     private final CurrentUserService currentUserService;
-    private final StudentProfileRepository studentProfileRepository;
+    private final StudentService studentService;
 
-    public ApplicationService(ApplicationRepository repository, CurrentUserService currentUserService, StudentProfileRepository studentProfileRepository) {
+    public ApplicationService(ApplicationRepository repository, CurrentUserService currentUserService, StudentService studentService) {
         this.repository = repository;
         this.currentUserService = currentUserService;
-        this.studentProfileRepository = studentProfileRepository;
+        this.studentService = studentService;
     }
 
     public ApplicationRecord submit(UUID bursaryId, Principal principal) {
@@ -37,7 +37,7 @@ public class ApplicationService {
     }
 
     private StudentProfile requireStudent(Principal principal) {
-        var user = currentUserService.requireUser(principal);
-        return studentProfileRepository.findByUserId(user.getId()).orElseThrow();
+        currentUserService.requireUser(principal);
+        return studentService.getProfileEntity(principal);
     }
 }

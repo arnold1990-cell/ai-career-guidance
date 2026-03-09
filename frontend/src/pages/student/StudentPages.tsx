@@ -22,8 +22,8 @@ export const StudentDashboardPage = () => {
   if (dashboard.isLoading) return <LoadingState />;
   if (dashboard.isError) return <ErrorState message="Could not load dashboard. Please refresh and try again." />;
   const d = dashboard.data ?? {};
-  const careers = (recs.data ?? []).filter((r) => r.type === 'CAREER').slice(0, 3);
-  const bursaries = (recs.data ?? []).filter((r) => r.type === 'BURSARY').slice(0, 3);
+  const careers = recs.data?.suggestedCareers?.slice(0, 3) ?? [];
+  const bursaries = recs.data?.suggestedBursaries?.slice(0, 3) ?? [];
   return <Section title="Student Dashboard">
     <div className="grid gap-3 md:grid-cols-4">
       <Card label="Profile completeness" value={`${d.profileCompleteness ?? 0}%`} />
@@ -81,8 +81,28 @@ export const StudentExperiencePage = StudentProfilePage;
 
 export const StudentCareerRecommendationsPage = () => {
   const rec = useAppQuery({ queryKey: ['recs'], queryFn: recommendationService.mine });
+  if (rec.isLoading) return <LoadingState />;
+  if (rec.isError) return <ErrorState message="Could not load guidance right now. Please try again." />;
+
+  const data = rec.data;
   return <Section title="AI Guidance">
-    {(rec.data ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.type}) - {r.rationale}</div>)}
+    <p className="text-sm text-slate-500">Model: {data?.modelVersion ?? 'rule-engine'}</p>
+    <div className="space-y-2">
+      <h3 className="font-semibold">Suggested careers</h3>
+      {(data?.suggestedCareers ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
+    </div>
+    <div className="space-y-2">
+      <h3 className="font-semibold">Suggested bursaries</h3>
+      {(data?.suggestedBursaries ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
+    </div>
+    <div className="space-y-2">
+      <h3 className="font-semibold">Courses & improvements</h3>
+      {(data?.suggestedCoursesOrImprovements ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
+    </div>
+    <div className="space-y-2">
+      <h3 className="font-semibold">Profile improvement tips</h3>
+      {(data?.profileImprovementTips ?? []).map((tip) => <p key={tip}>• {tip}</p>)}
+    </div>
   </Section>;
 };
 export const StudentBursaryRecommendationsPage = StudentCareerRecommendationsPage;
@@ -143,13 +163,15 @@ export const StudentNotificationsPage = () => {
 
 export const StudentSubscriptionPage = () => {
   const qc = useQueryClient();
+  const [purchaseMessage, setPurchaseMessage] = useState('');
   const current = useAppQuery({ queryKey: ['sub'], queryFn: subscriptionService.current });
-  const purchase = useMutation({ mutationFn: (plan: 'BASIC' | 'PREMIUM') => subscriptionService.purchase(plan), onSuccess: () => qc.invalidateQueries({ queryKey: ['sub'] }) });
+  const purchase = useMutation({ mutationFn: (plan: 'BASIC' | 'PREMIUM') => subscriptionService.purchase(plan), onSuccess: () => { setPurchaseMessage('Plan updated successfully.'); qc.invalidateQueries({ queryKey: ['sub'] }); } });
   return <Section title="Subscription & Payment">
     <p>Current: {current.data?.planCode ?? 'PLAN_BASIC'} ({current.data?.status ?? 'ACTIVE'})</p>
+    {purchaseMessage && <p className="text-sm text-emerald-700">{purchaseMessage}</p>}
     <div className="grid gap-3 md:grid-cols-2">
-      <div className="rounded border p-3"><h3 className="font-semibold">Basic</h3><p className="text-sm">Essential recommendations and profile tools.</p><Button onClick={() => purchase.mutate('BASIC')}>Choose Basic</Button></div>
-      <div className="rounded border p-3"><h3 className="font-semibold">Premium</h3><p className="text-sm">Advanced AI guidance, deeper insight analytics.</p><Button onClick={() => purchase.mutate('PREMIUM')}>Checkout Premium</Button></div>
+      <div className="rounded border p-3"><h3 className="font-semibold">Basic</h3><p className="text-sm">Essential recommendations and profile tools.</p><Button onClick={() => purchase.mutate('BASIC')} disabled={purchase.isPending}>Choose Basic</Button></div>
+      <div className="rounded border p-3"><h3 className="font-semibold">Premium</h3><p className="text-sm">Advanced AI guidance, deeper insight analytics.</p><Button onClick={() => purchase.mutate('PREMIUM')} disabled={purchase.isPending}>Checkout Premium</Button></div>
     </div>
   </Section>;
 };

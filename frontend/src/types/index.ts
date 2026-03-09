@@ -34,7 +34,14 @@ export interface Course { id: string; name: string; institutionName: string; dur
 export interface Institution { id: string; name: string; location: string; }
 
 export interface Application { id: string; status: string; createdAt: string; bursaryId: string; }
-export interface Recommendation { id: string; type: string; title: string; score: number; rationale: string; }
+export interface RecommendationItem { id: string; title: string; score: number; rationale: string; }
+export interface Recommendation {
+  suggestedCareers: RecommendationItem[];
+  suggestedBursaries: RecommendationItem[];
+  suggestedCoursesOrImprovements: RecommendationItem[];
+  profileImprovementTips: string[];
+  modelVersion: string;
+}
 export interface Notification { id: string; title: string; message: string; read: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }
 export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; number: number; size: number; }

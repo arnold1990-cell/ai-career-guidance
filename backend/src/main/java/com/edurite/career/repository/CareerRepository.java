@@ -5,13 +5,25 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface CareerRepository extends JpaRepository<Career, UUID> {
-    Page<Career> findByTitleContainingIgnoreCaseAndIndustryContainingIgnoreCaseAndQualificationLevelContainingIgnoreCaseAndLocationContainingIgnoreCase(
-            String title,
-            String industry,
-            String qualificationLevel,
-            String location,
-            Pageable pageable
-    );
+    @Query("""
+            SELECT c FROM Career c
+            WHERE LOWER(c.title) LIKE LOWER(CONCAT('%', :title, '%'))
+              AND LOWER(COALESCE(c.industry, '')) LIKE LOWER(CONCAT('%', :industry, '%'))
+              AND LOWER(COALESCE(c.qualificationLevel, '')) LIKE LOWER(CONCAT('%', :qualificationLevel, '%'))
+              AND LOWER(COALESCE(c.location, '')) LIKE LOWER(CONCAT('%', :location, '%'))
+              AND LOWER(COALESCE(c.demandLevel, '')) LIKE LOWER(CONCAT('%', :demandLevel, '%'))
+              AND LOWER(COALESCE(c.salaryRange, '')) LIKE LOWER(CONCAT('%', :salaryRange, '%'))
+            """)
+    Page<Career> search(
+            @Param("title") String title,
+            @Param("industry") String industry,
+            @Param("qualificationLevel") String qualificationLevel,
+            @Param("location") String location,
+            @Param("demandLevel") String demandLevel,
+            @Param("salaryRange") String salaryRange,
+            Pageable pageable);
 }
