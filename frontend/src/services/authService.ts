@@ -32,7 +32,7 @@ export const authService = {
   login: (payload: { email: string; password: string }) => apiClient.post<AuthResponseRaw>('/auth/login', payload).then((r) => normalizeAuthResponse(r.data)),
   registerStudent: (payload: StudentRegisterPayload) => apiClient.post<AuthResponseRaw>('/auth/register/student', payload).then((r) => normalizeAuthResponse(r.data)),
   registerCompany: (payload: CompanyRegisterPayload) => apiClient.post<AuthResponseRaw>('/auth/register/company', payload).then((r) => normalizeAuthResponse(r.data)),
-  forgotPassword: (email: string) => apiClient.post('/auth/forgot-password', { email }),
-  resetPassword: (payload: { token: string; newPassword: string }) => apiClient.post('/auth/reset-password', payload),
+  forgotPassword: (payload: { email?: string; mobileNumber?: string }) => apiClient.post('/auth/forgot-password', payload),
+  resetPassword: (payload: { token: string; newPassword: string; confirmPassword: string }) => apiClient.post('/auth/reset-password', payload),
   logout: () => apiClient.post('/auth/logout'),
 };

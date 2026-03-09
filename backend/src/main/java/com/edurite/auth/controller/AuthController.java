@@ -5,6 +5,9 @@ import com.edurite.auth.dto.CompanyRegisterRequest;
 import com.edurite.auth.dto.LoginRequest;
 import com.edurite.auth.dto.StudentRegisterRequest;
 import com.edurite.auth.service.AuthService;
+import com.edurite.company.dto.CompanyForgotPasswordRequest;
+import com.edurite.company.dto.CompanyResetPasswordRequest;
+import com.edurite.company.service.CompanyService;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -19,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final CompanyService companyService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, CompanyService companyService) {
         this.authService = authService;
+        this.companyService = companyService;
     }
 
     @PostMapping("/register/student")
@@ -46,8 +51,13 @@ public class AuthController {
     public Map<String, String> logout() { return Map.of("message", "Logout successful"); }
 
     @PostMapping("/forgot-password")
-    public Map<String, String> forgotPassword() { return Map.of("message", "Password reset initiated"); }
+    public Map<String, String> forgotPassword(@RequestBody CompanyForgotPasswordRequest request) {
+        return Map.of("message", companyService.issuePasswordResetToken(request));
+    }
 
     @PostMapping("/reset-password")
-    public Map<String, String> resetPassword() { return Map.of("message", "Password reset complete"); }
+    public Map<String, String> resetPassword(@Valid @RequestBody CompanyResetPasswordRequest request) {
+        companyService.resetPassword(request);
+        return Map.of("message", "Password reset complete");
+    }
 }

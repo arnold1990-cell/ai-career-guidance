@@ -76,7 +76,7 @@ export const RegisterCompanyPage = () => {
       <RegisterForm
         type="company"
         onSubmit={async ({ companyName, email, password }) => {
-          await registerCompany({ companyName: companyName ?? '', email, password });
+          await registerCompany({ companyName: companyName ?? '', registrationNumber: 'PENDING-REG', officialEmail: email, contactPersonName: companyName ?? 'Company Admin', password });
           navigate('/company/dashboard');
         }}
       />
@@ -88,7 +88,7 @@ export const ForgotPasswordPage = () => {
   const { register, handleSubmit } = useForm<{ email: string }>();
   return (
     <AuthCard title="Forgot Password" subtitle="Enter your email and we will send a secure reset link.">
-      <form className="space-y-3" onSubmit={handleSubmit(async ({ email }) => { await authService.forgotPassword(email); })}>
+      <form className="space-y-3" onSubmit={handleSubmit(async ({ email }) => { await authService.forgotPassword({ email }); })}>
         <label className="text-sm">Email<Input type="email" {...register('email')} /></label>
         <Button type="submit" className="w-full">Send reset link</Button>
       </form>
@@ -103,7 +103,7 @@ export const ResetPasswordPage = () => {
   return (
     <AuthCard title="Reset Password" subtitle="Choose a strong password to secure your account.">
       <p className="mb-3 text-xs text-slate-500">Reset token: {token || 'missing token in URL'}</p>
-      <form className="space-y-3" onSubmit={handleSubmit(async ({ password }) => { if (token) await authService.resetPassword({ token, newPassword: password }); })}>
+      <form className="space-y-3" onSubmit={handleSubmit(async ({ password }) => { if (token) await authService.resetPassword({ token, newPassword: password, confirmPassword: password }); })}>
         <label className="text-sm">New Password<Input type="password" {...register('password')} /></label>
         <Button type="submit" className="w-full">Reset password</Button>
       </form>

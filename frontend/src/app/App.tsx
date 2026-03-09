@@ -24,10 +24,14 @@ export const App = () => (
       <Route path="/bursaries/:id" element={<BursaryDetailsPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/auth/login" element={<LoginPage />} />
+      <Route path="/company/login" element={<LoginPage />} />
       <Route path="/auth/register/student" element={<RegisterStudentPage />} />
       <Route path="/auth/register/company" element={<RegisterCompanyPage />} />
+      <Route path="/company/register" element={<RegisterCompanyPage />} />
       <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/company/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/company/reset-password" element={<ResetPasswordPage />} />
     </Route>
 
     <Route element={<RequireAuth />}>
@@ -55,10 +59,10 @@ export const App = () => (
           <Route path="/company/profile" element={<CompanyProfilePage />} />
           <Route path="/company/verification-docs" element={<CompanyVerificationDocsPage />} />
           <Route path="/company/bursaries" element={<CompanyBursariesPage />} />
-          <Route path="/company/bursaries/create" element={<CompanyCreateBursaryPage />} />
+          <Route path="/company/bursaries/new" element={<CompanyCreateBursaryPage />} />
           <Route path="/company/bursaries/:id/edit" element={<CompanyEditBursaryPage />} />
           <Route path="/company/applicants" element={<CompanyApplicantsPage />} />
-          <Route path="/company/talent-search" element={<CompanyTalentSearchPage />} />
+          <Route path="/company/students" element={<CompanyTalentSearchPage />} />
           <Route path="/company/shortlisted" element={<CompanyShortlistedPage />} />
           <Route path="/company/notifications" element={<CompanyNotificationsPage />} />
           <Route path="/company/settings" element={<CompanySettingsPage />} />

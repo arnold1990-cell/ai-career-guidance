@@ -6,7 +6,7 @@ export interface AuthResponse { accessToken: string; refreshToken?: string; toke
 export interface AuthResponseRaw { accessToken?: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; role?: string; roles?: string[]; user?: Partial<User> & { role?: string; roles?: string[] }; }
 
 export interface StudentRegisterPayload { fullName: string; email: string; password: string; }
-export interface CompanyRegisterPayload { companyName: string; email: string; password: string; industry?: string; }
+export interface CompanyRegisterPayload { companyName: string; registrationNumber: string; industry?: string; officialEmail: string; mobileNumber?: string; contactPersonName: string; address?: string; website?: string; description?: string; password: string; }
 
 export interface StudentProfile {
   id: string;

@@ -22,10 +22,30 @@ public class Bursary extends BaseEntity {
     @Column(nullable = false)
     private UUID companyId;
 
-    private LocalDate deadline;
-    private String status;
-    private String region;
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    private String fieldOfStudy;
     private String qualificationLevel;
+    private LocalDate applicationStartDate;
+    private LocalDate applicationEndDate;
+    private BigDecimal fundingAmount;
+
+    @Column(columnDefinition = "TEXT")
+    private String benefits;
+
+    @Column(columnDefinition = "TEXT")
+    private String requiredSubjects;
+
+    private String minimumGrade;
+
+    @Column(columnDefinition = "TEXT")
+    private String demographics;
+
+    private String location;
+
+    @Column(columnDefinition = "TEXT")
     private String eligibility;
-    private BigDecimal amount;
+
+    private String status;
 }

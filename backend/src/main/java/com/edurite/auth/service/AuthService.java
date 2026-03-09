@@ -7,6 +7,7 @@ import com.edurite.auth.dto.StudentRegisterRequest;
 import com.edurite.common.exception.DuplicateEmailException;
 import com.edurite.common.exception.InvalidCredentialsException;
 import com.edurite.common.exception.ResourceConflictException;
+import com.edurite.company.entity.CompanyApprovalStatus;
 import com.edurite.company.entity.CompanyProfile;
 import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.security.service.JwtService;
@@ -18,6 +19,7 @@ import com.edurite.user.entity.UserStatus;
 import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -70,12 +72,59 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerCompany(CompanyRegisterRequest request) {
-        User user = createUser(request.email(), request.password(), request.companyName(), "Company", "ROLE_COMPANY");
+        String officialEmail = request.officialEmail();
+        if (officialEmail == null || officialEmail.isBlank()) {
+            officialEmail = request.email();
+        }
+        officialEmail = normalizeEmail(officialEmail);
+
+        if (officialEmail == null || officialEmail.isBlank()) {
+            throw new ResourceConflictException("Company email is required");
+        }
+
+        String companyName = request.companyName() == null ? "" : request.companyName().trim();
+        if (companyName.isBlank()) {
+            throw new ResourceConflictException("Company name is required");
+        }
+
+        String contactPersonName = request.contactPersonName();
+        if (contactPersonName == null || contactPersonName.isBlank()) {
+            contactPersonName = companyName;
+        } else {
+            contactPersonName = contactPersonName.trim();
+        }
+
+        String registrationNumber = request.registrationNumber();
+        if (registrationNumber == null || registrationNumber.isBlank()) {
+            registrationNumber = "PENDING-" + UUID.randomUUID();
+        } else {
+            registrationNumber = registrationNumber.trim();
+        }
+
+        if (companyProfileRepository.existsByRegistrationNumberIgnoreCase(registrationNumber)) {
+            throw new ResourceConflictException("Company registration number already exists");
+        }
+
+        User user = createUser(
+                officialEmail,
+                request.password(),
+                contactPersonName,
+                companyName,
+                "ROLE_COMPANY"
+        );
 
         CompanyProfile profile = new CompanyProfile();
         profile.setUserId(user.getId());
-        profile.setName(request.companyName().trim());
+        profile.setCompanyName(companyName);
+        profile.setRegistrationNumber(registrationNumber);
         profile.setIndustry(request.industry());
+        profile.setOfficialEmail(officialEmail);
+        profile.setMobileNumber(request.mobileNumber());
+        profile.setContactPersonName(contactPersonName);
+        profile.setAddress(request.address());
+        profile.setWebsite(request.website());
+        profile.setDescription(request.description());
+        profile.setStatus(CompanyApprovalStatus.PENDING);
         companyProfileRepository.save(profile);
 
         return toAuthResponse(user);
@@ -87,8 +136,7 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(normalizeEmail(request.email()), request.password())
             );
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            User user = userRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new InvalidCredentialsException());
+            User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow(InvalidCredentialsException::new);
             return toAuthResponse(user);
         } catch (BadCredentialsException ex) {
             throw new InvalidCredentialsException();
