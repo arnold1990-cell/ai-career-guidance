@@ -1,20 +1,23 @@
 spring:
   application:
     name: edurite-backend
+
   profiles:
     active: dev
+
   data:
     redis:
       repositories:
         enabled: false
+
   cache:
     type: redis
 
 security:
   jwt:
-    secret: ${EDURITE_JWT_SECRET:change-me-with-a-very-long-random-64-byte-secret-change-me-with-a-very-long-random-64-byte-secret}
-    access-token-expiration: ${EDURITE_JWT_ACCESS_TOKEN_EXPIRATION:3600}
-    refresh-token-expiration: ${EDURITE_JWT_REFRESH_TOKEN_EXPIRATION:604800}
+    secret: edurite-super-secure-jwt-secret-key-2026-ultra-secure-authentication-token-system-key
+    access-token-expiration: 3600
+    refresh-token-expiration: 604800
 
 springdoc:
   api-docs:

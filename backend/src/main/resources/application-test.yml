@@ -1,18 +1,22 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/edurite_test
-    username: edurite
-    password: edurite
+    username: postgres
+    password: Crt@Ailsa
+
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate.jdbc.time_zone: UTC
+
   flyway:
     enabled: true
     locations: classpath:db/migration
+
   cache:
     type: none
+
   data:
     redis:
       repositories:
@@ -20,4 +24,4 @@ spring:
 
 security:
   jwt:
-    secret: test-secret-key-change-me-please-test-secret-key-change-me-please
+    secret: edurite-secure-jwt-secret-key-2026-ultra-secure-token-authentication-key
