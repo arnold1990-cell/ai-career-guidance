@@ -1,6 +1,4 @@
 package com.edurite.student.service;
-
-import com.edurite.application.entity.ApplicationRecord;
 import com.edurite.application.repository.ApplicationRepository;
 import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.security.service.CurrentUserService;
@@ -109,10 +107,10 @@ public class StudentService {
         response.put("savedOpportunities", savedCareers + savedBursaries);
         response.put("activeApplications", activeApplications);
         response.put("applicationProgress", List.of(
-                Map.of("label", "Draft", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), ApplicationRecord.Status.DRAFT)),
-                Map.of("label", "Submitted", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), ApplicationRecord.Status.SUBMITTED)),
-                Map.of("label", "In review", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), ApplicationRecord.Status.IN_REVIEW)),
-                Map.of("label", "Shortlisted", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), ApplicationRecord.Status.SHORTLISTED))
+                Map.of("label", "Draft", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "DRAFT")),
+                Map.of("label", "Submitted", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "SUBMITTED")),
+                Map.of("label", "In review", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "IN_REVIEW")),
+                Map.of("label", "Shortlisted", "count", applicationRepository.countByStudentIdAndStatus(profile.getId(), "SHORTLISTED"))
         ));
         response.put("skillGaps", skillGaps);
         response.put("recommendedImprovements", improvements);
