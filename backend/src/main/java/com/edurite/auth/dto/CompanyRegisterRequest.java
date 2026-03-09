@@ -5,16 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record CompanyRegisterRequest(
-        @NotBlank(message = "companyName is required")
-        @Size(max = 255, message = "companyName must be at most 255 characters")
-        String companyName,
-        @Email(message = "email must be a valid email address")
-        @NotBlank(message = "email is required")
-        String email,
-        @NotBlank(message = "password is required")
-        @Size(min = 8, max = 100, message = "password must be between 8 and 100 characters")
-        String password,
-        @Size(max = 120, message = "industry must be at most 120 characters")
-        String industry
+        @NotBlank @Size(max = 255) String companyName,
+        @NotBlank @Size(max = 120) String registrationNumber,
+        @Size(max = 120) String industry,
+        @NotBlank @Email String officialEmail,
+        @Size(max = 30) String mobileNumber,
+        @NotBlank @Size(max = 150) String contactPersonName,
+        @Size(max = 255) String address,
+        @Size(max = 255) String website,
+        String description,
+        @NotBlank @Size(min = 8, max = 100) String password
 ) {
 }

@@ -25,13 +25,13 @@ public class BursaryController {
     public Page<Bursary> list(
             @RequestParam(defaultValue = "") String q,
             @RequestParam(defaultValue = "") String qualificationLevel,
-            @RequestParam(defaultValue = "") String region,
+            @RequestParam(defaultValue = "") String location,
             @RequestParam(defaultValue = "") String eligibility,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return bursaryRepository.findByTitleContainingIgnoreCaseAndQualificationLevelContainingIgnoreCaseAndRegionContainingIgnoreCaseAndEligibilityContainingIgnoreCase(
-                q, qualificationLevel, region, eligibility, PageRequest.of(page, size));
+        return bursaryRepository.findByTitleContainingIgnoreCaseAndQualificationLevelContainingIgnoreCaseAndLocationContainingIgnoreCaseAndEligibilityContainingIgnoreCase(
+                q, qualificationLevel, location, eligibility, PageRequest.of(page, size));
     }
 
     @GetMapping("/{id}")

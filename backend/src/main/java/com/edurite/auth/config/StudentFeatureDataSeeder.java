@@ -66,7 +66,11 @@ public class StudentFeatureDataSeeder {
             CompanyProfile company = companyProfileRepository.findByUserId(companyUser.getId()).orElseGet(() -> {
                 CompanyProfile profile = new CompanyProfile();
                 profile.setUserId(companyUser.getId());
-                profile.setName("EduRite Partners");
+                profile.setCompanyName("EduRite Partners");
+                profile.setRegistrationNumber("REG-DEMO-001");
+                profile.setOfficialEmail("company@edurite.local");
+                profile.setContactPersonName("Demo Company");
+                profile.setStatus(com.edurite.company.entity.CompanyApprovalStatus.APPROVED);
                 profile.setIndustry("Education");
                 return companyProfileRepository.save(profile);
             });
@@ -111,11 +115,11 @@ public class StudentFeatureDataSeeder {
                 b1.setCompanyId(company.getId());
                 b1.setTitle("STEM Excellence Bursary");
                 b1.setQualificationLevel("Undergraduate");
-                b1.setRegion("Gauteng");
+                b1.setLocation("Gauteng");
                 b1.setEligibility("Maths 70%+, South African citizen");
-                b1.setAmount(new BigDecimal("50000.00"));
+                b1.setFundingAmount(new BigDecimal("50000.00"));
                 b1.setStatus("OPEN");
-                b1.setDeadline(LocalDate.now().plusMonths(2));
+                b1.setApplicationEndDate(LocalDate.now().plusMonths(2));
                 bursaryRepository.save(b1);
             }
 

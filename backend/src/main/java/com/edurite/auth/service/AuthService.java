@@ -7,6 +7,7 @@ import com.edurite.auth.dto.StudentRegisterRequest;
 import com.edurite.common.exception.DuplicateEmailException;
 import com.edurite.common.exception.InvalidCredentialsException;
 import com.edurite.common.exception.ResourceConflictException;
+import com.edurite.company.entity.CompanyApprovalStatus;
 import com.edurite.company.entity.CompanyProfile;
 import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.security.service.JwtService;
@@ -38,15 +39,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
-    public AuthService(
-            UserRepository userRepository,
-            RoleRepository roleRepository,
-            StudentProfileRepository studentProfileRepository,
-            CompanyProfileRepository companyProfileRepository,
-            PasswordEncoder passwordEncoder,
-            JwtService jwtService,
-            AuthenticationManager authenticationManager
-    ) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, StudentProfileRepository studentProfileRepository, CompanyProfileRepository companyProfileRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.studentProfileRepository = studentProfileRepository;
@@ -70,12 +63,24 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerCompany(CompanyRegisterRequest request) {
-        User user = createUser(request.email(), request.password(), request.companyName(), "Company", "ROLE_COMPANY");
+        if (companyProfileRepository.existsByRegistrationNumberIgnoreCase(request.registrationNumber().trim())) {
+            throw new ResourceConflictException("Company registration number already exists");
+        }
+
+        User user = createUser(request.officialEmail(), request.password(), request.contactPersonName(), request.companyName(), "ROLE_COMPANY");
 
         CompanyProfile profile = new CompanyProfile();
         profile.setUserId(user.getId());
-        profile.setName(request.companyName().trim());
+        profile.setCompanyName(request.companyName().trim());
+        profile.setRegistrationNumber(request.registrationNumber().trim());
         profile.setIndustry(request.industry());
+        profile.setOfficialEmail(normalizeEmail(request.officialEmail()));
+        profile.setMobileNumber(request.mobileNumber());
+        profile.setContactPersonName(request.contactPersonName());
+        profile.setAddress(request.address());
+        profile.setWebsite(request.website());
+        profile.setDescription(request.description());
+        profile.setStatus(CompanyApprovalStatus.PENDING);
         companyProfileRepository.save(profile);
 
         return toAuthResponse(user);
@@ -87,8 +92,7 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(normalizeEmail(request.email()), request.password())
             );
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            User user = userRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new InvalidCredentialsException());
+            User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow(InvalidCredentialsException::new);
             return toAuthResponse(user);
         } catch (BadCredentialsException ex) {
             throw new InvalidCredentialsException();

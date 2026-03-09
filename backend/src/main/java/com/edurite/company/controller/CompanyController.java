@@ -1,18 +1,29 @@
 package com.edurite.company.controller;
 
+import com.edurite.company.dto.CompanyBursaryDto;
+import com.edurite.company.dto.CompanyBursaryUpsertRequest;
+import com.edurite.company.dto.CompanyDocumentDto;
 import com.edurite.company.dto.CompanyProfileDto;
+import com.edurite.company.dto.CompanyProfileUpdateRequest;
+import com.edurite.company.dto.CompanyStudentSearchResultDto;
 import com.edurite.company.service.CompanyService;
+import jakarta.validation.Valid;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/companies")
@@ -26,24 +37,62 @@ public class CompanyController {
 
     @GetMapping("/me")
     public CompanyProfileDto me(Principal principal) {
-        return companyService.getMe(UUID.nameUUIDFromBytes(principal.getName().getBytes()));
+        return companyService.getMe(principal);
     }
 
     @PutMapping("/me")
-    public Map<String, String> updateMe(@RequestBody CompanyProfileDto dto) { return Map.of("message", "Company profile updated"); }
+    public CompanyProfileDto updateMe(Principal principal, @Valid @org.springframework.web.bind.annotation.RequestBody CompanyProfileUpdateRequest request) {
+        return companyService.updateMe(principal, request);
+    }
 
     @PostMapping("/me/documents")
-    public Map<String, String> uploadDocument() { return Map.of("message", "Document accepted"); }
+    public ResponseEntity<CompanyDocumentDto> uploadDocument(Principal principal, @RequestPart("file") MultipartFile file, @RequestParam String documentType) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED).body(companyService.uploadDocument(principal, file, documentType));
+    }
+
+    @GetMapping("/me/documents")
+    public List<CompanyDocumentDto> listDocuments(Principal principal) {
+        return companyService.listDocuments(principal);
+    }
 
     @PostMapping("/bursaries")
-    public Map<String, String> createBursary() { return Map.of("message", "Bursary created"); }
+    public ResponseEntity<CompanyBursaryDto> createBursary(Principal principal, @Valid @org.springframework.web.bind.annotation.RequestBody CompanyBursaryUpsertRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(companyService.createBursary(principal, request));
+    }
 
     @PutMapping("/bursaries/{id}")
-    public Map<String, String> updateBursary() { return Map.of("message", "Bursary updated"); }
+    public CompanyBursaryDto updateBursary(Principal principal, @PathVariable UUID id, @Valid @org.springframework.web.bind.annotation.RequestBody CompanyBursaryUpsertRequest request) {
+        return companyService.updateBursary(principal, id, request);
+    }
 
     @GetMapping("/bursaries")
-    public List<Map<String, String>> companyBursaries() { return List.of(Map.of("name", "STEM Excellence 2026")); }
+    public List<CompanyBursaryDto> companyBursaries(Principal principal) {
+        return companyService.listOwnBursaries(principal);
+    }
 
-    @GetMapping("/applicants")
-    public List<Map<String, String>> applicants() { return List.of(Map.of("applicant", "student@example.com")); }
+    @GetMapping("/bursaries/{id}")
+    public CompanyBursaryDto companyBursary(Principal principal, @PathVariable UUID id) {
+        return companyService.getOwnBursary(principal, id);
+    }
+
+    @PatchMapping("/bursaries/{id}/close")
+    public CompanyBursaryDto closeBursary(Principal principal, @PathVariable UUID id) {
+        return companyService.setBursaryStatus(principal, id, "CLOSED");
+    }
+
+    @PatchMapping("/bursaries/{id}/reopen")
+    public CompanyBursaryDto reopenBursary(Principal principal, @PathVariable UUID id) {
+        return companyService.setBursaryStatus(principal, id, "ACTIVE");
+    }
+
+    @GetMapping("/students/search")
+    public List<CompanyStudentSearchResultDto> searchStudents(
+            Principal principal,
+            @RequestParam(defaultValue = "") String fieldOfInterest,
+            @RequestParam(defaultValue = "") String qualificationLevel,
+            @RequestParam(defaultValue = "") String skills,
+            @RequestParam(defaultValue = "") String location
+    ) {
+        return companyService.searchStudents(principal, fieldOfInterest, qualificationLevel, skills, location);
+    }
 }
