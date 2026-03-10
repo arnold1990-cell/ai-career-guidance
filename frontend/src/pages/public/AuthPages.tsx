@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { useForm } from 'react-hook-form';
 import { authService } from '@/services/authService';
 import { studentService } from '@/services/studentService';
-import type { Role, User } from '@/types';
+import type { CompanyRegisterPayload, Role, User } from '@/types';
 
 const AuthCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
   <div className="mx-auto max-w-md card p-6">
@@ -48,6 +48,8 @@ export const LoginPage = () => {
       />
       <p className="mt-4 text-sm">Forgot password? <Link className="text-primary-600" to="/auth/forgot-password">Reset it</Link></p>
       <p className="mt-2 text-sm">New here? <Link className="text-primary-600" to="/auth/register/student">Create student account</Link></p>
+      <p className="mt-2 text-sm">Hiring or sponsoring talent? <Link className="text-primary-600" to="/register/company">Create company account</Link></p>
+      <p className="mt-2 text-sm">Platform administrator? <Link className="text-primary-600" to="/auth/login">Admin access</Link></p>
     </AuthCard>
   );
 };
@@ -69,17 +71,45 @@ export const RegisterStudentPage = () => {
 };
 
 export const RegisterCompanyPage = () => {
-  const { registerCompany } = useAuth();
   const navigate = useNavigate();
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<CompanyRegisterPayload>({
+    defaultValues: {
+      companyName: '',
+      registrationNumber: '',
+      officialEmail: '',
+      password: '',
+      mobileNumber: '',
+      contactPersonName: '',
+    },
+  });
+
   return (
     <AuthCard title="Register your company" subtitle="Launch bursaries and connect with high-potential student talent.">
-      <RegisterForm
-        type="company"
-        onSubmit={async ({ companyName, email, password }) => {
-          await registerCompany({ companyName: companyName ?? '', registrationNumber: 'PENDING-REG', officialEmail: email, contactPersonName: companyName ?? 'Company Admin', password });
-          navigate('/company/dashboard');
-        }}
-      />
+      <form
+        className="space-y-4"
+        onSubmit={handleSubmit(async (data) => {
+          await authService.registerCompany({
+            companyName: data.companyName,
+            registrationNumber: data.registrationNumber,
+            officialEmail: data.officialEmail,
+            password: data.password,
+            mobileNumber: data.mobileNumber,
+            contactPersonName: data.companyName,
+          });
+          navigate('/auth/login', { replace: true });
+        })}
+      >
+        <label className="block text-sm">Company Name<Input {...register('companyName', { required: true })} /></label>
+        <label className="block text-sm">Registration Number<Input {...register('registrationNumber', { required: true })} /></label>
+        <label className="block text-sm">Official Email<Input type="email" {...register('officialEmail', { required: true })} /></label>
+        <label className="block text-sm">Mobile Number<Input {...register('mobileNumber')} /></label>
+        <label className="block text-sm">Password<Input type="password" {...register('password', { required: true, minLength: 8 })} /></label>
+        <Button disabled={isSubmitting} type="submit" className="w-full">Create company account</Button>
+      </form>
     </AuthCard>
   );
 };
