@@ -46,6 +46,12 @@ public class SecurityConfig {
                                 "/actuator/health"
                         ).permitAll()
                         .requestMatchers("/api/v1/student/**").hasRole("STUDENT")
+                        .requestMatchers(
+                                "/api/v1/recommendations/**",
+                                "/api/v1/subscriptions/**",
+                                "/api/v1/notifications/**",
+                                "/api/v1/applications/**"
+                        ).hasRole("STUDENT")
                         .requestMatchers("/api/v1/companies/**").hasRole("COMPANY")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
