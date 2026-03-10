@@ -130,6 +130,37 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
+
+    public AuthResponse refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new InvalidCredentialsException();
+        }
+
+        String username;
+        try {
+            if (!jwtService.isRefreshToken(refreshToken)) {
+                throw new InvalidCredentialsException();
+            }
+            username = jwtService.extractUsername(refreshToken);
+        } catch (RuntimeException ex) {
+            throw new InvalidCredentialsException();
+        }
+
+        User user = userRepository.findByEmail(username).orElseThrow(InvalidCredentialsException::new);
+        org.springframework.security.core.userdetails.UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPasswordHash())
+                .disabled(user.getStatus() != UserStatus.ACTIVE)
+                .authorities(user.getRoles().stream().map(Role::getName).toArray(String[]::new))
+                .build();
+
+        if (!jwtService.isTokenValid(refreshToken, userDetails)) {
+            throw new InvalidCredentialsException();
+        }
+
+        return toAuthResponse(user);
+    }
+
     public AuthResponse login(LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(

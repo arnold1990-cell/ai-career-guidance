@@ -20,6 +20,10 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const requestMethod = error.config?.method?.toUpperCase() ?? 'UNKNOWN';
+    const requestUrl = error.config?.url ?? 'UNKNOWN_URL';
+    const responseStatus = error.response?.status;
+
     if (error.response?.status === 401 && authStore.getRefreshToken()) {
       try {
         const response = await axios.post(`${baseURL}/auth/refresh`, {
@@ -32,6 +36,10 @@ apiClient.interceptors.response.use(
         authStore.clear();
       }
     }
+    if (import.meta.env.DEV) {
+      console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: error.response?.data });
+    }
+
     const normalized: ApiError = {
       message: error.response?.data?.message ?? 'Unexpected error occurred',
       status: error.response?.status,

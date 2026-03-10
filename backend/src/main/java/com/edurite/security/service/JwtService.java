@@ -60,6 +60,11 @@ public class JwtService {
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
+    public boolean isRefreshToken(String token) {
+        Object type = extractAllClaims(token).get("type");
+        return "refresh".equals(type);
+    }
+
     private String generateToken(String subject, long expirationSeconds, Map<String, Object> claims) {
         Instant now = Instant.now();
         return Jwts.builder()
