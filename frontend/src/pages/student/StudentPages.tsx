@@ -17,11 +17,20 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 const Card = ({ label, value }: { label: string; value: string | number }) => <div className="rounded border p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-2xl font-semibold">{value}</p></div>;
 const asList = <T,>(value: T[] | { content: T[] } | undefined) => (Array.isArray(value) ? value : value?.content ?? []);
 
+const logStudentQueryError = (scope: string, error: unknown) => {
+  if (!error) return;
+  console.error(`[student] ${scope} query failed`, error);
+};
+
+
 export const StudentDashboardPage = () => {
   const dashboard = useAppQuery({ queryKey: ['dash'], queryFn: studentService.getDashboard });
   const recs = useAppQuery({ queryKey: ['recs'], queryFn: recommendationService.mine });
   if (dashboard.isLoading) return <LoadingState />;
-  if (dashboard.isError) return <ErrorState message="Could not load dashboard. Please refresh and try again." />;
+  if (dashboard.isError) {
+    logStudentQueryError('/student/dashboard', dashboard.error);
+    return <ErrorState message="Could not load dashboard. Please refresh and try again." />;
+  }
   const d = dashboard.data ?? {};
   const careers = recs.data?.suggestedCareers?.slice(0, 3) ?? [];
   const bursaries = recs.data?.suggestedBursaries?.slice(0, 3) ?? [];
@@ -83,7 +92,10 @@ export const StudentExperiencePage = StudentProfilePage;
 export const StudentCareerRecommendationsPage = () => {
   const rec = useAppQuery({ queryKey: ['recs'], queryFn: recommendationService.mine });
   if (rec.isLoading) return <LoadingState />;
-  if (rec.isError) return <ErrorState message="Could not load guidance right now. Please try again." />;
+  if (rec.isError) {
+    logStudentQueryError('/student/recommendations/careers', rec.error);
+    return <ErrorState message="Could not load guidance right now. Please try again." />;
+  }
 
   const data = rec.data;
   const hasRecommendations = Boolean(
@@ -123,6 +135,10 @@ export const StudentSavedPage = () => {
   const saved = useAppQuery({ queryKey: ['saved-career-ids'], queryFn: studentService.savedCareers });
   const toggle = useMutation({ mutationFn: ({ id, exists }: { id: string; exists: boolean }) => exists ? studentService.unsaveCareer(id) : studentService.saveCareer(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-career-ids'] }) });
   const items = asList(careers.data);
+  if (careers.isError) {
+    logStudentQueryError('/student/saved', careers.error);
+    return <ErrorState message="Could not load career search right now." />;
+  }
   return <Section title="Career Search">
     <div className="grid gap-2 md:grid-cols-3">
       <Input placeholder="Search" value={filters.q} onChange={(e) => setFilters((s) => ({ ...s, q: e.target.value }))} />
@@ -146,6 +162,10 @@ export const StudentApplicationsPage = () => {
   const bursaries = useAppQuery({ queryKey: ['burs', filters], queryFn: () => bursaryService.list(filters) });
   const saved = useAppQuery({ queryKey: ['saved-bursary-ids'], queryFn: studentService.savedBursaries });
   const toggle = useMutation({ mutationFn: ({ id, exists }: { id: string; exists: boolean }) => exists ? studentService.unsaveBursary(id) : studentService.saveBursary(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-bursary-ids'] }) });
+  if (bursaries.isError) {
+    logStudentQueryError('/student/applications', bursaries.error);
+    return <ErrorState message="Could not load bursaries right now." />;
+  }
   return <Section title="Bursary Finder">
     <div className="grid gap-2 md:grid-cols-2">
       <Input placeholder="Search bursaries" value={filters.q} onChange={(e) => setFilters((s) => ({ ...s, q: e.target.value }))} />
@@ -166,6 +186,10 @@ export const StudentNotificationsPage = () => {
   const notes = useAppQuery({ queryKey: ['notes'], queryFn: notificationService.mine });
   const markRead = useMutation({ mutationFn: (id: string) => notificationService.markRead(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }) });
   if (notes.isLoading) return <LoadingState />;
+  if (notes.isError) {
+    logStudentQueryError('/student/notifications', notes.error);
+    return <ErrorState message="Could not load notifications right now." />;
+  }
   if (!notes.data?.length) return <EmptyState title="No notifications yet" message="We'll show bursary alerts and reminders here." />;
   return <Section title="Notifications">{(notes.data ?? []).map((n) => <div key={n.id} className="border p-2 rounded"><p className="font-medium">{n.title}</p><p>{n.message}</p><Button onClick={() => markRead.mutate(n.id)}>{n.read ? 'Read' : 'Mark read'}</Button></div>)}</Section>;
 };
@@ -186,7 +210,10 @@ export const StudentSubscriptionPage = () => {
   });
 
   if (current.isLoading) return <LoadingState />;
-  if (current.isError) return <ErrorState message="Could not load your subscription." />;
+  if (current.isError) {
+    logStudentQueryError('/student/subscription', current.error);
+    return <ErrorState message="Could not load your subscription." />;
+  }
 
   return <Section title="Subscription & Payment">
     <p>Current: {current.data?.planCode ?? 'PLAN_BASIC'} ({current.data?.status ?? 'ACTIVE'})</p>

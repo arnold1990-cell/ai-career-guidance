@@ -23,11 +23,15 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class StudentService {
+
+    private static final Logger log = LoggerFactory.getLogger(StudentService.class);
 
     private final StudentProfileRepository repository;
     private final CurrentUserService currentUserService;
@@ -95,7 +99,7 @@ public class StudentService {
     public Map<String, Object> dashboard(Principal principal) {
         User user = currentUserService.requireUser(principal);
         StudentProfile profile = repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
-        var subscription = subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId());
+        var subscription = safeSubscriptionLookup(user.getId());
         long savedCareers = savedCareerRepository.countByStudentId(profile.getId());
         long savedBursaries = savedBursaryRepository.countByStudentId(profile.getId());
         long activeApplications = applicationRepository.countByStudentId(profile.getId());
@@ -181,6 +185,16 @@ public class StudentService {
     public StudentProfile getProfileEntity(Principal principal) {
         User user = currentUserService.requireUser(principal);
         return repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
+    }
+
+
+    private java.util.Optional<com.edurite.subscription.entity.SubscriptionRecord> safeSubscriptionLookup(UUID userId) {
+        try {
+            return subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
+        } catch (RuntimeException ex) {
+            log.error("Failed to load subscription for dashboard user {}", userId, ex);
+            return java.util.Optional.empty();
+        }
     }
 
     private StudentProfile createDefault(User user) {
