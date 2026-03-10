@@ -9,10 +9,10 @@ const navByRole: Record<Role, Array<{ to: string; label: string }>> = {
     { to: '/student/dashboard', label: 'Dashboard' }, { to: '/student/profile', label: 'My Profile' }, { to: '/student/recommendations/careers', label: 'AI Guidance' }, { to: '/student/saved', label: 'Career Search' }, { to: '/student/applications', label: 'Bursary Finder' }, { to: '/student/subscription', label: 'Subscription' }, { to: '/student/notifications', label: 'Notifications' }, { to: '/student/settings', label: 'Settings' },
   ],
   COMPANY: [
-    { to: '/company/dashboard', label: 'Dashboard' }, { to: '/company/profile', label: 'Company Profile' }, { to: '/company/bursaries', label: 'My Bursaries' }, { to: '/company/applicants', label: 'Applicants' }, { to: '/company/settings', label: 'Settings' },
+    { to: '/company/dashboard', label: 'Dashboard' }, { to: '/company/profile', label: 'Company Profile' }, { to: '/company/bursaries/new', label: 'Post Bursary' }, { to: '/company/bursaries', label: 'Manage Bursaries' }, { to: '/company/applicants', label: 'Applications' }, { to: '/company/verification-docs', label: 'Documents' }, { to: '/company/notifications', label: 'Notifications' }, { to: '/company/settings', label: 'Settings' },
   ],
   ADMIN: [
-    { to: '/admin/dashboard', label: 'Dashboard' }, { to: '/admin/users', label: 'Users' }, { to: '/admin/roles', label: 'Roles' }, { to: '/admin/bursaries', label: 'Bursary Moderation' }, { to: '/admin/analytics', label: 'Analytics' }, { to: '/admin/settings', label: 'Settings' },
+    { to: '/admin/dashboard', label: 'Dashboard' }, { to: '/admin/users', label: 'User Management' }, { to: '/admin/pending-approvals', label: 'Company Approvals' }, { to: '/admin/bursaries', label: 'Bursary Management' }, { to: '/admin/analytics', label: 'Analytics' }, { to: '/admin/settings', label: 'System Settings' },
   ],
 };
 
