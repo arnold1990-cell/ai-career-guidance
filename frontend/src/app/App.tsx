@@ -6,8 +6,8 @@ import { RequireRole } from '@/routes/RequireRole';
 import { AboutPage, BursariesPage, BursaryDetailsPage, CareerDetailsPage, CareersPage, CourseDetailsPage, CoursesPage, InstitutionDetailsPage, InstitutionsPage, LandingPage, PricingPage } from '@/pages/public/PublicPages';
 import { ForgotPasswordPage, LoginPage, RegisterCompanyPage, RegisterStudentPage, ResetPasswordPage } from '@/pages/public/AuthPages';
 import { StudentAcademicProfilePage, StudentApplicationsPage, StudentBursaryRecommendationsPage, StudentCareerRecommendationsPage, StudentDashboardPage, StudentDocumentsPage, StudentExperiencePage, StudentNotificationsPage, StudentProfilePage, StudentQualificationsPage, StudentSavedPage, StudentSettingsPage, StudentSubscriptionPage } from '@/pages/student/StudentPages';
-import { CompanyApplicantsPage, CompanyBursariesPage, CompanyCreateBursaryPage, CompanyDashboardPage, CompanyEditBursaryPage, CompanyNotificationsPage, CompanyProfilePage, CompanySettingsPage, CompanyShortlistedPage, CompanyTalentSearchPage, CompanyVerificationDocsPage } from '@/pages/company/CompanyPages';
-import { AdminAnalyticsPage, AdminAuditLogsPage, AdminBursaryModerationPage, AdminDashboardPage, AdminNotificationTemplatesPage, AdminPaymentsPage, AdminPendingApprovalsPage, AdminRolesPage, AdminSettingsPage, AdminSubscriptionsPage, AdminUsersPage } from '@/pages/admin/AdminPages';
+import { CompanyApplicantsPage, CompanyBursariesPage, CompanyCreateBursaryPage, CompanyDashboardPage, CompanyEditBursaryPage, CompanyNotificationsPage, CompanyPendingApprovalPage, CompanyProfilePage, CompanySettingsPage, CompanyShortlistedPage, CompanyTalentSearchPage, CompanyVerificationDocsPage } from '@/pages/company/CompanyPages';
+import { AdminAnalyticsPage, AdminAuditLogsPage, AdminBursaryModerationPage, AdminCompanyReviewPage, AdminDashboardPage, AdminNotificationTemplatesPage, AdminPaymentsPage, AdminPendingApprovalsPage, AdminRolesPage, AdminSettingsPage, AdminSubscriptionsPage, AdminUsersPage } from '@/pages/admin/AdminPages';
 
 export const App = () => (
   <Routes>
@@ -57,6 +57,7 @@ export const App = () => (
       <Route element={<RequireRole role="COMPANY" />}>
         <Route element={<DashboardLayout />}>
           <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
+          <Route path="/company/pending" element={<CompanyPendingApprovalPage />} />
           <Route path="/company/profile" element={<CompanyProfilePage />} />
           <Route path="/company/verification-docs" element={<CompanyVerificationDocsPage />} />
           <Route path="/company/bursaries" element={<CompanyBursariesPage />} />
@@ -76,6 +77,7 @@ export const App = () => (
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/roles" element={<AdminRolesPage />} />
           <Route path="/admin/pending-approvals" element={<AdminPendingApprovalsPage />} />
+          <Route path="/admin/companies/:id" element={<AdminCompanyReviewPage />} />
           <Route path="/admin/bursaries" element={<AdminBursaryModerationPage />} />
           <Route path="/admin/subscriptions" element={<AdminSubscriptionsPage />} />
           <Route path="/admin/payments" element={<AdminPaymentsPage />} />
