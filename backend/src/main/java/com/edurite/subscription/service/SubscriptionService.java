@@ -10,10 +10,13 @@ import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SubscriptionService {
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentRepository paymentRepository;
     private final CurrentUserService currentUserService;
@@ -28,16 +31,28 @@ public class SubscriptionService {
 
     public SubscriptionRecord current(Principal principal) {
         var user = currentUserService.requireUser(principal);
-        return subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseGet(() -> {
-            SubscriptionRecord s = new SubscriptionRecord();
-            s.setUserId(user.getId());
-            s.setPlanCode("PLAN_BASIC");
-            s.setStatus("ACTIVE");
-            s.setRenewalDate(LocalDate.now().plusMonths(1));
-            s.setStartDate(LocalDate.now());
-            s.setEndDate(LocalDate.now().plusMonths(1));
-            return subscriptionRepository.save(s);
-        });
+        try {
+            return subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseGet(() -> {
+                SubscriptionRecord s = new SubscriptionRecord();
+                s.setUserId(user.getId());
+                s.setPlanCode("PLAN_BASIC");
+                s.setStatus("ACTIVE");
+                s.setRenewalDate(LocalDate.now().plusMonths(1));
+                s.setStartDate(LocalDate.now());
+                s.setEndDate(LocalDate.now().plusMonths(1));
+                return subscriptionRepository.save(s);
+            });
+        } catch (RuntimeException ex) {
+            log.error("Failed to load subscription for user {}", user.getId(), ex);
+            SubscriptionRecord fallback = new SubscriptionRecord();
+            fallback.setUserId(user.getId());
+            fallback.setPlanCode("PLAN_BASIC");
+            fallback.setStatus("ACTIVE");
+            fallback.setRenewalDate(LocalDate.now().plusMonths(1));
+            fallback.setStartDate(LocalDate.now());
+            fallback.setEndDate(LocalDate.now().plusMonths(1));
+            return fallback;
+        }
     }
 
     public Map<String, Object> purchase(Principal principal, String planCode) {

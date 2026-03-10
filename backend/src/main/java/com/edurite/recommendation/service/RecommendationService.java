@@ -9,10 +9,14 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RecommendationService {
+
+    private static final Logger log = LoggerFactory.getLogger(RecommendationService.class);
 
     private final StudentService studentService;
     private final SubscriptionRepository subscriptionRepository;
@@ -24,8 +28,7 @@ public class RecommendationService {
 
     public RecommendationResultDto generateForStudent(Principal principal) {
         StudentProfile profile = studentService.getProfileEntity(principal);
-        boolean premium = subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(profile.getUserId())
-                .map(s -> "PLAN_PREMIUM".equals(s.getPlanCode()) && "ACTIVE".equals(s.getStatus())).orElse(false);
+        boolean premium = isPremium(profile.getUserId());
 
         List<String> skills = split(profile.getSkills());
         List<String> interests = split(profile.getInterests());
@@ -96,6 +99,18 @@ public class RecommendationService {
         }
 
         return new RecommendationResultDto(suggestedCareers, suggestedBursaries, improvements, profileTips, "rule-engine-v3");
+    }
+
+
+    private boolean isPremium(java.util.UUID userId) {
+        try {
+            return subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+                    .map(s -> "PLAN_PREMIUM".equals(s.getPlanCode()) && "ACTIVE".equals(s.getStatus()))
+                    .orElse(false);
+        } catch (RuntimeException ex) {
+            log.error("Failed to load subscription for recommendation user {}", userId, ex);
+            return false;
+        }
     }
 
     private List<String> split(String input) {
