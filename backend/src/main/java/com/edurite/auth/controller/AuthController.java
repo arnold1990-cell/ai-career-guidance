@@ -45,7 +45,9 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public Map<String, String> refresh() { return Map.of("message", "Refresh token endpoint placeholder"); }
+    public ResponseEntity<AuthResponse> refresh(@RequestBody Map<String, String> payload) {
+        return ResponseEntity.ok(authService.refresh(payload.get("refreshToken")));
+    }
 
     @PostMapping("/logout")
     public Map<String, String> logout() { return Map.of("message", "Logout successful"); }
