@@ -213,6 +213,70 @@ class AuthFlowIntegrationTest {
         assertThat(user.getPasswordHash()).startsWith("$2");
     }
 
+    @Test
+    void studentCanAccessStudentDataEndpoints() throws Exception {
+        registerStudent("student.data@example.com");
+        String accessToken = loginAndGetAccessToken("student.data@example.com", "StrongPass@123");
+
+        mockMvc.perform(get("/api/v1/student/dashboard")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/recommendations/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/subscriptions/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/student/settings")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/notifications")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/applications/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void companyCannotAccessStudentOnlyDataEndpoints() throws Exception {
+        registerCompany("security.company@example.com", "SEC-COMPANY-001");
+        String accessToken = loginAndGetAccessToken("security.company@example.com", "StrongPass@123");
+
+        mockMvc.perform(get("/api/v1/student/dashboard")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/recommendations/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/subscriptions/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/notifications")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/applications/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void studentDataEndpointsRejectMissingAuth() throws Exception {
+        mockMvc.perform(get("/api/v1/student/dashboard")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/recommendations/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/subscriptions/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/student/settings")).andExpect(status().isUnauthorized());
+    }
+
     private void registerStudent(String email) throws Exception {
         mockMvc.perform(post("/api/v1/auth/register/student")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -220,5 +284,29 @@ class AuthFlowIntegrationTest {
                                 {"fullName":"Test Student","email":"%s","password":"StrongPass@123"}
                                 """.formatted(email)))
                 .andExpect(status().isCreated());
+    }
+
+    private void registerCompany(String email, String registrationNumber) throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register/company")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"companyName":"Secure Co","email":"%s","officialEmail":"%s","contactPersonName":"Security Owner","registrationNumber":"%s","password":"StrongPass@123","industry":"Security"}
+                                """.formatted(email, email, registrationNumber)))
+                .andExpect(status().isCreated());
+    }
+
+    private String loginAndGetAccessToken(String email, String password) throws Exception {
+        String loginResponse = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"%s"}
+                                """.formatted(email, password)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode jsonNode = objectMapper.readTree(loginResponse);
+        return jsonNode.get("accessToken").asText();
     }
 }
