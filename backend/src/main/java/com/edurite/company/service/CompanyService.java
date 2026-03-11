@@ -38,7 +38,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named CompanyService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class CompanyService {
 
     private final CompanyProfileRepository companyRepository;
@@ -65,10 +70,18 @@ public class CompanyService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Beginner note: this method handles the "getMe" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto getMe(Principal principal) {
         return mapper.toDto(requireCompany(principal));
     }
 
+    /**
+     * Beginner note: this method handles the "updateMe" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto updateMe(Principal principal, CompanyProfileUpdateRequest request) {
         CompanyProfile company = requireCompany(principal);
         company.setIndustry(request.industry());
@@ -80,6 +93,10 @@ public class CompanyService {
         return mapper.toDto(companyRepository.save(company));
     }
 
+    /**
+     * Beginner note: this method handles the "uploadDocument" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyDocumentDto uploadDocument(Principal principal, MultipartFile file, String documentType) throws IOException {
         CompanyProfile company = requireCompany(principal);
         String key = storageService.putObject("company-documents", "%s/%s-%s".formatted(company.getId(), documentType, file.getOriginalFilename()), file.getBytes());
@@ -93,6 +110,10 @@ public class CompanyService {
         return new CompanyDocumentDto(saved.getId(), saved.getDocumentType(), saved.getObjectKey(), saved.getVerificationStatus(), saved.getFileName(), saved.getCreatedAt());
     }
 
+    /**
+     * Beginner note: this method handles the "listDocuments" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<CompanyDocumentDto> listDocuments(Principal principal) {
         CompanyProfile company = requireCompany(principal);
         return documentRepository.findByCompanyIdOrderByCreatedAtDesc(company.getId()).stream()
@@ -100,6 +121,10 @@ public class CompanyService {
                 .toList();
     }
 
+    /**
+     * Beginner note: this method handles the "createBursary" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyBursaryDto createBursary(Principal principal, CompanyBursaryUpsertRequest request) {
         CompanyProfile company = requireApprovedCompany(principal);
         Bursary bursary = toBursary(new Bursary(), company.getId(), request);
@@ -107,6 +132,10 @@ public class CompanyService {
         return toBursaryDto(bursaryRepository.save(bursary));
     }
 
+    /**
+     * Beginner note: this method handles the "updateBursary" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyBursaryDto updateBursary(Principal principal, UUID bursaryId, CompanyBursaryUpsertRequest request) {
         CompanyProfile company = requireApprovedCompany(principal);
         Bursary bursary = bursaryRepository.findById(bursaryId).orElseThrow(() -> new ResourceConflictException("Bursary not found"));
@@ -114,11 +143,19 @@ public class CompanyService {
         return toBursaryDto(bursaryRepository.save(toBursary(bursary, company.getId(), request)));
     }
 
+    /**
+     * Beginner note: this method handles the "listOwnBursaries" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<CompanyBursaryDto> listOwnBursaries(Principal principal) {
         CompanyProfile company = requireCompany(principal);
         return bursaryRepository.findByCompanyIdOrderByCreatedAtDesc(company.getId()).stream().map(this::toBursaryDto).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "getOwnBursary" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyBursaryDto getOwnBursary(Principal principal, UUID bursaryId) {
         CompanyProfile company = requireCompany(principal);
         Bursary bursary = bursaryRepository.findById(bursaryId).orElseThrow(() -> new ResourceConflictException("Bursary not found"));
@@ -126,6 +163,10 @@ public class CompanyService {
         return toBursaryDto(bursary);
     }
 
+    /**
+     * Beginner note: this method handles the "setBursaryStatus" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyBursaryDto setBursaryStatus(Principal principal, UUID bursaryId, String status) {
         CompanyProfile company = requireApprovedCompany(principal);
         Bursary bursary = bursaryRepository.findById(bursaryId).orElseThrow(() -> new ResourceConflictException("Bursary not found"));
@@ -134,6 +175,10 @@ public class CompanyService {
         return toBursaryDto(bursaryRepository.save(bursary));
     }
 
+    /**
+     * Beginner note: this method handles the "searchStudents" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<CompanyStudentSearchResultDto> searchStudents(Principal principal, String fieldOfInterest, String qualificationLevel, String skills, String location) {
         requireApprovedCompany(principal);
         return studentProfileRepository.findAll().stream()
@@ -146,6 +191,10 @@ public class CompanyService {
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "issuePasswordResetToken" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public String issuePasswordResetToken(CompanyForgotPasswordRequest request) {
         CompanyProfile company = findCompanyByRecoveryInput(request);
         if (company == null) {
@@ -162,6 +211,10 @@ public class CompanyService {
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "resetPassword" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public void resetPassword(CompanyResetPasswordRequest request) {
         if (!request.newPassword().equals(request.confirmPassword())) {
             throw new ResourceConflictException("Password confirmation mismatch");
@@ -180,29 +233,53 @@ public class CompanyService {
         resetTokenRepository.save(token);
     }
 
+    /**
+     * Beginner note: this method handles the "listPendingCompanies" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<CompanyProfileDto> listPendingCompanies() {
         return companyRepository.findByStatusOrderByCreatedAtAsc(CompanyApprovalStatus.PENDING).stream().map(mapper::toDto).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "getCompanyById" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto getCompanyById(UUID companyId) {
         return mapper.toDto(companyRepository.findById(companyId).orElseThrow(() -> new ResourceConflictException("Company not found")));
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "approve" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto approve(UUID companyId, UUID adminUserId, AdminCompanyReviewRequest request) {
         return review(companyId, adminUserId, CompanyApprovalStatus.APPROVED, request.notes());
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "reject" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto reject(UUID companyId, UUID adminUserId, AdminCompanyReviewRequest request) {
         return review(companyId, adminUserId, CompanyApprovalStatus.REJECTED, request.notes());
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "requestMoreInfo" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto requestMoreInfo(UUID companyId, UUID adminUserId, AdminCompanyReviewRequest request) {
         return review(companyId, adminUserId, CompanyApprovalStatus.MORE_INFO_REQUIRED, request.notes());
     }
 
+    /**
+     * Beginner note: this method handles the "review" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private CompanyProfileDto review(UUID companyId, UUID adminUserId, CompanyApprovalStatus status, String notes) {
         CompanyProfile company = companyRepository.findById(companyId).orElseThrow(() -> new ResourceConflictException("Company not found"));
         company.setStatus(status);
@@ -212,11 +289,19 @@ public class CompanyService {
         return mapper.toDto(companyRepository.save(company));
     }
 
+    /**
+     * Beginner note: this method handles the "requireCompany" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private CompanyProfile requireCompany(Principal principal) {
         User user = currentUserService.requireUser(principal);
         return companyRepository.findByUserId(user.getId()).orElseThrow(() -> new ResourceConflictException("Company profile not found"));
     }
 
+    /**
+     * Beginner note: this method handles the "requireApprovedCompany" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private CompanyProfile requireApprovedCompany(Principal principal) {
         CompanyProfile company = requireCompany(principal);
         if (company.getStatus() != CompanyApprovalStatus.APPROVED) {
@@ -225,12 +310,20 @@ public class CompanyService {
         return company;
     }
 
+    /**
+     * Beginner note: this method handles the "ensureOwned" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private void ensureOwned(CompanyProfile company, Bursary bursary) {
         if (!company.getId().equals(bursary.getCompanyId())) {
             throw new ResourceConflictException("Bursary does not belong to this company");
         }
     }
 
+    /**
+     * Beginner note: this method handles the "toBursary" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private Bursary toBursary(Bursary bursary, UUID companyId, CompanyBursaryUpsertRequest request) {
         bursary.setCompanyId(companyId);
         bursary.setTitle(request.bursaryName());
@@ -249,6 +342,10 @@ public class CompanyService {
         return bursary;
     }
 
+    /**
+     * Beginner note: this method handles the "toBursaryDto" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private CompanyBursaryDto toBursaryDto(Bursary b) {
         return new CompanyBursaryDto(
                 b.getId(), b.getTitle(), b.getDescription(), b.getFieldOfStudy(), b.getQualificationLevel(),
@@ -257,26 +354,46 @@ public class CompanyService {
         );
     }
 
+    /**
+     * Beginner note: this method handles the "toStudentView" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private CompanyStudentSearchResultDto toStudentView(StudentProfile s) {
         return new CompanyStudentSearchResultDto(s.getId(), s.getFirstName(), s.getLastName(), s.getLocation(), s.getQualificationLevel(), split(s.getSkills()), split(s.getInterests()));
     }
 
+    /**
+     * Beginner note: this method handles the "split" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private List<String> split(String value) {
         if (value == null || value.isBlank()) return List.of();
         return Arrays.stream(value.split(",")).map(String::trim).filter(v -> !v.isBlank()).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "matches" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private boolean matches(String source, String filter) {
         if (filter == null || filter.isBlank()) return true;
         if (source == null || source.isBlank()) return false;
         return source.toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Beginner note: this method handles the "join" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private String join(List<String> values) {
         if (values == null || values.isEmpty()) return null;
         return String.join(",", values);
     }
 
+    /**
+     * Beginner note: this method handles the "findCompanyByRecoveryInput" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private CompanyProfile findCompanyByRecoveryInput(CompanyForgotPasswordRequest request) {
         if (request.email() != null && !request.email().isBlank()) {
             return companyRepository.findByOfficialEmailIgnoreCase(request.email().trim().toLowerCase(Locale.ROOT)).orElse(null);

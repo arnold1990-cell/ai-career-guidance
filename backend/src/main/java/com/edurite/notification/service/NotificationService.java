@@ -9,7 +9,12 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named NotificationService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -22,11 +27,19 @@ public class NotificationService {
         this.studentProfileRepository = studentProfileRepository;
     }
 
+    /**
+     * Beginner note: this method handles the "mine" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<NotificationRecord> mine(Principal principal) {
         var user = currentUserService.requireUser(principal);
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
     }
 
+    /**
+     * Beginner note: this method handles the "markRead" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public NotificationRecord markRead(Principal principal, String id) {
         var user = currentUserService.requireUser(principal);
         NotificationRecord n = notificationRepository.findById(java.util.UUID.fromString(id)).orElseThrow();
@@ -38,6 +51,10 @@ public class NotificationService {
     public void sendEmail(String to, String template) {}
     public void sendSms(String to, String template) {}
 
+    /**
+     * Beginner note: this method handles the "createInApp" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public NotificationRecord createInApp(java.util.UUID userId, String eventType, String title, String message) {
         boolean inAppEnabled = studentProfileRepository.findByUserId(userId)
                 .map(profile -> profile.isInAppNotificationsEnabled())

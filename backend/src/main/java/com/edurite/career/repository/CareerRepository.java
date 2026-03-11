@@ -8,6 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * This interface named CareerRepository is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public interface CareerRepository extends JpaRepository<Career, UUID> {
     @Query("""
             SELECT c FROM Career c

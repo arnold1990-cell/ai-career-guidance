@@ -13,9 +13,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+// @Configuration marks a class that defines Spring beans and setup.
 @Configuration
+/**
+ * This class named AuthDataSeeder is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class AuthDataSeeder {
 
+// @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
     ApplicationRunner authSeedRunner(
             RoleRepository roleRepository,

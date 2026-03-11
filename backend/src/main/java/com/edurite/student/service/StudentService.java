@@ -26,7 +26,12 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named StudentService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class StudentService {
 
     private final StudentProfileRepository repository;
@@ -49,12 +54,20 @@ public class StudentService {
         this.subscriptionRepository = subscriptionRepository;
     }
 
+    /**
+     * Beginner note: this method handles the "getProfile" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public StudentProfileDto getProfile(Principal principal) {
         User user = currentUserService.requireUser(principal);
         StudentProfile profile = repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
         return toDto(profile, user.getEmail());
     }
 
+    /**
+     * Beginner note: this method handles the "upsertProfile" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public StudentProfileDto upsertProfile(Principal principal, StudentProfileUpsertRequest request) {
         User user = currentUserService.requireUser(principal);
         StudentProfile profile = repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
@@ -76,6 +89,10 @@ public class StudentService {
         return toDto(profile, user.getEmail());
     }
 
+    /**
+     * Beginner note: this method handles the "uploadDocument" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public StudentProfileDto uploadDocument(Principal principal, MultipartFile file, String documentType) throws IOException {
         validateFile(file);
         User user = currentUserService.requireUser(principal);
@@ -92,6 +109,10 @@ public class StudentService {
         return toDto(profile, user.getEmail());
     }
 
+    /**
+     * Beginner note: this method handles the "dashboard" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public Map<String, Object> dashboard(Principal principal) {
         User user = currentUserService.requireUser(principal);
         StudentProfile profile = repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
@@ -123,11 +144,19 @@ public class StudentService {
         return response;
     }
 
+    /**
+     * Beginner note: this method handles the "getSettings" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public StudentSettingsDto getSettings(Principal principal) {
         StudentProfile profile = getProfileEntity(principal);
         return toSettingsDto(profile);
     }
 
+    /**
+     * Beginner note: this method handles the "updateSettings" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public StudentSettingsDto updateSettings(Principal principal, StudentSettingsDto request) {
         StudentProfile profile = getProfileEntity(principal);
         profile.setInAppNotificationsEnabled(request.inAppNotificationsEnabled());
@@ -137,6 +166,10 @@ public class StudentService {
         return toSettingsDto(profile);
     }
 
+    /**
+     * Beginner note: this method handles the "saveCareer" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public void saveCareer(Principal principal, UUID careerId) {
         StudentProfile profile = getProfileEntity(principal);
         if (!savedCareerRepository.existsByStudentIdAndCareerId(profile.getId(), careerId)) {
@@ -147,6 +180,10 @@ public class StudentService {
         }
     }
 
+    /**
+     * Beginner note: this method handles the "saveBursary" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public void saveBursary(Principal principal, UUID bursaryId) {
         StudentProfile profile = getProfileEntity(principal);
         if (!savedBursaryRepository.existsByStudentIdAndBursaryId(profile.getId(), bursaryId)) {
@@ -158,31 +195,55 @@ public class StudentService {
     }
 
 
+    /**
+     * Beginner note: this method handles the "unsaveCareer" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public void unsaveCareer(Principal principal, UUID careerId) {
         StudentProfile profile = getProfileEntity(principal);
         savedCareerRepository.deleteByStudentIdAndCareerId(profile.getId(), careerId);
     }
 
+    /**
+     * Beginner note: this method handles the "unsaveBursary" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public void unsaveBursary(Principal principal, UUID bursaryId) {
         StudentProfile profile = getProfileEntity(principal);
         savedBursaryRepository.deleteByStudentIdAndBursaryId(profile.getId(), bursaryId);
     }
 
+    /**
+     * Beginner note: this method handles the "savedCareerIds" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<UUID> savedCareerIds(Principal principal) {
         StudentProfile profile = getProfileEntity(principal);
         return savedCareerRepository.findByStudentId(profile.getId()).stream().map(SavedCareer::getCareerId).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "savedBursaryIds" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<UUID> savedBursaryIds(Principal principal) {
         StudentProfile profile = getProfileEntity(principal);
         return savedBursaryRepository.findByStudentId(profile.getId()).stream().map(SavedBursary::getBursaryId).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "getProfileEntity" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public StudentProfile getProfileEntity(Principal principal) {
         User user = currentUserService.requireUser(principal);
         return repository.findByUserId(user.getId()).orElseGet(() -> createDefault(user));
     }
 
+    /**
+     * Beginner note: this method handles the "createDefault" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private StudentProfile createDefault(User user) {
         StudentProfile profile = new StudentProfile();
         profile.setUserId(user.getId());
@@ -195,6 +256,10 @@ public class StudentService {
         return repository.save(profile);
     }
 
+    /**
+     * Beginner note: this method handles the "toDto" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private StudentProfileDto toDto(StudentProfile profile, String email) {
         return new StudentProfileDto(
                 profile.getId(), profile.getFirstName(), profile.getLastName(), email, profile.getPhone(), profile.getDateOfBirth(), profile.getGender(),
@@ -204,20 +269,36 @@ public class StudentService {
         );
     }
 
+    /**
+     * Beginner note: this method handles the "toSettingsDto" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private StudentSettingsDto toSettingsDto(StudentProfile profile) {
         return new StudentSettingsDto(profile.isInAppNotificationsEnabled(), profile.isEmailNotificationsEnabled(), profile.isSmsNotificationsEnabled());
     }
 
+    /**
+     * Beginner note: this method handles the "split" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private List<String> split(String value) {
         if (value == null || value.isBlank()) return List.of();
         return Arrays.stream(value.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "join" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private String join(List<String> values) {
         if (values == null) return null;
         return String.join(",", values);
     }
 
+    /**
+     * Beginner note: this method handles the "calculateCompleteness" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private int calculateCompleteness(StudentProfile p) {
         int score = 0;
         if (p.getFirstName() != null) score += 10;
@@ -232,6 +313,10 @@ public class StudentService {
         return score;
     }
 
+    /**
+     * Beginner note: this method handles the "validateFile" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is required");
         if (file.getSize() > (5 * 1024 * 1024)) throw new IllegalArgumentException("File must be under 5MB");

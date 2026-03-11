@@ -7,6 +7,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * This interface named BursaryRepository is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public interface BursaryRepository extends JpaRepository<Bursary, UUID> {
     Page<Bursary> findByTitleContainingIgnoreCaseAndQualificationLevelContainingIgnoreCaseAndLocationContainingIgnoreCaseAndEligibilityContainingIgnoreCase(
             String title,
