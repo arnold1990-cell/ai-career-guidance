@@ -1,34 +1,34 @@
-package com.edurite.notification.entity;
+package com.edurite.notification.entity; // declares the package path for this Java file
 
-import com.edurite.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import java.time.OffsetDateTime;
-import java.util.UUID;
-import lombok.Getter;
-import lombok.Setter;
+import com.edurite.common.entity.BaseEntity; // imports a class so it can be used in this file
+import jakarta.persistence.Column; // imports a class so it can be used in this file
+import jakarta.persistence.Entity; // imports a class so it can be used in this file
+import jakarta.persistence.Table; // imports a class so it can be used in this file
+import java.time.OffsetDateTime; // imports a class so it can be used in this file
+import java.util.UUID; // imports a class so it can be used in this file
+import lombok.Getter; // imports a class so it can be used in this file
+import lombok.Setter; // imports a class so it can be used in this file
 
 // @Entity tells JPA that this class maps to a database table.
-@Entity
+@Entity // marks this class as a JPA entity that maps to a database table
 // @Table configures the exact database table name and options.
-@Table(name = "notifications")
-@Getter
-@Setter
+@Table(name = "notifications") // sets database table mapping details for this entity
+@Getter // generates getter methods for fields at compile time
+@Setter // generates setter methods for fields at compile time
 /**
  * This class named NotificationRecord is part of the Spring Boot application.
  * It groups related logic so the project stays organized and easier to learn.
  */
-public class NotificationRecord extends BaseEntity {
+public class NotificationRecord extends BaseEntity { // defines a class type
 // @Column configures how this field is stored in the database.
-    @Column(nullable = false)
-    private UUID userId;
-    private String channel;
-    private String eventType;
-    private String title;
-    private String message;
+    @Column(nullable = false) // configures how this field maps to a database column
+    private UUID userId; // executes this statement as part of the application logic
+    private String channel; // executes this statement as part of the application logic
+    private String eventType; // executes this statement as part of the application logic
+    private String title; // executes this statement as part of the application logic
+    private String message; // executes this statement as part of the application logic
 // @Column configures how this field is stored in the database.
-    @Column(name = "is_read")
-    private boolean read;
-    private OffsetDateTime sentAt;
-}
+    @Column(name = "is_read") // configures how this field maps to a database column
+    private boolean read; // executes this statement as part of the application logic
+    private OffsetDateTime sentAt; // executes this statement as part of the application logic
+} // ends the current code block

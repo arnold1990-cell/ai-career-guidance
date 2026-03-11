@@ -1,93 +1,93 @@
-package com.edurite.security.config;
+package com.edurite.security.config; // declares the package path for this Java file
 
-import com.edurite.security.filter.JwtAuthenticationFilter;
-import com.edurite.security.service.CustomUserDetailsService;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.edurite.security.filter.JwtAuthenticationFilter; // imports a class so it can be used in this file
+import com.edurite.security.service.CustomUserDetailsService; // imports a class so it can be used in this file
+import org.springframework.context.annotation.Bean; // imports a class so it can be used in this file
+import org.springframework.context.annotation.Configuration; // imports a class so it can be used in this file
+import org.springframework.security.authentication.AuthenticationManager; // imports a class so it can be used in this file
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider; // imports a class so it can be used in this file
+import org.springframework.security.config.Customizer; // imports a class so it can be used in this file
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration; // imports a class so it can be used in this file
+import org.springframework.security.config.annotation.web.builders.HttpSecurity; // imports a class so it can be used in this file
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer; // imports a class so it can be used in this file
+import org.springframework.security.config.http.SessionCreationPolicy; // imports a class so it can be used in this file
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // imports a class so it can be used in this file
+import org.springframework.security.crypto.password.PasswordEncoder; // imports a class so it can be used in this file
+import org.springframework.security.web.SecurityFilterChain; // imports a class so it can be used in this file
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // imports a class so it can be used in this file
 
 // @Configuration marks a class that defines Spring beans and setup.
-@Configuration
+@Configuration // marks this class as a Spring configuration class
 /**
  * This class named SecurityConfig is part of the Spring Boot application.
  * It groups related logic so the project stays organized and easier to learn.
  */
-public class SecurityConfig {
+public class SecurityConfig { // defines a class type
 
 // @Bean tells Spring to register this method return value in the dependency injection container.
-    @Bean
-    SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter,
-            DaoAuthenticationProvider authenticationProvider,
-            RestAuthenticationEntryPoint authenticationEntryPoint,
-            RestAccessDeniedHandler accessDeniedHandler
-    ) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .authenticationProvider(authenticationProvider)
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(authenticationEntryPoint)
-                        .accessDeniedHandler(accessDeniedHandler))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/actuator/health"
-                        ).permitAll()
-                        .requestMatchers("/api/v1/student/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT")
-                        .requestMatchers(
-                                "/api/v1/recommendations/**",
-                                "/api/v1/subscriptions/**",
-                                "/api/v1/notifications/**",
-                                "/api/v1/applications/**"
-                        ).hasAnyAuthority("ROLE_STUDENT", "STUDENT")
-                        .requestMatchers("/api/v1/companies/**").hasAnyAuthority("ROLE_COMPANY", "COMPANY")
-                        .requestMatchers("/api/v1/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                        .requestMatchers("/api/**").authenticated()
-                        .anyRequest().permitAll())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+    @Bean // registers this method return value as a Spring bean
+    SecurityFilterChain securityFilterChain( // supports the surrounding application logic
+            HttpSecurity http, // supports the surrounding application logic
+            JwtAuthenticationFilter jwtAuthenticationFilter, // handles authentication or authorization to protect secure access
+            DaoAuthenticationProvider authenticationProvider, // supports the surrounding application logic
+            RestAuthenticationEntryPoint authenticationEntryPoint, // supports the surrounding application logic
+            RestAccessDeniedHandler accessDeniedHandler // supports the surrounding application logic
+    ) throws Exception { // supports the surrounding application logic
+        http // supports the surrounding application logic
+                .csrf(AbstractHttpConfigurer::disable) // supports the surrounding application logic
+                .cors(Customizer.withDefaults()) // supports the surrounding application logic
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // supports the surrounding application logic
+                .formLogin(AbstractHttpConfigurer::disable) // supports the surrounding application logic
+                .httpBasic(AbstractHttpConfigurer::disable) // supports the surrounding application logic
+                .authenticationProvider(authenticationProvider) // supports the surrounding application logic
+                .exceptionHandling(ex -> ex // supports the surrounding application logic
+                        .authenticationEntryPoint(authenticationEntryPoint) // supports the surrounding application logic
+                        .accessDeniedHandler(accessDeniedHandler)) // supports the surrounding application logic
+                .authorizeHttpRequests(auth -> auth // supports the surrounding application logic
+                        .requestMatchers( // supports the surrounding application logic
+                                "/api/v1/auth/**", // supports the surrounding application logic
+                                "/v3/api-docs/**", // supports the surrounding application logic
+                                "/swagger-ui/**", // supports the surrounding application logic
+                                "/swagger-ui.html", // supports the surrounding application logic
+                                "/actuator/health" // supports the surrounding application logic
+                        ).permitAll() // supports the surrounding application logic
+                        .requestMatchers("/api/v1/student/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT") // supports the surrounding application logic
+                        .requestMatchers( // supports the surrounding application logic
+                                "/api/v1/recommendations/**", // supports the surrounding application logic
+                                "/api/v1/subscriptions/**", // supports the surrounding application logic
+                                "/api/v1/notifications/**", // supports the surrounding application logic
+                                "/api/v1/applications/**" // supports the surrounding application logic
+                        ).hasAnyAuthority("ROLE_STUDENT", "STUDENT") // supports the surrounding application logic
+                        .requestMatchers("/api/v1/companies/**").hasAnyAuthority("ROLE_COMPANY", "COMPANY") // supports the surrounding application logic
+                        .requestMatchers("/api/v1/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN") // supports the surrounding application logic
+                        .requestMatchers("/api/**").authenticated() // handles authentication or authorization to protect secure access
+                        .anyRequest().permitAll()) // supports the surrounding application logic
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // defines a class type
 
-        return http.build();
-    }
-
-// @Bean tells Spring to register this method return value in the dependency injection container.
-    @Bean
-    DaoAuthenticationProvider authenticationProvider(
-            CustomUserDetailsService customUserDetailsService,
-            PasswordEncoder passwordEncoder
-    ) {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(customUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder);
-        return authProvider;
-    }
+        return http.build(); // returns a value from this method to the caller
+    } // ends the current code block
 
 // @Bean tells Spring to register this method return value in the dependency injection container.
-    @Bean
-    AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-        return configuration.getAuthenticationManager();
-    }
+    @Bean // registers this method return value as a Spring bean
+    DaoAuthenticationProvider authenticationProvider( // supports the surrounding application logic
+            CustomUserDetailsService customUserDetailsService, // supports the surrounding application logic
+            PasswordEncoder passwordEncoder // handles authentication or authorization to protect secure access
+    ) { // supports the surrounding application logic
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(); // creates a new object instance and stores it in a variable
+        authProvider.setUserDetailsService(customUserDetailsService); // executes this statement as part of the application logic
+        authProvider.setPasswordEncoder(passwordEncoder); // handles authentication or authorization to protect secure access
+        return authProvider; // returns a value from this method to the caller
+    } // ends the current code block
 
 // @Bean tells Spring to register this method return value in the dependency injection container.
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-}
+    @Bean // registers this method return value as a Spring bean
+    AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception { // supports the surrounding application logic
+        return configuration.getAuthenticationManager(); // returns a value from this method to the caller
+    } // ends the current code block
+
+// @Bean tells Spring to register this method return value in the dependency injection container.
+    @Bean // registers this method return value as a Spring bean
+    PasswordEncoder passwordEncoder() { // handles authentication or authorization to protect secure access
+        return new BCryptPasswordEncoder(); // returns a value from this method to the caller
+    } // ends the current code block
+} // ends the current code block

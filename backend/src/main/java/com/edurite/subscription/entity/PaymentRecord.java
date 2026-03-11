@@ -1,35 +1,35 @@
-package com.edurite.subscription.entity;
+package com.edurite.subscription.entity; // declares the package path for this Java file
 
-import com.edurite.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import java.math.BigDecimal;
-import java.util.UUID;
-import lombok.Getter;
-import lombok.Setter;
+import com.edurite.common.entity.BaseEntity; // imports a class so it can be used in this file
+import jakarta.persistence.Column; // imports a class so it can be used in this file
+import jakarta.persistence.Entity; // imports a class so it can be used in this file
+import jakarta.persistence.Table; // imports a class so it can be used in this file
+import java.math.BigDecimal; // imports a class so it can be used in this file
+import java.util.UUID; // imports a class so it can be used in this file
+import lombok.Getter; // imports a class so it can be used in this file
+import lombok.Setter; // imports a class so it can be used in this file
 
 // @Entity tells JPA that this class maps to a database table.
-@Entity
+@Entity // marks this class as a JPA entity that maps to a database table
 // @Table configures the exact database table name and options.
-@Table(name = "payments")
-@Getter
-@Setter
+@Table(name = "payments") // sets database table mapping details for this entity
+@Getter // generates getter methods for fields at compile time
+@Setter // generates setter methods for fields at compile time
 /**
  * This class named PaymentRecord is part of the Spring Boot application.
  * It groups related logic so the project stays organized and easier to learn.
  */
-public class PaymentRecord extends BaseEntity {
+public class PaymentRecord extends BaseEntity { // defines a class type
 // @Column configures how this field is stored in the database.
-    @Column(nullable = false)
-    private UUID subscriptionId;
+    @Column(nullable = false) // configures how this field maps to a database column
+    private UUID subscriptionId; // executes this statement as part of the application logic
 // @Column configures how this field is stored in the database.
-    @Column(nullable = false)
-    private BigDecimal amount;
+    @Column(nullable = false) // configures how this field maps to a database column
+    private BigDecimal amount; // executes this statement as part of the application logic
 // @Column configures how this field is stored in the database.
-    @Column(nullable = false)
-    private String currency;
+    @Column(nullable = false) // configures how this field maps to a database column
+    private String currency; // executes this statement as part of the application logic
 // @Column configures how this field is stored in the database.
-    @Column(nullable = false)
-    private String status;
-}
+    @Column(nullable = false) // configures how this field maps to a database column
+    private String status; // executes this statement as part of the application logic
+} // ends the current code block

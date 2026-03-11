@@ -1,24 +1,24 @@
-package com.edurite.company.dto;
+package com.edurite.company.dto; // declares the package path for this Java file
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
+import jakarta.validation.constraints.NotBlank; // imports a class so it can be used in this file
+import jakarta.validation.constraints.NotNull; // imports a class so it can be used in this file
+import java.math.BigDecimal; // imports a class so it can be used in this file
+import java.time.LocalDate; // imports a class so it can be used in this file
+import java.util.List; // imports a class so it can be used in this file
 
-public record CompanyBursaryUpsertRequest(
-        @NotBlank String bursaryName,
-        @NotBlank String description,
-        @NotBlank String fieldOfStudy,
-        @NotBlank String academicLevel,
-        @NotNull LocalDate applicationStartDate,
-        @NotNull LocalDate applicationEndDate,
-        @NotNull BigDecimal fundingAmount,
-        String benefits,
-        List<String> requiredSubjects,
-        String minimumGrade,
-        List<String> demographics,
-        String location,
-        List<String> eligibilityFilters
-) {
-}
+public record CompanyBursaryUpsertRequest( // supports the surrounding application logic
+        @NotBlank String bursaryName, // adds metadata that Spring or Java uses at runtime
+        @NotBlank String description, // adds metadata that Spring or Java uses at runtime
+        @NotBlank String fieldOfStudy, // adds metadata that Spring or Java uses at runtime
+        @NotBlank String academicLevel, // adds metadata that Spring or Java uses at runtime
+        @NotNull LocalDate applicationStartDate, // adds metadata that Spring or Java uses at runtime
+        @NotNull LocalDate applicationEndDate, // adds metadata that Spring or Java uses at runtime
+        @NotNull BigDecimal fundingAmount, // adds metadata that Spring or Java uses at runtime
+        String benefits, // supports the surrounding application logic
+        List<String> requiredSubjects, // supports the surrounding application logic
+        String minimumGrade, // supports the surrounding application logic
+        List<String> demographics, // supports the surrounding application logic
+        String location, // supports the surrounding application logic
+        List<String> eligibilityFilters // supports the surrounding application logic
+) { // supports the surrounding application logic
+} // ends the current code block
