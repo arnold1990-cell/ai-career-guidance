@@ -13,6 +13,10 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * This class named RestAccessDeniedHandler is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class RestAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;

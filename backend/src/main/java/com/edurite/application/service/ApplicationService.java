@@ -10,7 +10,12 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named ApplicationService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class ApplicationService {
 
     private final ApplicationRepository repository;
@@ -23,6 +28,10 @@ public class ApplicationService {
         this.studentService = studentService;
     }
 
+    /**
+     * Beginner note: this method handles the "submit" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public ApplicationRecord submit(UUID bursaryId, Principal principal) {
         StudentProfile profile = requireStudent(principal);
         ApplicationRecord record = new ApplicationRecord();
@@ -32,10 +41,18 @@ public class ApplicationService {
         return repository.save(record);
     }
 
+    /**
+     * Beginner note: this method handles the "listMine" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public List<ApplicationRecord> listMine(Principal principal) {
         return repository.findByStudentIdOrderByCreatedAtDesc(requireStudent(principal).getId());
     }
 
+    /**
+     * Beginner note: this method handles the "requireStudent" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private StudentProfile requireStudent(Principal principal) {
         currentUserService.requireUser(principal);
         return studentService.getProfileEntity(principal);

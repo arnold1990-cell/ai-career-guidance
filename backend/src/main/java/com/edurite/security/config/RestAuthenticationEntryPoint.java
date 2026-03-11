@@ -13,6 +13,10 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * This class named RestAuthenticationEntryPoint is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;

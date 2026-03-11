@@ -11,8 +11,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+// @RestController tells Spring this class exposes REST API endpoints.
 @RestController
+// @RequestMapping defines the base URL path for endpoints in this controller.
 @RequestMapping("/api/v1/careers")
+/**
+ * This class named CareerController is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class CareerController {
 
     private final CareerRepository careerRepository;
@@ -21,6 +27,7 @@ public class CareerController {
         this.careerRepository = careerRepository;
     }
 
+// @GetMapping handles HTTP GET requests for reading data.
     @GetMapping
     public Page<Career> list(
             @RequestParam(defaultValue = "") String q,
@@ -44,6 +51,7 @@ public class CareerController {
                 PageRequest.of(page, size));
     }
 
+// @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/{id}")
     public Career get(@PathVariable UUID id) { return careerRepository.findById(id).orElseThrow(); }
 }
