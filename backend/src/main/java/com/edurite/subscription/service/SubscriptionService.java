@@ -12,7 +12,12 @@ import java.time.LocalDate;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named SubscriptionService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentRepository paymentRepository;
@@ -26,6 +31,10 @@ public class SubscriptionService {
         this.notificationService = notificationService;
     }
 
+    /**
+     * Beginner note: this method handles the "current" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public SubscriptionRecord current(Principal principal) {
         var user = currentUserService.requireUser(principal);
         return subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId()).orElseGet(() -> {
@@ -40,6 +49,10 @@ public class SubscriptionService {
         });
     }
 
+    /**
+     * Beginner note: this method handles the "purchase" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public Map<String, Object> purchase(Principal principal, String planCode) {
         SubscriptionRecord subscription = current(principal);
         subscription.setPlanCode("PREMIUM".equalsIgnoreCase(planCode) ? "PLAN_PREMIUM" : "PLAN_BASIC");

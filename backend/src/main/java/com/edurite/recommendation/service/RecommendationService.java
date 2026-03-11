@@ -11,7 +11,12 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named RecommendationService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class RecommendationService {
 
     private final StudentService studentService;
@@ -22,6 +27,10 @@ public class RecommendationService {
         this.subscriptionRepository = subscriptionRepository;
     }
 
+    /**
+     * Beginner note: this method handles the "generateForStudent" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public RecommendationResultDto generateForStudent(Principal principal) {
         StudentProfile profile = studentService.getProfileEntity(principal);
         boolean premium = subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(profile.getUserId())
@@ -98,6 +107,10 @@ public class RecommendationService {
         return new RecommendationResultDto(suggestedCareers, suggestedBursaries, improvements, profileTips, "rule-engine-v3");
     }
 
+    /**
+     * Beginner note: this method handles the "split" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private List<String> split(String input) {
         if (input == null || input.isBlank()) {
             return List.of();
@@ -105,10 +118,18 @@ public class RecommendationService {
         return List.of(input.split(",")).stream().map(this::normalize).filter(s -> !s.isBlank()).toList();
     }
 
+    /**
+     * Beginner note: this method handles the "normalize" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).trim();
     }
 
+    /**
+     * Beginner note: this method handles the "containsAny" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private boolean containsAny(List<String> values, String... keywords) {
         for (String value : values) {
             for (String keyword : keywords) {
@@ -120,6 +141,10 @@ public class RecommendationService {
         return false;
     }
 
+    /**
+     * Beginner note: this method handles the "containsAny" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private boolean containsAny(String value, String... keywords) {
         for (String keyword : keywords) {
             if (value.contains(keyword)) {

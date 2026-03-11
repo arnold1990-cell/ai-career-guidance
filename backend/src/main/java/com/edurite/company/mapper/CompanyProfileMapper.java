@@ -5,8 +5,16 @@ import com.edurite.company.entity.CompanyProfile;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * This class named CompanyProfileMapper is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class CompanyProfileMapper {
 
+    /**
+     * Beginner note: this method handles the "toDto" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public CompanyProfileDto toDto(CompanyProfile entity) {
         return new CompanyProfileDto(
                 entity.getId(),

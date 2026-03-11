@@ -16,9 +16,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+// @Configuration marks a class that defines Spring beans and setup.
 @Configuration
+/**
+ * This class named SecurityConfig is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class SecurityConfig {
 
+// @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -61,6 +67,7 @@ public class SecurityConfig {
         return http.build();
     }
 
+// @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
     DaoAuthenticationProvider authenticationProvider(
             CustomUserDetailsService customUserDetailsService,
@@ -72,11 +79,13 @@ public class SecurityConfig {
         return authProvider;
     }
 
+// @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
     AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
     }
 
+// @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

@@ -9,23 +9,36 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
+// @Entity tells JPA that this class maps to a database table.
 @Entity
+// @Table configures the exact database table name and options.
 @Table(name = "company_password_reset_tokens")
 @Getter
 @Setter
+/**
+ * This class named CompanyPasswordResetToken is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class CompanyPasswordResetToken extends BaseEntity {
 
+// @Column configures how this field is stored in the database.
     @Column(nullable = false)
     private UUID companyId;
 
+// @Column configures how this field is stored in the database.
     @Column(nullable = false, unique = true)
     private String token;
 
+// @Column configures how this field is stored in the database.
     @Column(nullable = false)
     private OffsetDateTime expiresAt;
 
     private OffsetDateTime usedAt;
 
+    /**
+     * Beginner note: this method handles the "isActive" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public boolean isActive() {
         return usedAt == null && expiresAt.isAfter(OffsetDateTime.now());
     }

@@ -16,6 +16,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
+/**
+ * This class named JwtAuthenticationFilter is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;

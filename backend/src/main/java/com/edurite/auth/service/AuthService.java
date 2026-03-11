@@ -29,7 +29,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named AuthService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -59,6 +64,10 @@ public class AuthService {
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "registerStudent" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public AuthResponse registerStudent(StudentRegisterRequest request) {
         String[] names = splitFullName(request.fullName());
         User user = createUser(request.email(), request.password(), names[0], names[1], "ROLE_STUDENT");
@@ -71,6 +80,10 @@ public class AuthService {
     }
 
     @Transactional
+    /**
+     * Beginner note: this method handles the "registerCompany" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public AuthResponse registerCompany(CompanyRegisterRequest request) {
         String officialEmail = request.officialEmail();
         if (officialEmail == null || officialEmail.isBlank()) {
@@ -131,6 +144,10 @@ public class AuthService {
     }
 
 
+    /**
+     * Beginner note: this method handles the "refresh" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public AuthResponse refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new InvalidCredentialsException();
@@ -161,6 +178,10 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
+    /**
+     * Beginner note: this method handles the "login" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public AuthResponse login(LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -174,6 +195,10 @@ public class AuthService {
         }
     }
 
+    /**
+     * Beginner note: this method handles the "createUser" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private User createUser(String email, String password, String firstName, String lastName, String roleName) {
         String normalizedEmail = normalizeEmail(email);
         if (userRepository.existsByEmail(normalizedEmail)) {
@@ -193,6 +218,10 @@ public class AuthService {
         return userRepository.save(user);
     }
 
+    /**
+     * Beginner note: this method handles the "toAuthResponse" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private AuthResponse toAuthResponse(User user) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -210,10 +239,18 @@ public class AuthService {
         );
     }
 
+    /**
+     * Beginner note: this method handles the "normalizeEmail" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Beginner note: this method handles the "splitFullName" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private String[] splitFullName(String fullName) {
         String trimmed = fullName.trim();
         String[] parts = trimmed.split("\\s+", 2);

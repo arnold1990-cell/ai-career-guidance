@@ -12,7 +12,12 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+// @Service marks a class that contains business logic.
 @Service
+/**
+ * This class named CustomUserDetailsService is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
@@ -22,6 +27,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Override
+    /**
+     * Beginner note: this method handles the "loadUserByUsername" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
@@ -41,6 +50,10 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .build();
     }
 
+    /**
+     * Beginner note: this method handles the "toAuthority" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
     private String toAuthority(String roleName) {
         String normalized = roleName.trim().toUpperCase();
         return normalized.startsWith("ROLE_") ? normalized : "ROLE_" + normalized;

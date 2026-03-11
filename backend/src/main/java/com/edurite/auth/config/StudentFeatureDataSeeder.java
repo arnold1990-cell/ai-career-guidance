@@ -22,9 +22,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+// @Configuration marks a class that defines Spring beans and setup.
 @Configuration
+/**
+ * This class named StudentFeatureDataSeeder is part of the Spring Boot application.
+ * It groups related logic so the project stays organized and easier to learn.
+ */
 public class StudentFeatureDataSeeder {
 
+// @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
     ApplicationRunner studentFeatureSeedRunner(
             UserRepository userRepository,
