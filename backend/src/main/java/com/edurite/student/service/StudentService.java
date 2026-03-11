@@ -55,7 +55,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "getProfile" step of the feature.
+     * this method handles the "getProfile" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto getProfile(Principal principal) {
@@ -65,7 +65,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "upsertProfile" step of the feature.
+     * this method handles the "upsertProfile" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto upsertProfile(Principal principal, StudentProfileUpsertRequest request) {
@@ -90,7 +90,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "uploadDocument" step of the feature.
+     * this method handles the "uploadDocument" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto uploadDocument(Principal principal, MultipartFile file, String documentType) throws IOException {
@@ -110,7 +110,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "dashboard" step of the feature.
+     * this method handles the "dashboard" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> dashboard(Principal principal) {
@@ -145,7 +145,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "getSettings" step of the feature.
+     * this method handles the "getSettings" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentSettingsDto getSettings(Principal principal) {
@@ -154,7 +154,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "updateSettings" step of the feature.
+     * this method handles the "updateSettings" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentSettingsDto updateSettings(Principal principal, StudentSettingsDto request) {
@@ -167,7 +167,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "saveCareer" step of the feature.
+     * this method handles the "saveCareer" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public void saveCareer(Principal principal, UUID careerId) {
@@ -181,7 +181,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "saveBursary" step of the feature.
+     * this method handles the "saveBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public void saveBursary(Principal principal, UUID bursaryId) {
@@ -196,7 +196,7 @@ public class StudentService {
 
 
     /**
-     * Beginner note: this method handles the "unsaveCareer" step of the feature.
+     * this method handles the "unsaveCareer" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public void unsaveCareer(Principal principal, UUID careerId) {
@@ -205,7 +205,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "unsaveBursary" step of the feature.
+     * this method handles the "unsaveBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public void unsaveBursary(Principal principal, UUID bursaryId) {
@@ -214,7 +214,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "savedCareerIds" step of the feature.
+     * this method handles the "savedCareerIds" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<UUID> savedCareerIds(Principal principal) {
@@ -223,7 +223,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "savedBursaryIds" step of the feature.
+     * this method handles the "savedBursaryIds" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<UUID> savedBursaryIds(Principal principal) {
@@ -232,7 +232,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "getProfileEntity" step of the feature.
+     * this method handles the "getProfileEntity" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfile getProfileEntity(Principal principal) {
@@ -241,7 +241,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "createDefault" step of the feature.
+     * this method handles the "createDefault" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private StudentProfile createDefault(User user) {
@@ -257,7 +257,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "toDto" step of the feature.
+     * this method handles the "toDto" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private StudentProfileDto toDto(StudentProfile profile, String email) {
@@ -270,7 +270,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "toSettingsDto" step of the feature.
+     * this method handles the "toSettingsDto" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private StudentSettingsDto toSettingsDto(StudentProfile profile) {
@@ -278,7 +278,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "split" step of the feature.
+     * this method handles the "split" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private List<String> split(String value) {
@@ -287,7 +287,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "join" step of the feature.
+     * this method handles the "join" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String join(List<String> values) {
@@ -296,7 +296,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "calculateCompleteness" step of the feature.
+     * this method handles the "calculateCompleteness" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private int calculateCompleteness(StudentProfile p) {
@@ -314,7 +314,7 @@ public class StudentService {
     }
 
     /**
-     * Beginner note: this method handles the "validateFile" step of the feature.
+     * this method handles the "validateFile" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private void validateFile(MultipartFile file) {

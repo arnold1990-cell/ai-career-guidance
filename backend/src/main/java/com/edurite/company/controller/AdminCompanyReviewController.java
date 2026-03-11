@@ -37,7 +37,7 @@ public class AdminCompanyReviewController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/pending")
     /**
-     * Beginner note: this method handles the "pending" step of the feature.
+     * this method handles the "pending" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyProfileDto> pending() {
@@ -47,7 +47,7 @@ public class AdminCompanyReviewController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/{id}")
     /**
-     * Beginner note: this method handles the "details" step of the feature.
+     * this method handles the "details" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto details(@PathVariable UUID id) {
@@ -57,7 +57,7 @@ public class AdminCompanyReviewController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/{id}/approve")
     /**
-     * Beginner note: this method handles the "approve" step of the feature.
+     * this method handles the "approve" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto approve(@PathVariable UUID id, @Valid @RequestBody AdminCompanyReviewRequest request, Principal principal) {
@@ -68,7 +68,7 @@ public class AdminCompanyReviewController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/{id}/reject")
     /**
-     * Beginner note: this method handles the "reject" step of the feature.
+     * this method handles the "reject" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto reject(@PathVariable UUID id, @Valid @RequestBody AdminCompanyReviewRequest request, Principal principal) {
@@ -79,7 +79,7 @@ public class AdminCompanyReviewController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/{id}/more-info")
     /**
-     * Beginner note: this method handles the "moreInfo" step of the feature.
+     * this method handles the "moreInfo" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto moreInfo(@PathVariable UUID id, @Valid @RequestBody AdminCompanyReviewRequest request, Principal principal) {

@@ -39,7 +39,7 @@ public class StudentController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/profile")
     /**
-     * Beginner note: this method handles the "profile" step of the feature.
+     * this method handles the "profile" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto profile(Principal principal) {
@@ -49,7 +49,7 @@ public class StudentController {
 // @PutMapping handles HTTP PUT requests for updating data.
     @PutMapping("/profile")
     /**
-     * Beginner note: this method handles the "upsert" step of the feature.
+     * this method handles the "upsert" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto upsert(Principal principal, @Valid @org.springframework.web.bind.annotation.RequestBody StudentProfileUpsertRequest request) {
@@ -59,7 +59,7 @@ public class StudentController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/profile/cv")
     /**
-     * Beginner note: this method handles the "uploadCv" step of the feature.
+     * this method handles the "uploadCv" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto uploadCv(Principal principal, @RequestParam("file") MultipartFile file) throws IOException {
@@ -69,7 +69,7 @@ public class StudentController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/profile/transcript")
     /**
-     * Beginner note: this method handles the "uploadTranscript" step of the feature.
+     * this method handles the "uploadTranscript" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentProfileDto uploadTranscript(Principal principal, @RequestParam("file") MultipartFile file) throws IOException {
@@ -79,7 +79,7 @@ public class StudentController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/dashboard")
     /**
-     * Beginner note: this method handles the "dashboard" step of the feature.
+     * this method handles the "dashboard" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> dashboard(Principal principal) {
@@ -89,7 +89,7 @@ public class StudentController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/settings")
     /**
-     * Beginner note: this method handles the "settings" step of the feature.
+     * this method handles the "settings" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentSettingsDto settings(Principal principal) {
@@ -99,7 +99,7 @@ public class StudentController {
 // @PutMapping handles HTTP PUT requests for updating data.
     @PutMapping("/settings")
     /**
-     * Beginner note: this method handles the "updateSettings" step of the feature.
+     * this method handles the "updateSettings" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public StudentSettingsDto updateSettings(Principal principal, @org.springframework.web.bind.annotation.RequestBody StudentSettingsDto request) {
@@ -109,7 +109,7 @@ public class StudentController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/careers/{careerId}/save")
     /**
-     * Beginner note: this method handles the "saveCareer" step of the feature.
+     * this method handles the "saveCareer" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, String>> saveCareer(Principal principal, @PathVariable UUID careerId) {
@@ -120,7 +120,7 @@ public class StudentController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/bursaries/{bursaryId}/save")
     /**
-     * Beginner note: this method handles the "saveBursary" step of the feature.
+     * this method handles the "saveBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, String>> saveBursary(Principal principal, @PathVariable UUID bursaryId) {
@@ -131,7 +131,7 @@ public class StudentController {
 // @DeleteMapping handles HTTP DELETE requests for deleting data.
     @DeleteMapping("/careers/{careerId}/save")
     /**
-     * Beginner note: this method handles the "unsaveCareer" step of the feature.
+     * this method handles the "unsaveCareer" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, String>> unsaveCareer(Principal principal, @PathVariable UUID careerId) {
@@ -142,7 +142,7 @@ public class StudentController {
 // @DeleteMapping handles HTTP DELETE requests for deleting data.
     @DeleteMapping("/bursaries/{bursaryId}/save")
     /**
-     * Beginner note: this method handles the "unsaveBursary" step of the feature.
+     * this method handles the "unsaveBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, String>> unsaveBursary(Principal principal, @PathVariable UUID bursaryId) {
@@ -153,7 +153,7 @@ public class StudentController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/careers/saved")
     /**
-     * Beginner note: this method handles the "savedCareers" step of the feature.
+     * this method handles the "savedCareers" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> savedCareers(Principal principal) {
@@ -163,7 +163,7 @@ public class StudentController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/bursaries/saved")
     /**
-     * Beginner note: this method handles the "savedBursaries" step of the feature.
+     * this method handles the "savedBursaries" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> savedBursaries(Principal principal) {

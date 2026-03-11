@@ -11,7 +11,7 @@ public record AuthResponse(
         UserSummary user
 ) {
     /**
-     * Beginner note: this method handles the "UserSummary" step of the feature.
+     * this method handles the "UserSummary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public record UserSummary(UUID id, String email, String fullName, Set<String> roles) {

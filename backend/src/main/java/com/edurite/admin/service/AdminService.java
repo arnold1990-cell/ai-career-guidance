@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class AdminService {
 
     /**
-     * Beginner note: this method handles the "users" step of the feature.
+     * this method handles the "users" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<Map<String, String>> users() {
@@ -21,7 +21,7 @@ public class AdminService {
     }
 
     /**
-     * Beginner note: this method handles the "analytics" step of the feature.
+     * this method handles the "analytics" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> analytics() {

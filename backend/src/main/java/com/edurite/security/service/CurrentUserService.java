@@ -21,7 +21,7 @@ public class CurrentUserService {
     }
 
     /**
-     * Beginner note: this method handles the "requireUser" step of the feature.
+     * this method handles the "requireUser" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public User requireUser(Principal principal) {

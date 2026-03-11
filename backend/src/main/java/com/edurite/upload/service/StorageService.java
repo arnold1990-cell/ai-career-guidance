@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 public class StorageService {
 
     /**
-     * Beginner note: this method handles the "putObject" step of the feature.
+     * this method handles the "putObject" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public String putObject(String bucket, String objectName, byte[] bytes) {

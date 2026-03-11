@@ -38,7 +38,7 @@ public class AuthController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/register/student")
     /**
-     * Beginner note: this method handles the "registerStudent" step of the feature.
+     * this method handles the "registerStudent" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<AuthResponse> registerStudent(@Valid @RequestBody StudentRegisterRequest request) {
@@ -48,7 +48,7 @@ public class AuthController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/register/company")
     /**
-     * Beginner note: this method handles the "registerCompany" step of the feature.
+     * this method handles the "registerCompany" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<AuthResponse> registerCompany(@Valid @RequestBody CompanyRegisterRequest request) {
@@ -58,7 +58,7 @@ public class AuthController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/login")
     /**
-     * Beginner note: this method handles the "login" step of the feature.
+     * this method handles the "login" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -68,7 +68,7 @@ public class AuthController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/refresh")
     /**
-     * Beginner note: this method handles the "refresh" step of the feature.
+     * this method handles the "refresh" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<AuthResponse> refresh(@RequestBody Map<String, String> payload) {
@@ -82,7 +82,7 @@ public class AuthController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/forgot-password")
     /**
-     * Beginner note: this method handles the "forgotPassword" step of the feature.
+     * this method handles the "forgotPassword" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, String> forgotPassword(@RequestBody CompanyForgotPasswordRequest request) {
@@ -92,7 +92,7 @@ public class AuthController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/reset-password")
     /**
-     * Beginner note: this method handles the "resetPassword" step of the feature.
+     * this method handles the "resetPassword" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, String> resetPassword(@Valid @RequestBody CompanyResetPasswordRequest request) {
