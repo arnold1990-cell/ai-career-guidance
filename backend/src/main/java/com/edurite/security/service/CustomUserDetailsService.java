@@ -28,7 +28,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     /**
-     * Beginner note: this method handles the "loadUserByUsername" step of the feature.
+     * this method handles the "loadUserByUsername" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -51,7 +51,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     /**
-     * Beginner note: this method handles the "toAuthority" step of the feature.
+     * this method handles the "toAuthority" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String toAuthority(String roleName) {

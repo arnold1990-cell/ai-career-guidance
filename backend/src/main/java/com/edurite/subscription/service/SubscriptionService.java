@@ -32,7 +32,7 @@ public class SubscriptionService {
     }
 
     /**
-     * Beginner note: this method handles the "current" step of the feature.
+     * this method handles the "current" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public SubscriptionRecord current(Principal principal) {
@@ -50,7 +50,7 @@ public class SubscriptionService {
     }
 
     /**
-     * Beginner note: this method handles the "purchase" step of the feature.
+     * this method handles the "purchase" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> purchase(Principal principal, String planCode) {

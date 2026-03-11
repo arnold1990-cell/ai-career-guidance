@@ -28,7 +28,7 @@ public class SubscriptionController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/me")
     /**
-     * Beginner note: this method handles the "current" step of the feature.
+     * this method handles the "current" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public SubscriptionRecord current(Principal principal) {
@@ -38,7 +38,7 @@ public class SubscriptionController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/purchase")
     /**
-     * Beginner note: this method handles the "purchase" step of the feature.
+     * this method handles the "purchase" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public Map<String, Object> purchase(Principal principal, @RequestBody Map<String, String> payload) {

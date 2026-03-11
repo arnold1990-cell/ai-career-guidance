@@ -28,7 +28,7 @@ public class NotificationService {
     }
 
     /**
-     * Beginner note: this method handles the "mine" step of the feature.
+     * this method handles the "mine" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<NotificationRecord> mine(Principal principal) {
@@ -37,7 +37,7 @@ public class NotificationService {
     }
 
     /**
-     * Beginner note: this method handles the "markRead" step of the feature.
+     * this method handles the "markRead" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public NotificationRecord markRead(Principal principal, String id) {
@@ -52,7 +52,7 @@ public class NotificationService {
     public void sendSms(String to, String template) {}
 
     /**
-     * Beginner note: this method handles the "createInApp" step of the feature.
+     * this method handles the "createInApp" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public NotificationRecord createInApp(java.util.UUID userId, String eventType, String title, String message) {

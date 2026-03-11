@@ -26,7 +26,7 @@ public class RecommendationController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/me")
     /**
-     * Beginner note: this method handles the "myRecommendations" step of the feature.
+     * this method handles the "myRecommendations" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public RecommendationResultDto myRecommendations(Principal principal) {

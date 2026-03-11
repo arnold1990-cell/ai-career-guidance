@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class CompanyProfileMapper {
 
     /**
-     * Beginner note: this method handles the "toDto" step of the feature.
+     * this method handles the "toDto" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto toDto(CompanyProfile entity) {

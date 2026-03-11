@@ -29,7 +29,7 @@ public class NotificationController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping
     /**
-     * Beginner note: this method handles the "mine" step of the feature.
+     * this method handles the "mine" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<NotificationRecord> mine(Principal principal) {
@@ -39,7 +39,7 @@ public class NotificationController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/{id}/read")
     /**
-     * Beginner note: this method handles the "markRead" step of the feature.
+     * this method handles the "markRead" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public NotificationRecord markRead(Principal principal, @PathVariable String id) {

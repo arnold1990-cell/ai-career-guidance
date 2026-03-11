@@ -71,7 +71,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "getMe" step of the feature.
+     * this method handles the "getMe" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto getMe(Principal principal) {
@@ -79,7 +79,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "updateMe" step of the feature.
+     * this method handles the "updateMe" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto updateMe(Principal principal, CompanyProfileUpdateRequest request) {
@@ -94,7 +94,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "uploadDocument" step of the feature.
+     * this method handles the "uploadDocument" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyDocumentDto uploadDocument(Principal principal, MultipartFile file, String documentType) throws IOException {
@@ -111,7 +111,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "listDocuments" step of the feature.
+     * this method handles the "listDocuments" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyDocumentDto> listDocuments(Principal principal) {
@@ -122,7 +122,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "createBursary" step of the feature.
+     * this method handles the "createBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto createBursary(Principal principal, CompanyBursaryUpsertRequest request) {
@@ -133,7 +133,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "updateBursary" step of the feature.
+     * this method handles the "updateBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto updateBursary(Principal principal, UUID bursaryId, CompanyBursaryUpsertRequest request) {
@@ -144,7 +144,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "listOwnBursaries" step of the feature.
+     * this method handles the "listOwnBursaries" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyBursaryDto> listOwnBursaries(Principal principal) {
@@ -153,7 +153,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "getOwnBursary" step of the feature.
+     * this method handles the "getOwnBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto getOwnBursary(Principal principal, UUID bursaryId) {
@@ -164,7 +164,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "setBursaryStatus" step of the feature.
+     * this method handles the "setBursaryStatus" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto setBursaryStatus(Principal principal, UUID bursaryId, String status) {
@@ -176,7 +176,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "searchStudents" step of the feature.
+     * this method handles the "searchStudents" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyStudentSearchResultDto> searchStudents(Principal principal, String fieldOfInterest, String qualificationLevel, String skills, String location) {
@@ -192,7 +192,7 @@ public class CompanyService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "issuePasswordResetToken" step of the feature.
+     * this method handles the "issuePasswordResetToken" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public String issuePasswordResetToken(CompanyForgotPasswordRequest request) {
@@ -212,7 +212,7 @@ public class CompanyService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "resetPassword" step of the feature.
+     * this method handles the "resetPassword" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public void resetPassword(CompanyResetPasswordRequest request) {
@@ -234,7 +234,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "listPendingCompanies" step of the feature.
+     * this method handles the "listPendingCompanies" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyProfileDto> listPendingCompanies() {
@@ -242,7 +242,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "getCompanyById" step of the feature.
+     * this method handles the "getCompanyById" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto getCompanyById(UUID companyId) {
@@ -251,7 +251,7 @@ public class CompanyService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "approve" step of the feature.
+     * this method handles the "approve" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto approve(UUID companyId, UUID adminUserId, AdminCompanyReviewRequest request) {
@@ -260,7 +260,7 @@ public class CompanyService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "reject" step of the feature.
+     * this method handles the "reject" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto reject(UUID companyId, UUID adminUserId, AdminCompanyReviewRequest request) {
@@ -269,7 +269,7 @@ public class CompanyService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "requestMoreInfo" step of the feature.
+     * this method handles the "requestMoreInfo" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto requestMoreInfo(UUID companyId, UUID adminUserId, AdminCompanyReviewRequest request) {
@@ -277,7 +277,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "review" step of the feature.
+     * this method handles the "review" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private CompanyProfileDto review(UUID companyId, UUID adminUserId, CompanyApprovalStatus status, String notes) {
@@ -290,7 +290,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "requireCompany" step of the feature.
+     * this method handles the "requireCompany" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private CompanyProfile requireCompany(Principal principal) {
@@ -299,7 +299,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "requireApprovedCompany" step of the feature.
+     * this method handles the "requireApprovedCompany" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private CompanyProfile requireApprovedCompany(Principal principal) {
@@ -311,7 +311,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "ensureOwned" step of the feature.
+     * this method handles the "ensureOwned" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private void ensureOwned(CompanyProfile company, Bursary bursary) {
@@ -321,7 +321,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "toBursary" step of the feature.
+     * this method handles the "toBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private Bursary toBursary(Bursary bursary, UUID companyId, CompanyBursaryUpsertRequest request) {
@@ -343,7 +343,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "toBursaryDto" step of the feature.
+     * this method handles the "toBursaryDto" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private CompanyBursaryDto toBursaryDto(Bursary b) {
@@ -355,7 +355,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "toStudentView" step of the feature.
+     * this method handles the "toStudentView" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private CompanyStudentSearchResultDto toStudentView(StudentProfile s) {
@@ -363,7 +363,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "split" step of the feature.
+     * this method handles the "split" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private List<String> split(String value) {
@@ -372,7 +372,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "matches" step of the feature.
+     * this method handles the "matches" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private boolean matches(String source, String filter) {
@@ -382,7 +382,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "join" step of the feature.
+     * this method handles the "join" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String join(List<String> values) {
@@ -391,7 +391,7 @@ public class CompanyService {
     }
 
     /**
-     * Beginner note: this method handles the "findCompanyByRecoveryInput" step of the feature.
+     * this method handles the "findCompanyByRecoveryInput" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private CompanyProfile findCompanyByRecoveryInput(CompanyForgotPasswordRequest request) {

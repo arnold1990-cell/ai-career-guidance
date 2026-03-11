@@ -44,7 +44,7 @@ public class CompanyController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/me")
     /**
-     * Beginner note: this method handles the "me" step of the feature.
+     * this method handles the "me" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto me(Principal principal) {
@@ -54,7 +54,7 @@ public class CompanyController {
 // @PutMapping handles HTTP PUT requests for updating data.
     @PutMapping("/me")
     /**
-     * Beginner note: this method handles the "updateMe" step of the feature.
+     * this method handles the "updateMe" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyProfileDto updateMe(Principal principal, @Valid @org.springframework.web.bind.annotation.RequestBody CompanyProfileUpdateRequest request) {
@@ -64,7 +64,7 @@ public class CompanyController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/me/documents")
     /**
-     * Beginner note: this method handles the "uploadDocument" step of the feature.
+     * this method handles the "uploadDocument" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<CompanyDocumentDto> uploadDocument(Principal principal, @RequestPart("file") MultipartFile file, @RequestParam String documentType) throws IOException {
@@ -74,7 +74,7 @@ public class CompanyController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/me/documents")
     /**
-     * Beginner note: this method handles the "listDocuments" step of the feature.
+     * this method handles the "listDocuments" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyDocumentDto> listDocuments(Principal principal) {
@@ -84,7 +84,7 @@ public class CompanyController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/bursaries")
     /**
-     * Beginner note: this method handles the "createBursary" step of the feature.
+     * this method handles the "createBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<CompanyBursaryDto> createBursary(Principal principal, @Valid @org.springframework.web.bind.annotation.RequestBody CompanyBursaryUpsertRequest request) {
@@ -94,7 +94,7 @@ public class CompanyController {
 // @PutMapping handles HTTP PUT requests for updating data.
     @PutMapping("/bursaries/{id}")
     /**
-     * Beginner note: this method handles the "updateBursary" step of the feature.
+     * this method handles the "updateBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto updateBursary(Principal principal, @PathVariable UUID id, @Valid @org.springframework.web.bind.annotation.RequestBody CompanyBursaryUpsertRequest request) {
@@ -104,7 +104,7 @@ public class CompanyController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/bursaries")
     /**
-     * Beginner note: this method handles the "companyBursaries" step of the feature.
+     * this method handles the "companyBursaries" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<CompanyBursaryDto> companyBursaries(Principal principal) {
@@ -114,7 +114,7 @@ public class CompanyController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/bursaries/{id}")
     /**
-     * Beginner note: this method handles the "companyBursary" step of the feature.
+     * this method handles the "companyBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto companyBursary(Principal principal, @PathVariable UUID id) {
@@ -124,7 +124,7 @@ public class CompanyController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/bursaries/{id}/unpublish")
     /**
-     * Beginner note: this method handles the "unpublishBursary" step of the feature.
+     * this method handles the "unpublishBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto unpublishBursary(Principal principal, @PathVariable UUID id) {
@@ -134,7 +134,7 @@ public class CompanyController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/bursaries/{id}/close")
     /**
-     * Beginner note: this method handles the "closeBursary" step of the feature.
+     * this method handles the "closeBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto closeBursary(Principal principal, @PathVariable UUID id) {
@@ -144,7 +144,7 @@ public class CompanyController {
 // @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/bursaries/{id}/reopen")
     /**
-     * Beginner note: this method handles the "reopenBursary" step of the feature.
+     * this method handles the "reopenBursary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public CompanyBursaryDto reopenBursary(Principal principal, @PathVariable UUID id) {

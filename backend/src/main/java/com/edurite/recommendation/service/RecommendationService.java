@@ -28,7 +28,7 @@ public class RecommendationService {
     }
 
     /**
-     * Beginner note: this method handles the "generateForStudent" step of the feature.
+     * this method handles the "generateForStudent" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public RecommendationResultDto generateForStudent(Principal principal) {
@@ -108,7 +108,7 @@ public class RecommendationService {
     }
 
     /**
-     * Beginner note: this method handles the "split" step of the feature.
+     * this method handles the "split" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private List<String> split(String input) {
@@ -119,7 +119,7 @@ public class RecommendationService {
     }
 
     /**
-     * Beginner note: this method handles the "normalize" step of the feature.
+     * this method handles the "normalize" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String normalize(String value) {
@@ -127,7 +127,7 @@ public class RecommendationService {
     }
 
     /**
-     * Beginner note: this method handles the "containsAny" step of the feature.
+     * this method handles the "containsAny" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private boolean containsAny(List<String> values, String... keywords) {
@@ -142,7 +142,7 @@ public class RecommendationService {
     }
 
     /**
-     * Beginner note: this method handles the "containsAny" step of the feature.
+     * this method handles the "containsAny" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private boolean containsAny(String value, String... keywords) {

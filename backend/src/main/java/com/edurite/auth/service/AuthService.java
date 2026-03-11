@@ -65,7 +65,7 @@ public class AuthService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "registerStudent" step of the feature.
+     * this method handles the "registerStudent" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public AuthResponse registerStudent(StudentRegisterRequest request) {
@@ -81,7 +81,7 @@ public class AuthService {
 
     @Transactional
     /**
-     * Beginner note: this method handles the "registerCompany" step of the feature.
+     * this method handles the "registerCompany" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public AuthResponse registerCompany(CompanyRegisterRequest request) {
@@ -145,7 +145,7 @@ public class AuthService {
 
 
     /**
-     * Beginner note: this method handles the "refresh" step of the feature.
+     * this method handles the "refresh" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public AuthResponse refresh(String refreshToken) {
@@ -179,7 +179,7 @@ public class AuthService {
     }
 
     /**
-     * Beginner note: this method handles the "login" step of the feature.
+     * this method handles the "login" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public AuthResponse login(LoginRequest request) {
@@ -196,7 +196,7 @@ public class AuthService {
     }
 
     /**
-     * Beginner note: this method handles the "createUser" step of the feature.
+     * this method handles the "createUser" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private User createUser(String email, String password, String firstName, String lastName, String roleName) {
@@ -219,7 +219,7 @@ public class AuthService {
     }
 
     /**
-     * Beginner note: this method handles the "toAuthResponse" step of the feature.
+     * this method handles the "toAuthResponse" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private AuthResponse toAuthResponse(User user) {
@@ -240,7 +240,7 @@ public class AuthService {
     }
 
     /**
-     * Beginner note: this method handles the "normalizeEmail" step of the feature.
+     * this method handles the "normalizeEmail" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String normalizeEmail(String email) {
@@ -248,7 +248,7 @@ public class AuthService {
     }
 
     /**
-     * Beginner note: this method handles the "splitFullName" step of the feature.
+     * this method handles the "splitFullName" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String[] splitFullName(String fullName) {

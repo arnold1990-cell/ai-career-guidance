@@ -11,7 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class EduRiteApplication {
 
     /**
-     * Beginner note: this method handles the "main" step of the feature.
+     * this method handles the "main" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public static void main(String[] args) {

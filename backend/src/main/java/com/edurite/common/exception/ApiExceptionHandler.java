@@ -34,7 +34,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({DuplicateEmailException.class, ResourceConflictException.class})
     /**
-     * Beginner note: this method handles the "handleConflict" step of the feature.
+     * this method handles the "handleConflict" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, Object>> handleConflict(RuntimeException ex, HttpServletRequest request) {
@@ -43,7 +43,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({InvalidCredentialsException.class, AuthenticationException.class})
     /**
-     * Beginner note: this method handles the "handleUnauthorized" step of the feature.
+     * this method handles the "handleUnauthorized" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, Object>> handleUnauthorized(RuntimeException ex, HttpServletRequest request) {
@@ -51,7 +51,7 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * Beginner note: this method handles the "toFieldMessage" step of the feature.
+     * this method handles the "toFieldMessage" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private String toFieldMessage(FieldError fieldError) {
@@ -59,7 +59,7 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * Beginner note: this method handles the "build" step of the feature.
+     * this method handles the "build" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message, String path) {
