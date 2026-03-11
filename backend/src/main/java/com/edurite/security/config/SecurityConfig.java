@@ -45,15 +45,15 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/actuator/health"
                         ).permitAll()
-                        .requestMatchers("/api/v1/student/**").hasRole("STUDENT")
+                        .requestMatchers("/api/v1/student/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT")
                         .requestMatchers(
                                 "/api/v1/recommendations/**",
                                 "/api/v1/subscriptions/**",
                                 "/api/v1/notifications/**",
                                 "/api/v1/applications/**"
-                        ).hasRole("STUDENT")
-                        .requestMatchers("/api/v1/companies/**").hasRole("COMPANY")
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        ).hasAnyAuthority("ROLE_STUDENT", "STUDENT")
+                        .requestMatchers("/api/v1/companies/**").hasAnyAuthority("ROLE_COMPANY", "COMPANY")
+                        .requestMatchers("/api/v1/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

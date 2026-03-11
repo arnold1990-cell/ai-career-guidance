@@ -224,15 +224,25 @@ class AuthFlowIntegrationTest {
 
         mockMvc.perform(get("/api/v1/recommendations/me")
                         .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestedCareers").isArray())
+                .andExpect(jsonPath("$.suggestedBursaries").isArray())
+                .andExpect(jsonPath("$.suggestedCoursesOrImprovements").isArray())
+                .andExpect(jsonPath("$.profileImprovementTips").isArray())
+                .andExpect(jsonPath("$.modelVersion").isString());
 
         mockMvc.perform(get("/api/v1/subscriptions/me")
                         .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planCode").isString())
+                .andExpect(jsonPath("$.status").isString());
 
         mockMvc.perform(get("/api/v1/student/settings")
                         .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inAppNotificationsEnabled").isBoolean())
+                .andExpect(jsonPath("$.emailNotificationsEnabled").isBoolean())
+                .andExpect(jsonPath("$.smsNotificationsEnabled").isBoolean());
 
         mockMvc.perform(get("/api/v1/notifications")
                         .header("Authorization", "Bearer " + accessToken))
