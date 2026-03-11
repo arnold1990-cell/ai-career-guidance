@@ -75,6 +75,11 @@ public class CompanyController {
         return companyService.getOwnBursary(principal, id);
     }
 
+    @PatchMapping("/bursaries/{id}/unpublish")
+    public CompanyBursaryDto unpublishBursary(Principal principal, @PathVariable UUID id) {
+        return companyService.setBursaryStatus(principal, id, "UNPUBLISHED");
+    }
+
     @PatchMapping("/bursaries/{id}/close")
     public CompanyBursaryDto closeBursary(Principal principal, @PathVariable UUID id) {
         return companyService.setBursaryStatus(principal, id, "CLOSED");

@@ -15,6 +15,7 @@ export const companyService = {
   createBursary: (payload: Record<string, unknown>) => apiClient.post('/companies/bursaries', payload).then((r) => r.data),
   updateBursary: (id: string, payload: Record<string, unknown>) => apiClient.put(`/companies/bursaries/${id}`, payload).then((r) => r.data),
   closeBursary: (id: string) => apiClient.patch(`/companies/bursaries/${id}/close`).then((r) => r.data),
+  unpublishBursary: (id: string) => apiClient.patch(`/companies/bursaries/${id}/unpublish`).then((r) => r.data),
   reopenBursary: (id: string) => apiClient.patch(`/companies/bursaries/${id}/reopen`).then((r) => r.data),
   searchStudents: (params?: Record<string, string>) => apiClient.get('/companies/students/search', { params }).then((r) => r.data),
   getApplicants: () => apiClient.get('/companies/students/search').then((r) => r.data),
