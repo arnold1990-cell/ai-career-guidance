@@ -188,7 +188,10 @@ export const CompanyBursariesPage = () => {
             if (row.status === 'ACTIVE') await companyService.closeBursary(row.id);
             else await companyService.reopenBursary(row.id);
             window.location.reload();
-          }}>{row.status === 'ACTIVE' ? 'Close' : 'Reopen'}</button></div> },
+          }}>{row.status === 'ACTIVE' ? 'Close' : 'Reopen'}</button><button className="text-slate-600" onClick={async () => {
+            await companyService.unpublishBursary(row.id);
+            window.location.reload();
+          }}>Unpublish</button></div> },
         ]} data={rows} />
       )}
     </section>

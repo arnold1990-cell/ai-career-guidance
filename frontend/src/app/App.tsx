@@ -3,6 +3,7 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { RequireAuth } from '@/routes/RequireAuth';
 import { RequireRole } from '@/routes/RequireRole';
+import { RequireCompanyApproval } from '@/routes/RequireCompanyApproval';
 import { AboutPage, BursariesPage, BursaryDetailsPage, CareerDetailsPage, CareersPage, CourseDetailsPage, CoursesPage, InstitutionDetailsPage, InstitutionsPage, LandingPage, PricingPage } from '@/pages/public/PublicPages';
 import { ForgotPasswordPage, LoginPage, RegisterCompanyPage, RegisterStudentPage, ResetPasswordPage } from '@/pages/public/AuthPages';
 import { StudentAcademicProfilePage, StudentApplicationsPage, StudentBursaryRecommendationsPage, StudentCareerRecommendationsPage, StudentDashboardPage, StudentDocumentsPage, StudentExperiencePage, StudentNotificationsPage, StudentProfilePage, StudentQualificationsPage, StudentSavedPage, StudentSettingsPage, StudentSubscriptionPage } from '@/pages/student/StudentPages';
@@ -55,19 +56,21 @@ export const App = () => (
       </Route>
 
       <Route element={<RequireRole role="COMPANY" />}>
-        <Route element={<DashboardLayout />}>
-          <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
-          <Route path="/company/pending" element={<CompanyPendingApprovalPage />} />
-          <Route path="/company/profile" element={<CompanyProfilePage />} />
-          <Route path="/company/verification-docs" element={<CompanyVerificationDocsPage />} />
-          <Route path="/company/bursaries" element={<CompanyBursariesPage />} />
-          <Route path="/company/bursaries/new" element={<CompanyCreateBursaryPage />} />
-          <Route path="/company/bursaries/:id/edit" element={<CompanyEditBursaryPage />} />
-          <Route path="/company/applicants" element={<CompanyApplicantsPage />} />
-          <Route path="/company/students" element={<CompanyTalentSearchPage />} />
-          <Route path="/company/shortlisted" element={<CompanyShortlistedPage />} />
-          <Route path="/company/notifications" element={<CompanyNotificationsPage />} />
-          <Route path="/company/settings" element={<CompanySettingsPage />} />
+        <Route element={<RequireCompanyApproval />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
+            <Route path="/company/pending" element={<CompanyPendingApprovalPage />} />
+            <Route path="/company/profile" element={<CompanyProfilePage />} />
+            <Route path="/company/verification-docs" element={<CompanyVerificationDocsPage />} />
+            <Route path="/company/bursaries" element={<CompanyBursariesPage />} />
+            <Route path="/company/bursaries/new" element={<CompanyCreateBursaryPage />} />
+            <Route path="/company/bursaries/:id/edit" element={<CompanyEditBursaryPage />} />
+            <Route path="/company/applicants" element={<CompanyApplicantsPage />} />
+            <Route path="/company/students" element={<CompanyTalentSearchPage />} />
+            <Route path="/company/shortlisted" element={<CompanyShortlistedPage />} />
+            <Route path="/company/notifications" element={<CompanyNotificationsPage />} />
+            <Route path="/company/settings" element={<CompanySettingsPage />} />
+          </Route>
         </Route>
       </Route>
 
