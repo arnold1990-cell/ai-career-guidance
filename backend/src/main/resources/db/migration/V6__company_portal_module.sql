@@ -18,12 +18,25 @@ ALTER TABLE companies
 
 UPDATE companies c
 SET official_email = u.email
-FROM users u
-WHERE c.user_id = u.id AND c.official_email IS NULL;
+    FROM users u
+WHERE c.user_id = u.id
+  AND c.official_email IS NULL;
+
+UPDATE companies
+SET official_email = CONCAT('company-', id, '@placeholder.local')
+WHERE official_email IS NULL;
+
+UPDATE companies
+SET company_name = 'Unknown Company'
+WHERE company_name IS NULL;
+
+UPDATE companies
+SET registration_number = CONCAT('TEMP-', id)
+WHERE registration_number IS NULL;
 
 ALTER TABLE companies
     ALTER COLUMN official_email SET NOT NULL,
-    ALTER COLUMN company_name SET NOT NULL,
+ALTER COLUMN company_name SET NOT NULL,
     ALTER COLUMN registration_number SET NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_companies_registration_number ON companies(registration_number);
@@ -36,14 +49,14 @@ ALTER TABLE company_documents
     ADD COLUMN IF NOT EXISTS uploaded_by UUID REFERENCES users(id);
 
 CREATE TABLE IF NOT EXISTS company_password_reset_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                                             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     token VARCHAR(120) UNIQUE NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+    );
 
 CREATE INDEX IF NOT EXISTS idx_company_password_reset_company ON company_password_reset_tokens(company_id);
 CREATE INDEX IF NOT EXISTS idx_company_password_reset_expires ON company_password_reset_tokens(expires_at);
