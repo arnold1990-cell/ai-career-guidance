@@ -1,60 +1,60 @@
-package com.edurite.recommendation;
+package com.edurite.recommendation; // declares the package path for this Java file
 
-import com.edurite.recommendation.dto.RecommendationResultDto;
-import com.edurite.recommendation.service.RecommendationService;
-import com.edurite.student.entity.StudentProfile;
-import com.edurite.student.service.StudentService;
-import com.edurite.subscription.repository.SubscriptionRepository;
-import java.security.Principal;
-import java.util.Optional;
-import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import com.edurite.recommendation.dto.RecommendationResultDto; // imports a class so it can be used in this file
+import com.edurite.recommendation.service.RecommendationService; // imports a class so it can be used in this file
+import com.edurite.student.entity.StudentProfile; // imports a class so it can be used in this file
+import com.edurite.student.service.StudentService; // imports a class so it can be used in this file
+import com.edurite.subscription.repository.SubscriptionRepository; // imports a class so it can be used in this file
+import java.security.Principal; // imports a class so it can be used in this file
+import java.util.Optional; // imports a class so it can be used in this file
+import java.util.UUID; // imports a class so it can be used in this file
+import org.junit.jupiter.api.BeforeEach; // imports a class so it can be used in this file
+import org.junit.jupiter.api.Test; // imports a class so it can be used in this file
+import org.junit.jupiter.api.extension.ExtendWith; // imports a class so it can be used in this file
+import org.mockito.Mock; // imports a class so it can be used in this file
+import org.mockito.junit.jupiter.MockitoExtension; // imports a class so it can be used in this file
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat; // imports a class so it can be used in this file
+import static org.mockito.Mockito.when; // imports a class so it can be used in this file
 
-@ExtendWith(MockitoExtension.class)
-class RecommendationServiceTest {
+@ExtendWith(MockitoExtension.class) // adds metadata that Spring or Java uses at runtime
+class RecommendationServiceTest { // defines a class type
 
-    @Mock
-    StudentService studentService;
-    @Mock
-    SubscriptionRepository subscriptionRepository;
+    @Mock // adds metadata that Spring or Java uses at runtime
+    StudentService studentService; // executes this statement as part of the application logic
+    @Mock // adds metadata that Spring or Java uses at runtime
+    SubscriptionRepository subscriptionRepository; // reads or writes data through the database layer
 
-    private RecommendationService recommendationService;
-    private Principal principal;
-    private StudentProfile profile;
+    private RecommendationService recommendationService; // executes this statement as part of the application logic
+    private Principal principal; // executes this statement as part of the application logic
+    private StudentProfile profile; // executes this statement as part of the application logic
 
-    @BeforeEach
-    void setUp() {
-        recommendationService = new RecommendationService(studentService, subscriptionRepository);
-        principal = () -> "student@example.com";
+    @BeforeEach // adds metadata that Spring or Java uses at runtime
+    void setUp() { // supports the surrounding application logic
+        recommendationService = new RecommendationService(studentService, subscriptionRepository); // creates a new object instance and stores it in a variable
+        principal = () -> "student@example.com"; // executes this statement as part of the application logic
 
-        profile = new StudentProfile();
-        profile.setUserId(UUID.randomUUID());
-        profile.setInterests(null);
-        profile.setSkills(null);
-        profile.setExperience(null);
-        profile.setQualificationLevel(null);
-        profile.setProfileCompleted(false);
-    }
+        profile = new StudentProfile(); // creates a new object instance and stores it in a variable
+        profile.setUserId(UUID.randomUUID()); // executes this statement as part of the application logic
+        profile.setInterests(null); // executes this statement as part of the application logic
+        profile.setSkills(null); // executes this statement as part of the application logic
+        profile.setExperience(null); // executes this statement as part of the application logic
+        profile.setQualificationLevel(null); // executes this statement as part of the application logic
+        profile.setProfileCompleted(false); // executes this statement as part of the application logic
+    } // ends the current code block
 
-    @Test
-    void generateForStudentHandlesNullProfileFieldsSafely() {
-        when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(profile.getUserId())).thenReturn(Optional.empty());
+    @Test // adds metadata that Spring or Java uses at runtime
+    void generateForStudentHandlesNullProfileFieldsSafely() { // supports the surrounding application logic
+        when(studentService.getProfileEntity(principal)).thenReturn(profile); // executes this statement as part of the application logic
+        when(subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(profile.getUserId())).thenReturn(Optional.empty()); // reads or writes data through the database layer
 
-        RecommendationResultDto result = recommendationService.generateForStudent(principal);
+        RecommendationResultDto result = recommendationService.generateForStudent(principal); // executes this statement as part of the application logic
 
-        assertThat(result.suggestedCareers()).isNotEmpty();
-        assertThat(result.suggestedBursaries()).isNotEmpty();
-        assertThat(result.suggestedCoursesOrImprovements()).isNotEmpty();
-        assertThat(result.profileImprovementTips()).isNotEmpty();
-        assertThat(result.modelVersion()).isEqualTo("rule-engine-v3");
-    }
-}
+        assertThat(result.suggestedCareers()).isNotEmpty(); // executes this statement as part of the application logic
+        assertThat(result.suggestedBursaries()).isNotEmpty(); // executes this statement as part of the application logic
+        assertThat(result.suggestedCoursesOrImprovements()).isNotEmpty(); // executes this statement as part of the application logic
+        assertThat(result.profileImprovementTips()).isNotEmpty(); // executes this statement as part of the application logic
+        assertThat(result.modelVersion()).isEqualTo("rule-engine-v3"); // executes this statement as part of the application logic
+    } // ends the current code block
+} // ends the current code block
 

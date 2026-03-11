@@ -1,117 +1,117 @@
-package com.edurite.student;
+package com.edurite.student; // declares the package path for this Java file
 
-import com.edurite.application.repository.ApplicationRepository;
-import com.edurite.notification.repository.NotificationRepository;
-import com.edurite.security.service.CurrentUserService;
-import com.edurite.student.dto.StudentSettingsDto;
-import com.edurite.student.entity.StudentProfile;
-import com.edurite.student.repository.SavedBursaryRepository;
-import com.edurite.student.repository.SavedCareerRepository;
-import com.edurite.student.repository.StudentProfileRepository;
-import com.edurite.student.service.StudentService;
-import com.edurite.subscription.entity.SubscriptionRecord;
-import com.edurite.subscription.repository.SubscriptionRepository;
-import com.edurite.upload.service.StorageService;
-import com.edurite.user.entity.User;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import com.edurite.application.repository.ApplicationRepository; // imports a class so it can be used in this file
+import com.edurite.notification.repository.NotificationRepository; // imports a class so it can be used in this file
+import com.edurite.security.service.CurrentUserService; // imports a class so it can be used in this file
+import com.edurite.student.dto.StudentSettingsDto; // imports a class so it can be used in this file
+import com.edurite.student.entity.StudentProfile; // imports a class so it can be used in this file
+import com.edurite.student.repository.SavedBursaryRepository; // imports a class so it can be used in this file
+import com.edurite.student.repository.SavedCareerRepository; // imports a class so it can be used in this file
+import com.edurite.student.repository.StudentProfileRepository; // imports a class so it can be used in this file
+import com.edurite.student.service.StudentService; // imports a class so it can be used in this file
+import com.edurite.subscription.entity.SubscriptionRecord; // imports a class so it can be used in this file
+import com.edurite.subscription.repository.SubscriptionRepository; // imports a class so it can be used in this file
+import com.edurite.upload.service.StorageService; // imports a class so it can be used in this file
+import com.edurite.user.entity.User; // imports a class so it can be used in this file
+import org.junit.jupiter.api.BeforeEach; // imports a class so it can be used in this file
+import org.junit.jupiter.api.Test; // imports a class so it can be used in this file
+import org.junit.jupiter.api.extension.ExtendWith; // imports a class so it can be used in this file
+import org.mockito.Mock; // imports a class so it can be used in this file
+import org.mockito.junit.jupiter.MockitoExtension; // imports a class so it can be used in this file
 
-import java.security.Principal;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.security.Principal; // imports a class so it can be used in this file
+import java.util.Map; // imports a class so it can be used in this file
+import java.util.Optional; // imports a class so it can be used in this file
+import java.util.UUID; // imports a class so it can be used in this file
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat; // imports a class so it can be used in this file
+import static org.mockito.ArgumentMatchers.any; // imports a class so it can be used in this file
+import static org.mockito.Mockito.when; // imports a class so it can be used in this file
 
-@ExtendWith(MockitoExtension.class)
-class StudentServiceTest {
+@ExtendWith(MockitoExtension.class) // adds metadata that Spring or Java uses at runtime
+class StudentServiceTest { // defines a class type
 
-    @Mock
-    StudentProfileRepository profileRepository;
-    @Mock
-    CurrentUserService currentUserService;
-    @Mock
-    StorageService storageService;
-    @Mock
-    SavedCareerRepository savedCareerRepository;
-    @Mock
-    SavedBursaryRepository savedBursaryRepository;
-    @Mock
-    ApplicationRepository applicationRepository;
-    @Mock
-    NotificationRepository notificationRepository;
-    @Mock
-    SubscriptionRepository subscriptionRepository;
+    @Mock // adds metadata that Spring or Java uses at runtime
+    StudentProfileRepository profileRepository; // reads or writes data through the database layer
+    @Mock // adds metadata that Spring or Java uses at runtime
+    CurrentUserService currentUserService; // executes this statement as part of the application logic
+    @Mock // adds metadata that Spring or Java uses at runtime
+    StorageService storageService; // executes this statement as part of the application logic
+    @Mock // adds metadata that Spring or Java uses at runtime
+    SavedCareerRepository savedCareerRepository; // reads or writes data through the database layer
+    @Mock // adds metadata that Spring or Java uses at runtime
+    SavedBursaryRepository savedBursaryRepository; // reads or writes data through the database layer
+    @Mock // adds metadata that Spring or Java uses at runtime
+    ApplicationRepository applicationRepository; // reads or writes data through the database layer
+    @Mock // adds metadata that Spring or Java uses at runtime
+    NotificationRepository notificationRepository; // reads or writes data through the database layer
+    @Mock // adds metadata that Spring or Java uses at runtime
+    SubscriptionRepository subscriptionRepository; // reads or writes data through the database layer
 
-    private StudentService studentService;
-    private User user;
-    private Principal principal;
+    private StudentService studentService; // executes this statement as part of the application logic
+    private User user; // executes this statement as part of the application logic
+    private Principal principal; // executes this statement as part of the application logic
 
-    @BeforeEach
-    void setUp() {
-        studentService = new StudentService(
-                profileRepository,
-                currentUserService,
-                storageService,
-                savedCareerRepository,
-                savedBursaryRepository,
-                applicationRepository,
-                notificationRepository,
-                subscriptionRepository
-        );
+    @BeforeEach // adds metadata that Spring or Java uses at runtime
+    void setUp() { // supports the surrounding application logic
+        studentService = new StudentService( // creates a new object instance and stores it in a variable
+                profileRepository, // reads or writes data through the database layer
+                currentUserService, // supports the surrounding application logic
+                storageService, // supports the surrounding application logic
+                savedCareerRepository, // reads or writes data through the database layer
+                savedBursaryRepository, // reads or writes data through the database layer
+                applicationRepository, // reads or writes data through the database layer
+                notificationRepository, // reads or writes data through the database layer
+                subscriptionRepository // reads or writes data through the database layer
+        ); // executes this statement as part of the application logic
 
-        user = new User();
-        user.setId(UUID.randomUUID());
-        user.setEmail("student@example.com");
-        user.setFirstName("Test");
-        user.setLastName("Student");
+        user = new User(); // creates a new object instance and stores it in a variable
+        user.setId(UUID.randomUUID()); // executes this statement as part of the application logic
+        user.setEmail("student@example.com"); // executes this statement as part of the application logic
+        user.setFirstName("Test"); // executes this statement as part of the application logic
+        user.setLastName("Student"); // executes this statement as part of the application logic
 
-        principal = () -> user.getEmail();
-        when(currentUserService.requireUser(principal)).thenReturn(user);
-    }
+        principal = () -> user.getEmail(); // executes this statement as part of the application logic
+        when(currentUserService.requireUser(principal)).thenReturn(user); // executes this statement as part of the application logic
+    } // ends the current code block
 
-    @Test
-    void dashboardFallsBackToBasicWhenSubscriptionPlanCodeIsNull() {
-        StudentProfile profile = new StudentProfile();
-        profile.setId(UUID.randomUUID());
-        profile.setUserId(user.getId());
-        when(profileRepository.findByUserId(user.getId())).thenReturn(Optional.of(profile));
+    @Test // adds metadata that Spring or Java uses at runtime
+    void dashboardFallsBackToBasicWhenSubscriptionPlanCodeIsNull() { // supports the surrounding application logic
+        StudentProfile profile = new StudentProfile(); // creates a new object instance and stores it in a variable
+        profile.setId(UUID.randomUUID()); // executes this statement as part of the application logic
+        profile.setUserId(user.getId()); // executes this statement as part of the application logic
+        when(profileRepository.findByUserId(user.getId())).thenReturn(Optional.of(profile)); // reads or writes data through the database layer
 
-        SubscriptionRecord subscription = new SubscriptionRecord();
-        subscription.setPlanCode(null);
-        when(subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId())).thenReturn(Optional.of(subscription));
-        when(savedCareerRepository.countByStudentId(profile.getId())).thenReturn(0L);
-        when(savedBursaryRepository.countByStudentId(profile.getId())).thenReturn(0L);
-        when(applicationRepository.countByStudentId(profile.getId())).thenReturn(0L);
-        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "DRAFT")).thenReturn(0L);
-        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "SUBMITTED")).thenReturn(0L);
-        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "IN_REVIEW")).thenReturn(0L);
-        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "SHORTLISTED")).thenReturn(0L);
-        when(notificationRepository.countByUserIdAndReadFalse(user.getId())).thenReturn(0L);
+        SubscriptionRecord subscription = new SubscriptionRecord(); // creates a new object instance and stores it in a variable
+        subscription.setPlanCode(null); // executes this statement as part of the application logic
+        when(subscriptionRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId())).thenReturn(Optional.of(subscription)); // reads or writes data through the database layer
+        when(savedCareerRepository.countByStudentId(profile.getId())).thenReturn(0L); // reads or writes data through the database layer
+        when(savedBursaryRepository.countByStudentId(profile.getId())).thenReturn(0L); // reads or writes data through the database layer
+        when(applicationRepository.countByStudentId(profile.getId())).thenReturn(0L); // reads or writes data through the database layer
+        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "DRAFT")).thenReturn(0L); // reads or writes data through the database layer
+        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "SUBMITTED")).thenReturn(0L); // reads or writes data through the database layer
+        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "IN_REVIEW")).thenReturn(0L); // reads or writes data through the database layer
+        when(applicationRepository.countByStudentIdAndStatus(profile.getId(), "SHORTLISTED")).thenReturn(0L); // reads or writes data through the database layer
+        when(notificationRepository.countByUserIdAndReadFalse(user.getId())).thenReturn(0L); // reads or writes data through the database layer
 
-        Map<String, Object> result = studentService.dashboard(principal);
+        Map<String, Object> result = studentService.dashboard(principal); // executes this statement as part of the application logic
 
-        assertThat(result).containsEntry("subscriptionTier", "BASIC");
-    }
+        assertThat(result).containsEntry("subscriptionTier", "BASIC"); // executes this statement as part of the application logic
+    } // ends the current code block
 
-    @Test
-    void getSettingsCreatesDefaultProfileWhenMissing() {
-        when(profileRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
-        when(profileRepository.save(any(StudentProfile.class))).thenAnswer(invocation -> {
-            StudentProfile saved = invocation.getArgument(0);
-            saved.setId(UUID.randomUUID());
-            return saved;
-        });
+    @Test // adds metadata that Spring or Java uses at runtime
+    void getSettingsCreatesDefaultProfileWhenMissing() { // supports the surrounding application logic
+        when(profileRepository.findByUserId(user.getId())).thenReturn(Optional.empty()); // reads or writes data through the database layer
+        when(profileRepository.save(any(StudentProfile.class))).thenAnswer(invocation -> { // defines a class type
+            StudentProfile saved = invocation.getArgument(0); // executes this statement as part of the application logic
+            saved.setId(UUID.randomUUID()); // executes this statement as part of the application logic
+            return saved; // returns a value from this method to the caller
+        }); // executes this statement as part of the application logic
 
-        StudentSettingsDto settings = studentService.getSettings(principal);
+        StudentSettingsDto settings = studentService.getSettings(principal); // executes this statement as part of the application logic
 
-        assertThat(settings.inAppNotificationsEnabled()).isTrue();
-        assertThat(settings.emailNotificationsEnabled()).isFalse();
-        assertThat(settings.smsNotificationsEnabled()).isFalse();
-    }
-}
+        assertThat(settings.inAppNotificationsEnabled()).isTrue(); // executes this statement as part of the application logic
+        assertThat(settings.emailNotificationsEnabled()).isFalse(); // executes this statement as part of the application logic
+        assertThat(settings.smsNotificationsEnabled()).isFalse(); // executes this statement as part of the application logic
+    } // ends the current code block
+} // ends the current code block
