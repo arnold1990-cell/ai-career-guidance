@@ -36,7 +36,7 @@ public class CompanyPasswordResetToken extends BaseEntity {
     private OffsetDateTime usedAt;
 
     /**
-     * Beginner note: this method handles the "isActive" step of the feature.
+     * this method handles the "isActive" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public boolean isActive() {

@@ -29,7 +29,7 @@ public class ApplicationService {
     }
 
     /**
-     * Beginner note: this method handles the "submit" step of the feature.
+     * this method handles the "submit" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ApplicationRecord submit(UUID bursaryId, Principal principal) {
@@ -42,7 +42,7 @@ public class ApplicationService {
     }
 
     /**
-     * Beginner note: this method handles the "listMine" step of the feature.
+     * this method handles the "listMine" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<ApplicationRecord> listMine(Principal principal) {
@@ -50,7 +50,7 @@ public class ApplicationService {
     }
 
     /**
-     * Beginner note: this method handles the "requireStudent" step of the feature.
+     * this method handles the "requireStudent" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     private StudentProfile requireStudent(Principal principal) {

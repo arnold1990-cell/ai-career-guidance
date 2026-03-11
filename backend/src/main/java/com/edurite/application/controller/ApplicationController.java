@@ -30,7 +30,7 @@ public class ApplicationController {
 // @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/bursaries/{id}/applications")
     /**
-     * Beginner note: this method handles the "apply" step of the feature.
+     * this method handles the "apply" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ApplicationRecord apply(@PathVariable UUID id, Principal principal) {
@@ -40,7 +40,7 @@ public class ApplicationController {
 // @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/applications/me")
     /**
-     * Beginner note: this method handles the "myApplications" step of the feature.
+     * this method handles the "myApplications" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public List<ApplicationRecord> myApplications(Principal principal) {
