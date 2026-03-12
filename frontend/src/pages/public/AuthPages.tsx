@@ -59,6 +59,7 @@ export const LoginPage = () => {
         }}
       />
       <p className="mt-5 text-lg text-slate-800">Forgot password? <Link className="text-primary-600" to="/auth/forgot-password">Reset it</Link></p>
+      <p className="mt-3 text-lg text-slate-800">New to EduRite? <Link className="text-primary-600" to="/auth/register/student">Sign Up</Link></p>
       </AuthCard>
     </section>
   );
