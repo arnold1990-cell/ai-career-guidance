@@ -9,11 +9,21 @@ import { authService } from '@/services/authService';
 import { studentService } from '@/services/studentService';
 import type { CompanyRegisterPayload, Role, User } from '@/types';
 
-const AuthCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
-  <div className="mx-auto max-w-md card p-6">
-    <h1 className="text-2xl font-bold">{title}</h1>
-    <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
-    <div className="mt-5">{children}</div>
+const AuthCard = ({
+  title,
+  subtitle,
+  children,
+  className = 'mx-auto max-w-md'
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <div className={`${className} rounded-2xl border border-slate-200 bg-white p-8 shadow-sm`}>
+    <h1 className="text-5xl font-bold leading-tight text-slate-900 md:text-4xl">{title}</h1>
+    <p className="mt-2 text-xl text-slate-600 md:text-lg">{subtitle}</p>
+    <div className="mt-6">{children}</div>
   </div>
 );
 
@@ -35,7 +45,8 @@ export const LoginPage = () => {
   }
 
   return (
-    <AuthCard title="Welcome back" subtitle="Sign in to continue your EduRite journey.">
+    <section className="min-h-[70vh] rounded-b-2xl bg-slate-100">
+      <AuthCard className="max-w-[820px] lg:ml-[320px]" title="Welcome back" subtitle="Sign in to continue your EduRite journey.">
       <LoginForm
         onSubmit={async (data) => {
           const loggedInUser = await login(data);
@@ -47,8 +58,9 @@ export const LoginPage = () => {
           navigate(from && from !== '/auth/login' ? from : getRoleDashboard(loggedInUser), { replace: true });
         }}
       />
-      <p className="mt-4 text-sm">Forgot password? <Link className="text-primary-600" to="/auth/forgot-password">Reset it</Link></p>
-    </AuthCard>
+      <p className="mt-5 text-lg text-slate-800">Forgot password? <Link className="text-primary-600" to="/auth/forgot-password">Reset it</Link></p>
+      </AuthCard>
+    </section>
   );
 };
 
