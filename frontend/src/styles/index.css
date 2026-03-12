@@ -16,21 +16,23 @@
 
 @layer components {
   .site-header {
-    @apply flex items-center;
-    min-height: 96px;
+    @apply flex;
+    min-height: 120px;
   }
 
   .site-header-inner {
-    @apply flex w-full items-center justify-between px-8;
-    min-height: 96px;
+    @apply flex w-full items-end justify-between px-8;
+    min-height: 120px;
+    padding-bottom: 1px;
   }
 
   .brand {
-    @apply flex items-center;
+    @apply flex items-end;
+    height: 100%;
   }
 
   .brand-logo {
-    height: 76px;
+    height: 98px;
     width: auto;
     object-fit: contain;
     display: block;
@@ -38,5 +40,6 @@
 
   .main-nav {
     @apply flex items-center gap-7;
+    align-self: center;
   }
 }
