@@ -46,7 +46,7 @@ export const LoginPage = () => {
 
   return (
     <section className="min-h-[70vh] rounded-b-2xl bg-slate-100">
-      <AuthCard className="max-w-[820px] lg:ml-[320px]" title="Welcome back" subtitle="Sign in to continue your EduRite journey.">
+      <AuthCard className="max-w-[820px] lg:ml-[320px]" title="Welcome back" subtitle="Sign In to continue your EduRite journey.">
       <LoginForm
         onSubmit={async (data) => {
           const loggedInUser = await login(data);
@@ -68,14 +68,15 @@ export const RegisterStudentPage = () => {
   const { registerStudent } = useAuth();
   const navigate = useNavigate();
   return (
-    <AuthCard title="Create student account" subtitle="Set up your profile to access careers, courses, and bursaries.">
+    <AuthCard title="Create Student Account" subtitle="Set up your profile to access careers, courses, and bursaries.">
       <RegisterForm
         type="student"
-        onSubmit={async ({ fullName, email, password }) => {
-          await registerStudent({ fullName, email, password });
+        onSubmit={async ({ firstName, lastName, email, password, interests, location, phone, dateOfBirth, gender, qualificationLevel }) => {
+          await registerStudent({ fullName: `${firstName} ${lastName}`.trim(), firstName, lastName, email, password, interests, location, phone, dateOfBirth, gender, qualificationLevel });
           navigate('/student/dashboard');
         }}
       />
+      <p className="mt-5 text-sm text-slate-700">Already have an account? <Link className="text-primary-600" to="/auth/login">Sign In</Link></p>
     </AuthCard>
   );
 };
@@ -135,7 +136,7 @@ export const ResetPasswordPage = () => {
       <form className="space-y-3" onSubmit={handleSubmit(async ({ newPassword, confirmPassword }) => {
         if (!token) return;
         await authService.resetPassword({ token, newPassword, confirmPassword });
-        setMessage('Password reset complete. You can now log in.');
+        setMessage('Password reset complete. You can now Sign In.');
       })}>
         <label className="text-sm">New Password<Input type="password" {...register('newPassword', { required: true })} /></label>
         <label className="text-sm">Confirm Password<Input type="password" {...register('confirmPassword', { required: true })} /></label>

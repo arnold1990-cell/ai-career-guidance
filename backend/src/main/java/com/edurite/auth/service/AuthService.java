@@ -70,10 +70,29 @@ public class AuthService {
      */
     public AuthResponse registerStudent(StudentRegisterRequest request) {
         String[] names = splitFullName(request.fullName());
-        User user = createUser(request.email(), request.password(), names[0], names[1], "ROLE_STUDENT");
+        String firstName = trimToNull(request.firstName());
+        String lastName = trimToNull(request.lastName());
+        String resolvedFirstName = firstName != null ? firstName : names[0];
+        String resolvedLastName = lastName != null ? lastName : names[1];
+        User user = createUser(
+                request.email(),
+                request.password(),
+                resolvedFirstName,
+                resolvedLastName,
+                "ROLE_STUDENT"
+        );
 
         StudentProfile profile = new StudentProfile();
         profile.setUserId(user.getId());
+        profile.setFirstName(user.getFirstName());
+        profile.setLastName(user.getLastName());
+        profile.setInterests(trimToNull(request.interests()));
+        profile.setLocation(trimToNull(request.location()));
+        profile.setPhone(trimToNull(request.phone()));
+        profile.setDateOfBirth(request.dateOfBirth());
+        profile.setGender(trimToNull(request.gender()));
+        profile.setQualificationLevel(trimToNull(request.qualificationLevel()));
+        profile.setProfileCompleted(false);
         studentProfileRepository.save(profile);
 
         return toAuthResponse(user);
@@ -252,11 +271,22 @@ public class AuthService {
      * It exists to keep this class focused and reusable.
      */
     private String[] splitFullName(String fullName) {
-        String trimmed = fullName.trim();
+        String trimmed = fullName == null ? "" : fullName.trim();
+        if (trimmed.isBlank()) {
+            return new String[]{"Student", "Student"};
+        }
         String[] parts = trimmed.split("\\s+", 2);
         if (parts.length == 1) {
             return new String[]{parts[0], parts[0]};
         }
         return parts;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
 }

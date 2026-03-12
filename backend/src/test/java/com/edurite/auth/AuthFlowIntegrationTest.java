@@ -1,5 +1,7 @@
 package com.edurite.auth;
 
+import com.edurite.student.entity.StudentProfile;
+import com.edurite.student.repository.StudentProfileRepository;
 import com.edurite.user.entity.User;
 import com.edurite.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -57,6 +59,9 @@ class AuthFlowIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    StudentProfileRepository studentProfileRepository;
+
 
     @Test
     void arnoldStudentCanRegisterAndLoginEndToEnd() throws Exception {
@@ -89,6 +94,53 @@ class AuthFlowIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.user.roles[0]").value("ROLE_STUDENT"));
+    }
+
+
+    @Test
+    void studentRegistrationStoresExtendedProfileFieldsAndLoginStillWorks() throws Exception {
+        String email = "extended.student@example.com";
+        mockMvc.perform(post("/api/v1/auth/register/student")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"firstName":"Lina","lastName":"Moyo","email":"%s","password":"StrongPass@123","interests":"Engineering","location":"Johannesburg","phone":"+27110000000","dateOfBirth":"2004-09-15","gender":"Female","qualificationLevel":"High School"}
+                                """.formatted(email)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.user.email").value(email));
+
+        User createdUser = userRepository.findByEmail(email).orElseThrow();
+        StudentProfile profile = studentProfileRepository.findByUserId(createdUser.getId()).orElseThrow();
+        assertThat(profile.getFirstName()).isEqualTo("Lina");
+        assertThat(profile.getLastName()).isEqualTo("Moyo");
+        assertThat(profile.getInterests()).isEqualTo("Engineering");
+        assertThat(profile.getLocation()).isEqualTo("Johannesburg");
+        assertThat(profile.getDateOfBirth()).hasToString("2004-09-15");
+        assertThat(profile.getGender()).isEqualTo("Female");
+        assertThat(profile.getQualificationLevel()).isEqualTo("High School");
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_STUDENT"));
+    }
+
+    @Test
+    void legacyStudentWithoutExtendedProfileFieldsCanStillLogin() throws Exception {
+        String email = "legacy.student@example.com";
+        registerStudent(email);
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.user.email").value(email));
     }
 
     @Test
