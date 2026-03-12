@@ -18,7 +18,7 @@ export const PublicLayout = () => {
             <Link to="/courses">Courses</Link>
             <Link to="/bursaries">Bursaries</Link>
             <Link to="/pricing">Pricing</Link>
-            <Link to="/auth/login" className="font-semibold text-primary-600">Login</Link>
+            <Link to="/auth/login" className="font-semibold text-primary-600">Sign In</Link>
           </nav>
         </div>
       </header>
