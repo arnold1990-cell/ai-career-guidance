@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="832" y1="176" x2="192" y2="848" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFCA5A"/>
+      <stop offset="0.5" stop-color="#F79222"/>
+      <stop offset="1" stop-color="#DE5422"/>
+    </linearGradient>
+    <linearGradient id="swooshGrad" x1="360" y1="690" x2="740" y2="468" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F99B21"/>
+      <stop offset="1" stop-color="#FFBE45"/>
+    </linearGradient>
+    <clipPath id="brainClip">
+      <path d="M512 288c-89.2 0-162 70.6-162 157.8 0 35.1 11.9 67.5 32 93.7-9.5 17.8-14.8 38-14.8 59.2 0 67.8 53.4 123.3 120.2 128.4 15 24.7 41.7 40.9 72.6 40.9s57.6-16.2 72.6-40.9C699.4 722.3 752.8 666.8 752.8 599c0-21.2-5.3-41.4-14.8-59.2 20.1-26.2 32-58.6 32-93.7C770 358.6 697.2 288 608 288H512Z"/>
+    </clipPath>
+  </defs>
+
+  <rect x="96" y="96" width="832" height="832" rx="210" fill="url(#bgGrad)"/>
+
+  <g>
+    <path d="M512 288c-89.2 0-162 70.6-162 157.8 0 35.1 11.9 67.5 32 93.7-9.5 17.8-14.8 38-14.8 59.2 0 67.8 53.4 123.3 120.2 128.4 15 24.7 41.7 40.9 72.6 40.9s57.6-16.2 72.6-40.9C699.4 722.3 752.8 666.8 752.8 599c0-21.2-5.3-41.4-14.8-59.2 20.1-26.2 32-58.6 32-93.7C770 358.6 697.2 288 608 288H512Z" fill="#F68A1F" stroke="#fff" stroke-width="34" stroke-linejoin="round"/>
+
+    <g clip-path="url(#brainClip)">
+      <rect x="512" y="248" width="280" height="560" fill="#17B7D0"/>
+    </g>
+
+    <path d="M512 318V742" stroke="#fff" stroke-width="28" stroke-linecap="round"/>
+
+    <path d="M512 742c-26 0-46 15-58 38" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+    <path d="M512 742c26 0 46 15 58 38" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+
+    <path d="M426 742c-19 0-33 14-33 32" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
+    <path d="M598 742c19 0 33 14 33 32" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
+  </g>
+
+  <g stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="414" y1="378" x2="414" y2="448"/>
+    <line x1="414" y1="448" x2="456" y2="448"/>
+    <line x1="456" y1="448" x2="456" y2="520"/>
+    <line x1="456" y1="520" x2="422" y2="560"/>
+    <line x1="422" y1="560" x2="422" y2="638"/>
+    <line x1="390" y1="606" x2="332" y2="606"/>
+
+    <line x1="610" y1="378" x2="610" y2="446"/>
+    <line x1="610" y1="446" x2="566" y2="446"/>
+    <line x1="566" y1="446" x2="566" y2="520"/>
+    <line x1="566" y1="520" x2="600" y2="560"/>
+    <line x1="600" y1="560" x2="600" y2="636"/>
+    <line x1="634" y1="520" x2="686" y2="520"/>
+  </g>
+
+  <g fill="#fff">
+    <circle cx="414" cy="356" r="20"/>
+    <circle cx="456" cy="448" r="17"/>
+    <circle cx="456" cy="520" r="12"/>
+    <circle cx="422" cy="638" r="24"/>
+    <circle cx="610" cy="356" r="20"/>
+    <circle cx="566" cy="446" r="17"/>
+    <circle cx="566" cy="520" r="12"/>
+    <circle cx="600" cy="636" r="20"/>
+  </g>
+
+  <g stroke="#fff" stroke-width="14" fill="none">
+    <circle cx="332" cy="606" r="28"/>
+    <circle cx="686" cy="520" r="28"/>
+  </g>
+
+  <g>
+    <path d="M318 694c35 8 74 5 116-9 40-14 73-34 109-52 72-37 141-52 202-37" stroke="#fff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M304 700c40 10 83 7 128-9 42-15 76-35 111-53 73-37 140-52 197-39-1 0 48 8 55 11-25-3-50 15-60 35 2-5 2-11 0-16-7-17-26-22-40-21-55 4-119 26-193 65-35 18-67 39-107 54-45 17-90 20-134 10l19-37Z" fill="url(#swooshGrad)"/>
+  </g>
+</svg>
