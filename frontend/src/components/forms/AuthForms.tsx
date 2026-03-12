@@ -35,12 +35,18 @@ export const LoginForm = ({ onSubmit }: { onSubmit: (data: LoginFormValues) => P
   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <label className="block text-sm">Email<Input {...register('email')} type="email" /></label>
+    <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <label className="block text-sm text-slate-800">
+        Email
+        <Input className="mt-2 rounded-xl border-slate-300 bg-slate-100 px-4 py-3 text-sm" {...register('email')} type="email" />
+      </label>
       {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
-      <label className="block text-sm">Password<Input {...register('password')} type="password" /></label>
+      <label className="block text-sm text-slate-800">
+        Password
+        <Input className="mt-2 rounded-xl border-slate-300 bg-slate-100 px-4 py-3 text-sm" {...register('password')} type="password" />
+      </label>
       {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
-      <Button disabled={isSubmitting} type="submit">Sign in</Button>
+      <Button disabled={isSubmitting} type="submit" className="rounded-xl px-6 py-3 text-sm">Sign in</Button>
     </form>
   );
 };

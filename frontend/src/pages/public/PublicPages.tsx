@@ -20,14 +20,17 @@ const PageIntro = ({ title, subtitle }: { title: string; subtitle: string }) => 
 
 export const LandingPage = () => (
   <div className="space-y-8">
-    <section className="card grid gap-8 p-8 lg:grid-cols-2">
+    <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm lg:grid lg:grid-cols-[1.05fr_1fr] lg:gap-10">
       <div>
         <Badge color="blue">Career intelligence for students and sponsors</Badge>
-        <h1 className="mt-4 text-4xl font-bold leading-tight">Build brighter futures with smarter career and bursary matching.</h1>
-        <p className="mt-3 text-slate-600">EduRite helps students discover pathways, helps companies invest in high-potential talent, and gives admins enterprise-grade oversight.</p>
-        <div className="mt-6 flex flex-wrap gap-3"><Link to="/auth/register/student"><Button>Start as Student</Button></Link><Link to="/auth/register/company"><Button className="bg-emerald-600 hover:bg-emerald-500">Hire & Fund Talent</Button></Link></div>
+        <h1 className="mt-5 text-5xl font-bold leading-tight text-slate-900 md:text-4xl">Build brighter futures with smarter career and bursary matching.</h1>
+        <p className="mt-5 max-w-2xl text-xl text-slate-600 md:text-2xl">EduRite helps students discover pathways, helps companies invest in high-potential talent, and gives admins enterprise-grade oversight.</p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link to="/auth/register/student"><Button className="rounded-xl px-6 py-3 text-base">Start as Student</Button></Link>
+          <Link to="/auth/register/company"><Button className="rounded-xl px-6 py-3 text-base">Hire & Fund Talent</Button></Link>
+        </div>
       </div>
-      <div className="grid gap-3">
+      <div className="mt-8 grid gap-4 lg:mt-0">
         <MetricCard title="Students matched" value="45,000+" subtitle="AI career fit and funding recommendations" />
         <MetricCard title="Bursary applications" value="120,000+" subtitle="Managed through the EduRite workflow" />
         <MetricCard title="Partner organizations" value="1,300+" subtitle="Companies, institutions, and nonprofits" />
