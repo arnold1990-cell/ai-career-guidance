@@ -13,3 +13,30 @@
     @apply rounded-xl bg-white shadow-card border border-slate-200;
   }
 }
+
+@layer components {
+  .site-header {
+    @apply flex items-center;
+    min-height: 96px;
+  }
+
+  .site-header-inner {
+    @apply flex w-full items-center justify-between px-8;
+    min-height: 96px;
+  }
+
+  .brand {
+    @apply flex items-center;
+  }
+
+  .brand-logo {
+    height: 76px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+
+  .main-nav {
+    @apply flex items-center gap-7;
+  }
+}
