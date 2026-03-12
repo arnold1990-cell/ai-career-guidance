@@ -7,12 +7,12 @@ export const PublicLayout = () => {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between px-8 py-5">
-          <Link to="/" aria-label="EduRite home">
-            <img src={eduRiteLogo} alt="EduRite logo" className="h-16 w-auto" />
+      <header className="site-header border-b border-slate-200 bg-white">
+        <div className="site-header-inner mx-auto w-full max-w-[1280px]">
+          <Link to="/" aria-label="EduRite home" className="brand">
+            <img src={eduRiteLogo} alt="EduRite logo" className="brand-logo" />
           </Link>
-          <nav className="flex gap-7 text-lg text-slate-800">
+          <nav className="main-nav text-lg text-slate-800">
             <Link to="/about">About</Link>
             <Link to="/careers">Careers</Link>
             <Link to="/courses">Courses</Link>
