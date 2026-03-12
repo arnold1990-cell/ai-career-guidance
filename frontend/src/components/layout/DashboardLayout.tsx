@@ -3,7 +3,7 @@ import { Link, Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Role } from '@/types';
-import eduriteSidebarLogo from '@/assets/edurite-logo-sidebar.svg';
+import eduriteSidebarLogo from '@/assets/Edurite-dashboard.jpeg';
 
 const navByRole: Record<Role, Array<{ to: string; label: string }>> = {
   STUDENT: [
@@ -27,7 +27,7 @@ export const DashboardLayout = () => {
 
   return (
     <div className="flex min-h-screen">
-      <aside className={`fixed z-20 h-full w-64 bg-[#010633] p-4 text-white md:static ${open ? 'block' : 'hidden md:block'}`}>
+      <aside className={`fixed z-20 h-full w-64 bg-[#0A0E2B] p-4 text-white md:static ${open ? 'block' : 'hidden md:block'}`}>
         <img src={eduriteSidebarLogo} alt="EduRite logo" className="mb-8 w-full max-w-[220px]" />
         <nav className="space-y-2">
           {navByRole[primaryRole].map((item) => (
