@@ -19,6 +19,16 @@ class GeminiModelResolverTest {
     }
 
     @Test
+    void resolveModelNameNormalizesEndpointStyleValuesFromConfiguration() {
+        assertThat(GeminiModelResolver.resolveModelName("models/gemini-2.0-flash:generateContent"))
+                .isEqualTo("gemini-2.0-flash");
+        assertThat(GeminiModelResolver.resolveModelName("v1beta/models/gemini-2.0-flash:generateContent"))
+                .isEqualTo("gemini-2.0-flash");
+        assertThat(GeminiModelResolver.resolveModelName("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=test"))
+                .isEqualTo("gemini-2.0-flash");
+    }
+
+    @Test
     void resolveModelNameFallsBackToDefaultForNullOrBlank() {
         assertThat(GeminiModelResolver.resolveModelName(null)).isEqualTo("gemini-2.5-flash");
         assertThat(GeminiModelResolver.resolveModelName("")).isEqualTo("gemini-2.5-flash");
@@ -33,6 +43,8 @@ class GeminiModelResolverTest {
         assertThat(GeminiModelResolver.buildGenerateContentPath("models/gemini-2.0-flash"))
                 .isEqualTo("/v1beta/models/gemini-2.0-flash:generateContent");
         assertThat(GeminiModelResolver.buildGenerateContentPath("/models/gemini-2.0-flash"))
+                .isEqualTo("/v1beta/models/gemini-2.0-flash:generateContent");
+        assertThat(GeminiModelResolver.buildGenerateContentPath("v1beta/models/gemini-2.0-flash:generateContent"))
                 .isEqualTo("/v1beta/models/gemini-2.0-flash:generateContent");
     }
 }
