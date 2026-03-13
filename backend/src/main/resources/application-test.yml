@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/edurite_test
-    username: edurite
-    password: edurite
+    username: postgres
+    password: Crt@Ailsa
   jpa:
     hibernate:
       ddl-auto: validate

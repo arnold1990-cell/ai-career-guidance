@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import eduRiteLogo from '@/assets/edurite-logo.svg';
+import eduRiteLogo from '@/assets/edurite-icon.jpeg';
 
 export const PublicLayout = () => {
   const { pathname } = useLocation();
