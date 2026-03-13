@@ -188,6 +188,57 @@ Rule-based recommendation service produces ranked recommendations for career, bu
 
 The service is structured for future integration with an external Python ML microservice.
 
+## 9.1) Gemini AI guidance integration
+
+The backend now includes a production-safe Gemini integration under `com.edurite.ai.*`.
+
+What it adds:
+
+- `POST /api/v1/ai/guidance` for profile-based AI guidance requests.
+- `POST /api/v1/ai/guidance/me` to generate guidance from the logged-in student's stored profile.
+- Structured prompts that ask Gemini for careers, bursary categories, skills to improve, courses/certifications, and confidence notes.
+- Safe fallback to the existing rule-engine recommendation service if Gemini is disabled, unavailable, or fails.
+
+Required environment variables:
+
+- `GOOGLE_API_KEY` (Gemini Developer API key)
+- `GEMINI_MODEL` (default: `gemini-2.5-flash`)
+- `AI_GEMINI_ENABLED` (default: `true`)
+- `GEMINI_TIMEOUT_SECONDS` (default: `20`)
+
+Example request (`POST /api/v1/ai/guidance`):
+
+```json
+{
+  "firstName": "Lebo",
+  "lastName": "Mokoena",
+  "interests": "technology, software engineering, data",
+  "skills": "java, problem solving, communication",
+  "qualificationLevel": "Diploma",
+  "location": "Johannesburg",
+  "bio": "Final-year student who enjoys building practical apps.",
+  "careerGoals": "Become a cloud engineer",
+  "academicStrengths": "Math, computer science",
+  "weakAreas": "Public speaking"
+}
+```
+
+Example response:
+
+```json
+{
+  "guidance": "{\"suggestedCareers\":[...],\"bursaryCategories\":[...],\"skillsToImprove\":[...],\"coursesOrCertifications\":[...],\"reasoningSummary\":\"...\",\"confidenceNote\":\"...\"}",
+  "fallbackUsed": false,
+  "source": "gemini",
+  "message": "AI guidance generated successfully."
+}
+```
+
+Security note:
+
+- Never commit `GOOGLE_API_KEY` to source control.
+- API keys are read from environment variables only and are never sent to the frontend.
+
 ## 10) Notification service
 
 Notification service includes channel placeholders:
