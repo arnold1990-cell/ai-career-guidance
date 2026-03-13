@@ -58,7 +58,9 @@ public class GeminiService {
                     "Career AI is currently unavailable. Gemini API key is not configured.");
         }
 
-        String endpoint = GEMINI_BASE_URL + "/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+        String endpointPath = GeminiModelResolver.buildGenerateContentPath(model);
+        String resolvedModel = GeminiModelResolver.resolveModelName(model);
+        String endpoint = GEMINI_BASE_URL + endpointPath + "?key=" + apiKey.trim();
         String prompt = buildPrompt(request);
 
         JsonObject payload = new JsonObject();
@@ -77,7 +79,7 @@ public class GeminiService {
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
-        log.info("Starting Gemini call: model={}, endpointPath=/v1beta/models/{}:generateContent", model, model);
+        log.info("Starting Gemini call: model={}, endpointPath={}", resolvedModel, endpointPath);
 
         try (Response response = okHttpClient.newCall(httpRequest).execute()) {
             log.info("Gemini HTTP response received: status={}", response.code());
