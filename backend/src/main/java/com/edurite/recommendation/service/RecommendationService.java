@@ -1,7 +1,7 @@
 package com.edurite.recommendation.service;
 
-import com.edurite.recommendation.dto.RecommendationResultDto;
 import com.edurite.recommendation.dto.RecommendationItemDto;
+import com.edurite.recommendation.dto.RecommendationResultDto;
 import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.service.StudentService;
 import com.edurite.subscription.repository.SubscriptionRepository;
@@ -11,12 +11,11 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 
-// @Service marks a class that contains business logic.
-@Service
 /**
  * This class named RecommendationService is part of the Spring Boot application.
  * It groups related logic so the project stays organized and easier to learn.
  */
+@Service
 public class RecommendationService {
 
     private final StudentService studentService;
@@ -47,7 +46,8 @@ public class RecommendationService {
         List<RecommendationItemDto> improvements = new ArrayList<>();
         List<String> profileTips = new ArrayList<>();
 
-        if (containsAny(interests, "technology", "software", "computers") || containsAny(skills, "java", "programming", "coding")) {
+        if (containsAny(interests, "technology", "software", "computers")
+                || containsAny(skills, "java", "programming", "coding")) {
             suggestedCareers.add(new RecommendationItemDto("career-software-engineer", "Software Engineer", 91,
                     "Your interest in technology and software skills aligns well with engineering pathways."));
             suggestedBursaries.add(new RecommendationItemDto("bursary-stem-excellence", "STEM Excellence Bursary", 87,
@@ -107,10 +107,6 @@ public class RecommendationService {
         return new RecommendationResultDto(suggestedCareers, suggestedBursaries, improvements, profileTips, "rule-engine-v3");
     }
 
-    /**
-     * this method handles the "split" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     private List<String> split(String input) {
         if (input == null || input.isBlank()) {
             return List.of();
@@ -118,18 +114,10 @@ public class RecommendationService {
         return List.of(input.split(",")).stream().map(this::normalize).filter(s -> !s.isBlank()).toList();
     }
 
-    /**
-     * this method handles the "normalize" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).trim();
     }
 
-    /**
-     * this method handles the "containsAny" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     private boolean containsAny(List<String> values, String... keywords) {
         for (String value : values) {
             for (String keyword : keywords) {
@@ -141,10 +129,6 @@ public class RecommendationService {
         return false;
     }
 
-    /**
-     * this method handles the "containsAny" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     private boolean containsAny(String value, String... keywords) {
         for (String keyword : keywords) {
             if (value.contains(keyword)) {
