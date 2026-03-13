@@ -93,9 +93,20 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+
             <groupId>com.google.genai</groupId>
             <artifactId>google-genai</artifactId>
             <version>1.4.1</version>
+=======
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>${okhttp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
+
         </dependency>
 
         <dependency>
