@@ -8,13 +8,18 @@ final class GeminiModelResolver {
     }
 
     static String resolveModelName(String configuredModel) {
+        String normalized = normalizeConfiguredModel(configuredModel);
+        return normalized.isEmpty() ? DEFAULT_MODEL : normalized;
+    }
+
+    private static String normalizeConfiguredModel(String configuredModel) {
         if (configuredModel == null) {
-            return DEFAULT_MODEL;
+            return "";
         }
 
         String normalized = configuredModel.trim();
         if (normalized.isEmpty()) {
-            return DEFAULT_MODEL;
+            return "";
         }
 
         while (normalized.startsWith("/")) {
@@ -32,7 +37,7 @@ final class GeminiModelResolver {
             normalized = normalized.substring("v1beta/".length()).trim();
         }
 
-        if (normalized.startsWith("models/")) {
+        while (normalized.startsWith("models/")) {
             normalized = normalized.substring("models/".length()).trim();
         }
 
@@ -46,7 +51,11 @@ final class GeminiModelResolver {
             normalized = normalized.substring(0, actionStart).trim();
         }
 
-        return normalized.isEmpty() ? DEFAULT_MODEL : normalized;
+        while (normalized.startsWith("models/")) {
+            normalized = normalized.substring("models/".length()).trim();
+        }
+
+        return normalized;
     }
 
     static String buildGenerateContentPath(String configuredModel) {
