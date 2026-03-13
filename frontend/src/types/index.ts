@@ -42,6 +42,24 @@ export interface Recommendation {
   profileImprovementTips: string[];
   modelVersion: string;
 }
+
+export interface CareerAdviceRequest {
+  qualificationLevel: string;
+  interests: string;
+  skills: string;
+  location: string;
+}
+
+export interface CareerAdviceItem {
+  name: string;
+  matchScore: number;
+  reason: string;
+  improvements: string[];
+}
+
+export interface CareerAdviceResponse {
+  recommendedCareers: CareerAdviceItem[];
+}
 export interface Notification { id: string; title: string; message: string; read: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }
 export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; number: number; size: number; }
