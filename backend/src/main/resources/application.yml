@@ -23,3 +23,7 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+gemini:
+  api-key: ${GEMINI_API_KEY}
+  model: gemini-1.5-flash
