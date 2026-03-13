@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppQuery } from '@/hooks/useAppQuery';
 import { studentService } from '@/services/studentService';
 import { recommendationService } from '@/services/recommendationService';
+import { aiGuidanceService } from '@/services/aiGuidanceService';
 import { careerService } from '@/services/careerService';
 import { bursaryService } from '@/services/bursaryService';
 import { notificationService } from '@/services/notificationService';
@@ -81,36 +82,66 @@ export const StudentQualificationsPage = StudentProfilePage;
 export const StudentExperiencePage = StudentProfilePage;
 
 export const StudentCareerRecommendationsPage = () => {
-  const rec = useAppQuery({ queryKey: ['recs'], queryFn: recommendationService.mine });
-  if (rec.isLoading) return <LoadingState />;
-  if (rec.isError) return <ErrorState message="Could not load guidance right now. Please try again." />;
+  const profile = useAppQuery({ queryKey: ['me'], queryFn: studentService.getMe });
+  const aiAdvice = useAppQuery({
+    queryKey: ['ai-guidance', profile.data?.id, profile.data?.profileCompleteness],
+    enabled: Boolean(profile.data),
+    queryFn: async () => {
+      const currentProfile = profile.data;
+      if (!currentProfile) {
+        throw new Error('Student profile is required before requesting AI guidance.');
+      }
 
-  const data = rec.data;
-  const hasRecommendations = Boolean(
-    (data?.suggestedCareers?.length ?? 0) ||
-    (data?.suggestedBursaries?.length ?? 0) ||
-    (data?.suggestedCoursesOrImprovements?.length ?? 0) ||
-    (data?.profileImprovementTips?.length ?? 0),
-  );
+      const qualificationLevel = currentProfile.qualificationLevel?.trim() ?? '';
+      const interests = (currentProfile.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
+      const skills = (currentProfile.skills ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
+      const location = currentProfile.location?.trim() ?? '';
+
+      if (!qualificationLevel || !interests || !skills || !location) {
+        throw new Error('Please complete your profile (qualification, interests, skills, and location) before generating AI guidance.');
+      }
+
+      return aiGuidanceService.getCareerAdvice({ qualificationLevel, interests, skills, location });
+    },
+    retry: false,
+  });
+
+  const demoAdvice = useAppQuery({
+    queryKey: ['ai-guidance-demo'],
+    enabled: aiGuidanceService.demoModeEnabled,
+    queryFn: aiGuidanceService.getDemoGuidance,
+  });
+
+  if (profile.isLoading || aiAdvice.isLoading || demoAdvice.isLoading) return <LoadingState message="Generating AI guidance..." />;
+  if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
+
+  const apiErrorMessage = aiAdvice.error?.message;
+  const isDemoMode = aiGuidanceService.demoModeEnabled;
+  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={apiErrorMessage ?? 'AI guidance failed. Please try again.'} />;
+
+  const liveRecommendations = aiAdvice.data?.recommendedCareers ?? [];
+  const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => ({
+    name: item.title,
+    matchScore: item.score,
+    reason: item.rationale,
+    improvements: [],
+  }));
+  const recommendations = isDemoMode ? demoRecommendations : liveRecommendations;
+  const hasRecommendations = recommendations.length > 0;
 
   return <Section title="AI Guidance">
-    <p className="text-sm text-slate-500">Model: {data?.modelVersion ?? 'rule-engine'}</p>
+    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : 'live Gemini'}</p>
     {!hasRecommendations && <EmptyState title="No guidance yet" message="Complete your profile to generate recommendations." />}
     <div className="space-y-2">
-      <h3 className="font-semibold">Suggested careers</h3>
-      {(data?.suggestedCareers ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
-    </div>
-    <div className="space-y-2">
-      <h3 className="font-semibold">Suggested bursaries</h3>
-      {(data?.suggestedBursaries ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
-    </div>
-    <div className="space-y-2">
-      <h3 className="font-semibold">Courses & improvements</h3>
-      {(data?.suggestedCoursesOrImprovements ?? []).map((r) => <div key={r.id} className="border p-2 rounded">{r.title} ({r.score}%) - {r.rationale}</div>)}
-    </div>
-    <div className="space-y-2">
-      <h3 className="font-semibold">Profile improvement tips</h3>
-      {(data?.profileImprovementTips ?? []).map((tip) => <p key={tip}>• {tip}</p>)}
+      <h3 className="font-semibold">Recommended careers</h3>
+      {recommendations.map((item) => <div key={`${item.name}-${item.matchScore}`} className="border p-2 rounded">
+        <p className="font-medium">{item.name} ({item.matchScore}%)</p>
+        <p className="text-sm">{item.reason}</p>
+        {item.improvements.length > 0 && <div className="mt-2 text-sm">
+          <p className="font-medium">Improvements</p>
+          {item.improvements.map((improvement) => <p key={improvement}>• {improvement}</p>)}
+        </div>}
+      </div>)}
     </div>
   </Section>;
 };

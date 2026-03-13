@@ -17,6 +17,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class GeminiService {
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
     private static final MediaType JSON = MediaType.get("application/json");
+    private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
     private final OkHttpClient okHttpClient;
     private final Gson gson;
@@ -50,6 +53,7 @@ public class GeminiService {
 
     public CareerAdviceResponse getCareerAdvice(CareerAdviceRequest request) {
         if (apiKey == null || apiKey.isBlank()) {
+            log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
             throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Career AI is currently unavailable. Gemini API key is not configured.");
         }
@@ -73,7 +77,10 @@ public class GeminiService {
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
+        log.info("Starting Gemini call: model={}, endpointPath=/v1beta/models/{}:generateContent", model, model);
+
         try (Response response = okHttpClient.newCall(httpRequest).execute()) {
+            log.info("Gemini HTTP response received: status={}", response.code());
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
                 HttpStatus status = response.code() == 401 || response.code() == 403
@@ -94,6 +101,7 @@ public class GeminiService {
         } catch (AiServiceException ex) {
             throw ex;
         } catch (IOException ex) {
+            log.error("Gemini call failed due to IO issue.", ex);
             throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
                     "Gemini request timed out or failed: " + ex.getMessage());
         }
@@ -124,7 +132,12 @@ public class GeminiService {
                 interests: %s
                 skills: %s
                 location: %s
-                """.formatted(request.qualificationLevel(), request.interests(), request.skills(), request.location());
+                """.formatted(
+                sanitizePromptValue(request.qualificationLevel()),
+                sanitizePromptValue(request.interests()),
+                sanitizePromptValue(request.skills()),
+                sanitizePromptValue(request.location())
+        );
     }
 
     private String extractModelText(String geminiBody) {
@@ -151,6 +164,7 @@ public class GeminiService {
             }
             return stripCodeFences(textPart.get("text").getAsString());
         } catch (IllegalStateException ex) {
+            log.error("Gemini payload parsing failed before extracting model text.", ex);
             throw new AiServiceException(HttpStatus.BAD_GATEWAY,
                     "Gemini returned malformed JSON payload.");
         }
@@ -172,11 +186,21 @@ public class GeminiService {
                             item.improvements() == null ? List.of() : item.improvements()
                     ))
                     .toList();
+            log.info("Gemini JSON parsed successfully: recommendations={}", sanitized.size());
             return new CareerAdviceResponse(sanitized);
         } catch (JsonProcessingException ex) {
+            log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
             throw new AiServiceException(HttpStatus.BAD_GATEWAY,
                     "Gemini returned non-JSON or invalid JSON output.");
         }
+    }
+
+    private String sanitizePromptValue(String value) {
+        if (value == null) {
+            return "not provided";
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? "not provided" : trimmed;
     }
 
     private Integer normalizeScore(Integer score) {
