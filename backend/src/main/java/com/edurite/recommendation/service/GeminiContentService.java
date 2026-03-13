@@ -9,23 +9,19 @@ import org.springframework.stereotype.Service;
 public class GeminiContentService {
 
     private final String model;
-    private final String apiKey;
+    private final Client client;
 
     public GeminiContentService(
             @Value("${app.ai.gemini.model:gemini-2.5-flash}") String model,
             @Value("${app.ai.gemini.api-key:}") String apiKey) {
         this.model = model;
-
-        this.apiKey = apiKey;
+        this.client = apiKey == null || apiKey.isBlank()
+                ? Client.builder().build()
+                : Client.builder().apiKey(apiKey).build();
     }
 
     public String generateText(String prompt) {
         try {
-            if (apiKey == null || apiKey.isBlank()) {
-                throw new IllegalStateException("Gemini API key is missing: set app.ai.gemini.api-key");
-            }
-
-            Client client = Client.builder().apiKey(apiKey).build();
             GenerateContentResponse response = client.models.generateContent(model, prompt, null);
             String text = response.text();
             if (text == null || text.isBlank()) {
