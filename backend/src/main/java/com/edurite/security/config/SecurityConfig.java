@@ -58,6 +58,7 @@ public class SecurityConfig {
                                 "/api/v1/notifications/**",
                                 "/api/v1/applications/**"
                         ).hasAnyAuthority("ROLE_STUDENT", "STUDENT")
+                        .requestMatchers("/api/v1/ai/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_ADMIN", "ADMIN")
                         .requestMatchers("/api/v1/companies/**").hasAnyAuthority("ROLE_COMPANY", "COMPANY")
                         .requestMatchers("/api/v1/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers("/api/**").authenticated()

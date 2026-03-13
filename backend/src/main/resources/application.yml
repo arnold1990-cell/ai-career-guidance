@@ -21,3 +21,10 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+ai:
+  gemini:
+    enabled: ${AI_GEMINI_ENABLED:true}
+    api-key: ${GOOGLE_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-2.5-flash}
+    timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:20}
