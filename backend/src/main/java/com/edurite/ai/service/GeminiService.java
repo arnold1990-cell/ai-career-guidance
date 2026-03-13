@@ -41,14 +41,18 @@ public class GeminiService {
     private String model;
 
     public GeminiService(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-        this.gson = new Gson();
-        this.okHttpClient = new OkHttpClient.Builder()
+        this(objectMapper, new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .readTimeout(Duration.ofSeconds(25))
                 .writeTimeout(Duration.ofSeconds(25))
                 .callTimeout(Duration.ofSeconds(30))
-                .build();
+                .build());
+    }
+
+    GeminiService(ObjectMapper objectMapper, OkHttpClient okHttpClient) {
+        this.objectMapper = objectMapper;
+        this.gson = new Gson();
+        this.okHttpClient = okHttpClient;
     }
 
     public CareerAdviceResponse getCareerAdvice(CareerAdviceRequest request) {
@@ -58,7 +62,14 @@ public class GeminiService {
                     "Career AI is currently unavailable. Gemini API key is not configured.");
         }
 
-        String endpoint = GEMINI_BASE_URL + "/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+        String normalizedModel = GeminiModelNameResolver.normalize(model);
+        if (normalizedModel.isBlank()) {
+            throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Career AI is currently unavailable. Gemini model is not configured.");
+        }
+
+        String endpointPath = GeminiModelNameResolver.buildGenerateContentPath(normalizedModel);
+        String endpoint = GEMINI_BASE_URL + endpointPath + "?key=" + apiKey;
         String prompt = buildPrompt(request);
 
         JsonObject payload = new JsonObject();
@@ -77,7 +88,7 @@ public class GeminiService {
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
-        log.info("Starting Gemini call: model={}, endpointPath=/v1beta/models/{}:generateContent", model, model);
+        log.info("Starting Gemini call: model={}, endpointPath={}", normalizedModel, endpointPath);
 
         try (Response response = okHttpClient.newCall(httpRequest).execute()) {
             log.info("Gemini HTTP response received: status={}", response.code());
