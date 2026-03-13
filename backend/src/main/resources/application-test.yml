@@ -21,3 +21,8 @@ spring:
 security:
   jwt:
     secret: test-secret-key-change-me-please-test-secret-key-change-me-please
+
+
+gemini:
+  api-key: ""
+  model: gemini-2.5-flash
