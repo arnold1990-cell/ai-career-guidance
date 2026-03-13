@@ -30,10 +30,10 @@ class GeminiModelResolverTest {
 
     @Test
     void resolveModelNameFallsBackToDefaultForNullOrBlank() {
-        assertThat(GeminiModelResolver.resolveModelName(null)).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("")).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("   ")).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("models/   ")).isEqualTo("gemini-2.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName(null)).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("")).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("   ")).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("models/   ")).isEqualTo("gemini-1.5-flash");
     }
 
     @Test
