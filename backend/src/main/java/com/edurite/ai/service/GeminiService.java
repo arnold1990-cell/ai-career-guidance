@@ -4,6 +4,7 @@ import com.edurite.ai.dto.CareerAdviceRequest;
 import com.edurite.ai.dto.CareerAdviceResponse;
 import com.edurite.ai.exception.AiServiceException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -52,6 +53,35 @@ public class GeminiService {
     }
 
     public CareerAdviceResponse getCareerAdvice(CareerAdviceRequest request) {
+        String modelText = generateText(buildPrompt(request));
+        return parseCareerAdvice(modelText);
+    }
+
+    public <T> T generateJson(String prompt, Class<T> targetType) {
+        String modelText = generateText(prompt);
+        try {
+            return objectMapper.readValue(modelText, targetType);
+        } catch (JsonProcessingException ex) {
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                    "Gemini returned non-JSON or invalid JSON output.");
+        }
+    }
+
+    public JsonNode generateJsonNode(String prompt) {
+        String modelText = generateText(prompt);
+        try {
+            return objectMapper.readTree(modelText);
+        } catch (JsonProcessingException ex) {
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                    "Gemini returned non-JSON or invalid JSON output.");
+        }
+    }
+
+    public String resolvedModelName() {
+        return GeminiModelResolver.resolveModelName(model);
+    }
+
+    private String generateText(String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
             throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -61,7 +91,6 @@ public class GeminiService {
         String endpointPath = GeminiModelResolver.buildGenerateContentPath(model);
         String resolvedModel = GeminiModelResolver.resolveModelName(model);
         String endpoint = GEMINI_BASE_URL + endpointPath + "?key=" + apiKey.trim();
-        String prompt = buildPrompt(request);
 
         JsonObject payload = new JsonObject();
         JsonArray contents = new JsonArray();
@@ -98,8 +127,7 @@ public class GeminiService {
             }
 
             String geminiBody = response.body().string();
-            String modelText = extractModelText(geminiBody);
-            return parseCareerAdvice(modelText);
+            return extractModelText(geminiBody);
         } catch (AiServiceException ex) {
             throw ex;
         } catch (IOException ex) {
