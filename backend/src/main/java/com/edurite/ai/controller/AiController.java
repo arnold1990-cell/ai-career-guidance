@@ -2,16 +2,22 @@ package com.edurite.ai.controller;
 
 import com.edurite.ai.dto.CareerAdviceRequest;
 import com.edurite.ai.dto.CareerAdviceResponse;
+import com.edurite.ai.dto.UniversitySourcesAnalysisRequest;
+import com.edurite.ai.dto.UniversitySourcesAnalysisResponse;
 import com.edurite.ai.exception.AiServiceException;
 import com.edurite.ai.service.GeminiService;
+import com.edurite.ai.service.UniversitySourcesGuidanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +30,11 @@ public class AiController {
     private static final Logger log = LoggerFactory.getLogger(AiController.class);
 
     private final GeminiService geminiService;
+    private final UniversitySourcesGuidanceService universitySourcesGuidanceService;
 
-    public AiController(GeminiService geminiService) {
+    public AiController(GeminiService geminiService, UniversitySourcesGuidanceService universitySourcesGuidanceService) {
         this.geminiService = geminiService;
+        this.universitySourcesGuidanceService = universitySourcesGuidanceService;
     }
 
     @PostMapping("/career-advice")
@@ -43,15 +51,36 @@ public class AiController {
                     response.recommendedCareers() == null ? 0 : response.recommendedCareers().size());
             return ResponseEntity.ok(response);
         } catch (AiServiceException ex) {
-            log.warn("AI guidance request failed: status={}, message={}", ex.getStatus().value(), ex.getMessage());
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("timestamp", Instant.now().toString());
-            body.put("status", ex.getStatus().value());
-            body.put("error", ex.getStatus().getReasonPhrase());
-            body.put("message", ex.getMessage());
-            body.put("path", httpRequest.getRequestURI());
-            return ResponseEntity.status(ex.getStatus()).body(body);
+            return errorResponse(httpRequest, ex);
         }
+    }
+
+    @PostMapping("/analyse-university-sources")
+    public ResponseEntity<?> analyseUniversitySources(@Valid @RequestBody UniversitySourcesAnalysisRequest request,
+                                                      Principal principal,
+                                                      HttpServletRequest httpRequest) {
+        try {
+            UniversitySourcesAnalysisResponse response = universitySourcesGuidanceService.analyse(principal, request);
+            return ResponseEntity.ok(response);
+        } catch (AiServiceException ex) {
+            return errorResponse(httpRequest, ex);
+        }
+    }
+
+    @GetMapping("/default-university-sources")
+    public ResponseEntity<List<String>> defaultUniversitySources() {
+        return ResponseEntity.ok(universitySourcesGuidanceService.getDefaultSources());
+    }
+
+    private ResponseEntity<Map<String, Object>> errorResponse(HttpServletRequest httpRequest, AiServiceException ex) {
+        log.warn("AI guidance request failed: status={}, message={}", ex.getStatus().value(), ex.getMessage());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", ex.getStatus().value());
+        body.put("error", ex.getStatus().getReasonPhrase());
+        body.put("message", ex.getMessage());
+        body.put("path", httpRequest.getRequestURI());
+        return ResponseEntity.status(ex.getStatus()).body(body);
     }
 
     private String safeValue(String value) {
