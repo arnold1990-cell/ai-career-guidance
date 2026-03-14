@@ -56,7 +56,8 @@ public class SecurityConfig {
                                 "/api/v1/recommendations/**",
                                 "/api/v1/subscriptions/**",
                                 "/api/v1/notifications/**",
-                                "/api/v1/applications/**"
+                                "/api/v1/applications/**",
+                                "/api/v1/ai/**"
                         ).hasAnyAuthority("ROLE_STUDENT", "STUDENT")
                         .requestMatchers("/api/v1/companies/**").hasAnyAuthority("ROLE_COMPANY", "COMPANY")
                         .requestMatchers("/api/v1/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
