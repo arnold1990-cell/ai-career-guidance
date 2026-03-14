@@ -4,10 +4,8 @@ import com.edurite.ai.dto.UniversitySourcesAnalysisRequest;
 import com.edurite.student.entity.StudentProfile;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,20 +20,17 @@ public class UniversitySourcesAggregatorService {
                 .sorted(Comparator.comparingInt(p -> -relevanceScore(p, profile, request)))
                 .toList();
 
-        Set<String> uniqueChunks = new LinkedHashSet<>();
-        for (UniversitySourcePageResult page : successful) {
-            uniqueChunks.add("Title: " + page.pageTitle());
-            uniqueChunks.add("Type: " + page.pageType());
-            uniqueChunks.add("Keywords: " + String.join(", ", page.extractedKeywords()));
-            uniqueChunks.add(page.cleanedText());
-        }
-
         StringBuilder builder = new StringBuilder();
-        for (String chunk : uniqueChunks) {
-            if (builder.length() + chunk.length() + 2 > MAX_COMBINED_CONTEXT_CHARS) {
+        for (UniversitySourcePageResult page : successful) {
+            String block = "Source URL: " + page.sourceUrl() + "\n"
+                    + "Title: " + page.pageTitle() + "\n"
+                    + "Type: " + page.pageType() + "\n"
+                    + "Keywords: " + String.join(", ", page.extractedKeywords()) + "\n"
+                    + page.cleanedText();
+            if (builder.length() + block.length() + 2 > MAX_COMBINED_CONTEXT_CHARS) {
                 break;
             }
-            builder.append(chunk).append("\n\n");
+            builder.append(block).append("\n\n");
         }
         return builder.toString().trim();
     }

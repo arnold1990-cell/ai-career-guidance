@@ -31,5 +31,7 @@ class UniversitySourcesAggregatorServiceTest {
         );
 
         assertThat(context).contains("Computer Science Programme");
+        assertThat(context).contains("Source URL: https://www.unisa.ac.za/a");
+        assertThat(context).contains("Source URL: https://www.unisa.ac.za/b");
     }
 }
