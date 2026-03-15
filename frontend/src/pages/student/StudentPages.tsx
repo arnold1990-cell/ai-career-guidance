@@ -135,6 +135,7 @@ export const StudentCareerRecommendationsPage = () => {
   const careers = aiAdvice.data?.recommendedCareers ?? [];
   const programmes = aiAdvice.data?.recommendedProgrammes ?? [];
   const universities = aiAdvice.data?.recommendedUniversities ?? [];
+  const minimumRequirements = aiAdvice.data?.minimumRequirements ?? [];
   const skillGaps = aiAdvice.data?.skillGaps ?? [];
   const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
   const warnings = aiAdvice.data?.warnings ?? [];
@@ -176,7 +177,6 @@ export const StudentCareerRecommendationsPage = () => {
         <ul className="list-disc ml-5 text-sm">{programme.admissionRequirements.map((requirement) => <li key={`${programme.name}-${requirement}`}>{requirement}</li>)}</ul>
       </div>
       <div className="text-sm">
-        <p><span className="font-medium">Application deadline:</span> {programme.applicationDeadline}</p>
         <p><span className="font-medium">Notes:</span> {programme.notes}</p>
       </div>
     </article>)}</div>;
@@ -204,6 +204,11 @@ export const StudentCareerRecommendationsPage = () => {
       <div className="space-y-2">
         <h3 className="font-semibold">Recommended universities</h3>
         {renderSimpleList(universities, 'No university recommendations yet.')}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Minimum requirements</h3>
+        {renderSimpleList(minimumRequirements, 'Minimum requirements are currently unavailable.')}
       </div>
 
       <div className="space-y-2">
