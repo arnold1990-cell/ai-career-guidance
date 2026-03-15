@@ -194,15 +194,30 @@ public class GeminiService {
                 You are EduRite's academic and career guidance assistant.
                 Return ONLY valid JSON with this schema:
                 {
-                  \"summary\": \"string\",
-                  \"recommendedCareers\": [\"string\"],
-                  \"recommendedProgrammes\": [\"string\"],
-                  \"recommendedUniversities\": [\"string\"],
-                  \"keyRequirements\": [\"string\"],
-                  \"skillGaps\": [\"string\"],
-                  \"recommendedNextSteps\": [\"string\"],
-                  \"warnings\": [\"string\"],
-                  \"suitabilityScore\": 0
+                  "summary": "string",
+                  "recommendedCareers": [
+                    {
+                      "name": "string",
+                      "reason": "string",
+                      "requirements": ["string"],
+                      "relatedProgrammes": ["string"]
+                    }
+                  ],
+                  "recommendedProgrammes": [
+                    {
+                      "name": "string",
+                      "university": "string",
+                      "admissionRequirements": ["string"],
+                      "applicationDeadline": "string",
+                      "notes": "string"
+                    }
+                  ],
+                  "recommendedUniversities": ["string"],
+                  "keyRequirements": ["string"],
+                  "skillGaps": ["string"],
+                  "recommendedNextSteps": ["string"],
+                  "warnings": ["string"],
+                  "suitabilityScore": 0
                 }
 
                 Rules:
@@ -210,9 +225,14 @@ public class GeminiService {
                 - The evidence comes from multiple universities and only shortlisted relevant pages.
                 - Recommend at least %d careers if enough evidence exists.
                 - Recommend at least %d university programmes if enough evidence exists.
+                - Each recommended career must include specific requirements and relatedProgrammes.
+                - Each recommended programme must include admissionRequirements, applicationDeadline, and notes.
+                - Include application deadlines only if explicitly found in fetched university content.
+                - If a requirement or deadline is not found in fetched sources, return "Not found in fetched sources".
+                - Do not hallucinate APS scores, subject minimums, or deadlines.
+                - Ground programmes and universities in the retrieved source content.
                 - Recommend universities grounded in the retrieved page list.
                 - Mention limitation warnings when sources are generic list pages.
-                - Do not hallucinate programme-specific requirements that do not appear in the sources.
                 - Keep suitabilityScore between 0 and 100.
 
                 Student profile:
@@ -326,8 +346,8 @@ public class GeminiService {
                 failedUrls,
                 successUrls.size(),
                 sanitizePromptValue(parsed.summary),
-                defaultList(parsed.recommendedCareers),
-                defaultList(parsed.recommendedProgrammes),
+                defaultCareerList(parsed.recommendedCareers),
+                defaultProgrammeList(parsed.recommendedProgrammes),
                 defaultList(parsed.recommendedUniversities),
                 defaultList(parsed.keyRequirements),
                 defaultList(parsed.skillGaps),
@@ -376,9 +396,67 @@ public class GeminiService {
                 failedUrls,
                 successUrls.size(),
                 "Based on the available university sources and your profile, here are practical options to explore next.",
-                List.of("Software Developer", "Data Analyst", "IT Support Specialist", "Business Analyst", "Systems Analyst")
+                List.of(
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Software Developer",
+                                        "Strong fit for students interested in technology and problem solving.",
+                                        List.of("Programming fundamentals", "Mathematics and logical reasoning"),
+                                        List.of("BSc Computer Science", "Diploma in IT")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Data Analyst",
+                                        "Good pathway for students who enjoy working with numbers and insights.",
+                                        List.of("Statistics basics", "Spreadsheet and data literacy"),
+                                        List.of("BCom Information Systems", "BSc Computer Science")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "IT Support Specialist",
+                                        "Suitable for students interested in practical technology support roles.",
+                                        List.of("Basic networking knowledge", "Troubleshooting and communication skills"),
+                                        List.of("Diploma in IT")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Business Analyst",
+                                        "Recommended when combining business interest with digital systems.",
+                                        List.of("Business process understanding", "Communication and documentation"),
+                                        List.of("BCom Information Systems")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Systems Analyst",
+                                        "Useful for students interested in improving how systems work.",
+                                        List.of("Systems thinking", "Problem analysis"),
+                                        List.of("BSc Computer Science", "BCom Information Systems")
+                                ))
                         .stream().limit(max).toList(),
-                List.of("BSc Computer Science", "BCom Information Systems", "Diploma in IT", "BSc Engineering")
+                List.of(
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "BSc Computer Science",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Programme requirements and deadlines should be verified on official faculty pages."
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "BCom Information Systems",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Admission criteria were not explicitly available in fetched content."
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "Diploma in IT",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Check programme-specific pages for exact subject and score minimums."
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "BSc Engineering",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Use official admissions pages to confirm current requirements."
+                                ))
                         .stream().limit(max).toList(),
                 sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
                 List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for computing and engineering pathways"),
@@ -407,6 +485,14 @@ public class GeminiService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? "not provided" : trimmed;
+    }
+
+    private String sanitizeSourceBoundValue(String value) {
+        if (value == null) {
+            return "Not found in fetched sources";
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? "Not found in fetched sources" : trimmed;
     }
 
     private Integer normalizeScore(Integer score) {
@@ -438,15 +524,70 @@ public class GeminiService {
         return value == null ? List.of() : value;
     }
 
+    private List<String> defaultListOrNotFound(List<String> value) {
+        if (value == null || value.isEmpty()) {
+            return List.of("Not found in fetched sources");
+        }
+        return value;
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedCareer> defaultCareerList(
+            List<UniversityModelResponse.RecommendedCareerPayload> value) {
+        if (value == null) {
+            return List.of();
+        }
+        return value.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                        item.name,
+                        sanitizeSourceBoundValue(item.reason),
+                        defaultListOrNotFound(item.requirements),
+                        defaultList(item.relatedProgrammes)
+                ))
+                .toList();
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedProgramme> defaultProgrammeList(
+            List<UniversityModelResponse.RecommendedProgrammePayload> value) {
+        if (value == null) {
+            return List.of();
+        }
+        return value.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                        item.name,
+                        sanitizeSourceBoundValue(item.university),
+                        defaultListOrNotFound(item.admissionRequirements),
+                        sanitizeSourceBoundValue(item.applicationDeadline),
+                        sanitizeSourceBoundValue(item.notes)
+                ))
+                .toList();
+    }
+
     private static class UniversityModelResponse {
         public String summary;
-        public List<String> recommendedCareers;
-        public List<String> recommendedProgrammes;
+        public List<RecommendedCareerPayload> recommendedCareers;
+        public List<RecommendedProgrammePayload> recommendedProgrammes;
         public List<String> recommendedUniversities;
         public List<String> keyRequirements;
         public List<String> skillGaps;
         public List<String> recommendedNextSteps;
         public List<String> warnings;
         public Integer suitabilityScore;
+
+        private static class RecommendedCareerPayload {
+            public String name;
+            public String reason;
+            public List<String> requirements;
+            public List<String> relatedProgrammes;
+        }
+
+        private static class RecommendedProgrammePayload {
+            public String name;
+            public String university;
+            public List<String> admissionRequirements;
+            public String applicationDeadline;
+            public String notes;
+        }
     }
 }
