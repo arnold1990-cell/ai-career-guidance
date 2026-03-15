@@ -10,10 +10,15 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "crawled_university_pages", indexes = {
         @Index(name = "idx_crawled_pages_university", columnList = "university_name"),
@@ -74,40 +79,4 @@ public class CrawledUniversityPage extends BaseEntity {
     @Column(length = 500)
     private String summaryExcerpt;
 
-    public String getUniversityName() { return universityName; }
-    public void setUniversityName(String universityName) { this.universityName = universityName; }
-    public String getSourceUrl() { return sourceUrl; }
-    public void setSourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; }
-    public String getPageTitle() { return pageTitle; }
-    public void setPageTitle(String pageTitle) { this.pageTitle = pageTitle; }
-    public String getPageType() { return pageType; }
-    public void setPageType(String pageType) { this.pageType = pageType; }
-    public String getQualificationLevel() { return qualificationLevel; }
-    public void setQualificationLevel(String qualificationLevel) { this.qualificationLevel = qualificationLevel; }
-    public String getFacultyName() { return facultyName; }
-    public void setFacultyName(String facultyName) { this.facultyName = facultyName; }
-    public String getCampusName() { return campusName; }
-    public void setCampusName(String campusName) { this.campusName = campusName; }
-    public Set<String> getExtractedKeywords() { return extractedKeywords; }
-    public void setExtractedKeywords(Set<String> extractedKeywords) { this.extractedKeywords = extractedKeywords; }
-    public String getCleanedContent() { return cleanedContent; }
-    public void setCleanedContent(String cleanedContent) { this.cleanedContent = cleanedContent; }
-    public String getContentHash() { return contentHash; }
-    public void setContentHash(String contentHash) { this.contentHash = contentHash; }
-    public CrawlStatus getCrawlStatus() { return crawlStatus; }
-    public void setCrawlStatus(CrawlStatus crawlStatus) { this.crawlStatus = crawlStatus; }
-    public OffsetDateTime getLastCrawledAt() { return lastCrawledAt; }
-    public void setLastCrawledAt(OffsetDateTime lastCrawledAt) { this.lastCrawledAt = lastCrawledAt; }
-    public OffsetDateTime getLastSuccessfulCrawledAt() { return lastSuccessfulCrawledAt; }
-    public void setLastSuccessfulCrawledAt(OffsetDateTime lastSuccessfulCrawledAt) { this.lastSuccessfulCrawledAt = lastSuccessfulCrawledAt; }
-    public OffsetDateTime getLastFailureAt() { return lastFailureAt; }
-    public void setLastFailureAt(OffsetDateTime lastFailureAt) { this.lastFailureAt = lastFailureAt; }
-    public String getErrorType() { return errorType; }
-    public void setErrorType(String errorType) { this.errorType = errorType; }
-    public String getFailureReason() { return failureReason; }
-    public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
-    public String getSummaryExcerpt() { return summaryExcerpt; }
-    public void setSummaryExcerpt(String summaryExcerpt) { this.summaryExcerpt = summaryExcerpt; }
 }

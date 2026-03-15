@@ -40,7 +40,7 @@ public class GeminiService {
     private final Gson gson;
     private final ObjectMapper objectMapper;
 
-    @Value("${gemini.api-key:}")
+    @Value("${gemini.api-key:${GEMINI_API_KEY:}}")
     private String apiKey;
 
     @Value("${gemini.model:gemini-2.5-flash}")
@@ -70,33 +70,54 @@ public class GeminiService {
             List<UniversitySourcePageResult> fetchedPages,
             String combinedContext
     ) {
-        List<String> successUrls = fetchedPages.stream().filter(UniversitySourcePageResult::success)
-                .map(UniversitySourcePageResult::sourceUrl).toList();
-        List<String> failedUrls = fetchedPages.stream().filter(p -> !p.success())
-                .map(UniversitySourcePageResult::sourceUrl).toList();
+        List<String> successUrls = fetchedPages.stream()
+                .filter(UniversitySourcePageResult::success)
+                .map(UniversitySourcePageResult::sourceUrl)
+                .toList();
+
+        List<String> failedUrls = fetchedPages.stream()
+                .filter(page -> !page.success())
+                .map(UniversitySourcePageResult::sourceUrl)
+                .toList();
 
         if (apiKey == null || apiKey.isBlank()) {
-            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("AI model is unavailable, fallback guidance was generated from source metadata."));
+            return fallbackUniversityResponse(
+                    request,
+                    sourceUrls,
+                    successUrls,
+                    failedUrls,
+                    List.of("AI model is unavailable, fallback guidance was generated from source metadata.")
+            );
         }
 
         try {
             String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext);
             String modelText = invokeGemini(prompt);
-            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
+            UniversitySourcesAnalysisResponse parsed =
+                    parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
             return enrichWithWarnings(parsed, failedUrls);
         } catch (Exception ex) {
             log.warn("University sources analysis fell back after model error: {}", ex.getMessage());
-            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("Model parsing failed, fallback guidance was generated.", "Reason: " + ex.getMessage()));
+            return fallbackUniversityResponse(
+                    request,
+                    sourceUrls,
+                    successUrls,
+                    failedUrls,
+                    List.of(
+                            "Model parsing failed, fallback guidance was generated.",
+                            "Reason: " + ex.getMessage()
+                    )
+            );
         }
     }
 
     private void ensureApiKey() {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
-            throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Career AI is currently unavailable. Gemini API key is not configured.");
+            throw new AiServiceException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Career AI is currently unavailable. Gemini API key is not configured."
+            );
         }
     }
 
@@ -125,26 +146,34 @@ public class GeminiService {
 
         try (Response response = okHttpClient.newCall(httpRequest).execute()) {
             log.info("Gemini HTTP response received: status={}", response.code());
+
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
                 HttpStatus status = response.code() == 401 || response.code() == 403
                         ? HttpStatus.BAD_GATEWAY
                         : HttpStatus.SERVICE_UNAVAILABLE;
-                throw new AiServiceException(status,
-                        "Gemini request failed with status " + response.code() + ". " + trim(errorBody));
+
+                throw new AiServiceException(
+                        status,
+                        "Gemini request failed with status " + response.code() + ". " + trim(errorBody)
+                );
             }
 
             if (response.body() == null) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned an empty response body.");
+                throw new AiServiceException(
+                        HttpStatus.BAD_GATEWAY,
+                        "Gemini returned an empty response body."
+                );
             }
 
             String geminiBody = response.body().string();
             return extractModelText(geminiBody);
         } catch (IOException ex) {
             log.error("Gemini call failed due to IO issue.", ex);
-            throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
-                    "Gemini request timed out or failed: " + ex.getMessage());
+            throw new AiServiceException(
+                    HttpStatus.GATEWAY_TIMEOUT,
+                    "Gemini request timed out or failed: " + ex.getMessage()
+            );
         }
     }
 
@@ -153,12 +182,12 @@ public class GeminiService {
                 You are a career guidance assistant.
                 Return ONLY strict JSON with this exact schema:
                 {
-                  \"recommendedCareers\": [
+                  "recommendedCareers": [
                     {
-                      \"name\": \"string\",
-                      \"matchScore\": 0,
-                      \"reason\": \"string\",
-                      \"improvements\": [\"string\"]
+                      "name": "string",
+                      "matchScore": 0,
+                      "reason": "string",
+                      "improvements": ["string"]
                     }
                   ]
                 }
@@ -181,28 +210,33 @@ public class GeminiService {
         );
     }
 
-    private String buildUniversityPrompt(UniversitySourcesAnalysisRequest request,
-                                         com.edurite.student.entity.StudentProfile profile,
-                                         List<UniversitySourcePageResult> fetchedPages,
-                                         String combinedContext) {
+    private String buildUniversityPrompt(
+            UniversitySourcesAnalysisRequest request,
+            com.edurite.student.entity.StudentProfile profile,
+            List<UniversitySourcePageResult> fetchedPages,
+            String combinedContext
+    ) {
         String pageMetadata = fetchedPages.stream()
                 .map(page -> "%s | %s | %s | keywords=%s".formatted(
-                        page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
+                        page.sourceUrl(),
+                        page.success() ? "success" : "failed",
+                        page.pageType(),
+                        page.extractedKeywords()))
                 .reduce("", (a, b) -> a + "\n" + b);
 
         return """
                 You are EduRite's academic and career guidance assistant.
                 Return ONLY valid JSON with this schema:
                 {
-                  \"summary\": \"string\",
-                  \"recommendedCareers\": [\"string\"],
-                  \"recommendedProgrammes\": [\"string\"],
-                  \"recommendedUniversities\": [\"string\"],
-                  \"keyRequirements\": [\"string\"],
-                  \"skillGaps\": [\"string\"],
-                  \"recommendedNextSteps\": [\"string\"],
-                  \"warnings\": [\"string\"],
-                  \"suitabilityScore\": 0
+                  "summary": "string",
+                  "recommendedCareers": ["string"],
+                  "recommendedProgrammes": ["string"],
+                  "recommendedUniversities": ["string"],
+                  "keyRequirements": ["string"],
+                  "skillGaps": ["string"],
+                  "recommendedNextSteps": ["string"],
+                  "warnings": ["string"],
+                  "suitabilityScore": 0
                 }
 
                 Rules:
@@ -264,29 +298,28 @@ public class GeminiService {
         try {
             JsonObject root = JsonParser.parseString(geminiBody).getAsJsonObject();
             JsonArray candidates = root.has("candidates") ? root.getAsJsonArray("candidates") : null;
+
             if (candidates == null || candidates.isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no candidates.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no candidates.");
             }
 
             JsonObject first = candidates.get(0).getAsJsonObject();
             JsonObject content = first.has("content") ? first.getAsJsonObject("content") : null;
             JsonArray parts = content != null && content.has("parts") ? content.getAsJsonArray("parts") : null;
+
             if (parts == null || parts.isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no text parts.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no text parts.");
             }
 
             JsonObject textPart = parts.get(0).getAsJsonObject();
             if (!textPart.has("text")) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini text part was missing.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini text part was missing.");
             }
+
             return stripCodeFences(textPart.get("text").getAsString());
         } catch (IllegalStateException ex) {
             log.error("Gemini payload parsing failed before extracting model text.", ex);
-            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                    "Gemini returned malformed JSON payload.");
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned malformed JSON payload.");
         }
     }
 
@@ -294,8 +327,7 @@ public class GeminiService {
         try {
             CareerAdviceResponse response = objectMapper.readValue(modelText, CareerAdviceResponse.class);
             if (response.recommendedCareers() == null || response.recommendedCareers().isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no career recommendations.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no career recommendations.");
             }
 
             List<CareerAdviceResponse.RecommendedCareer> sanitized = response.recommendedCareers().stream()
@@ -306,19 +338,21 @@ public class GeminiService {
                             item.improvements() == null ? List.of() : item.improvements()
                     ))
                     .toList();
+
             log.info("Gemini JSON parsed successfully: recommendations={}", sanitized.size());
             return new CareerAdviceResponse(sanitized);
         } catch (JsonProcessingException ex) {
             log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
-            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                    "Gemini returned non-JSON or invalid JSON output.");
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned non-JSON or invalid JSON output.");
         }
     }
 
-    private UniversitySourcesAnalysisResponse parseUniversityAdvice(String modelText,
-                                                                    List<String> sourceUrls,
-                                                                    List<String> successUrls,
-                                                                    List<String> failedUrls) throws JsonProcessingException {
+    private UniversitySourcesAnalysisResponse parseUniversityAdvice(
+            String modelText,
+            List<String> sourceUrls,
+            List<String> successUrls,
+            List<String> failedUrls
+    ) throws JsonProcessingException {
         UniversityModelResponse parsed = objectMapper.readValue(modelText, UniversityModelResponse.class);
         return new UniversitySourcesAnalysisResponse(
                 sourceUrls,
@@ -338,12 +372,15 @@ public class GeminiService {
         );
     }
 
-    private UniversitySourcesAnalysisResponse enrichWithWarnings(UniversitySourcesAnalysisResponse response,
-                                                                 List<String> failedUrls) {
+    private UniversitySourcesAnalysisResponse enrichWithWarnings(
+            UniversitySourcesAnalysisResponse response,
+            List<String> failedUrls
+    ) {
         Set<String> warnings = new LinkedHashSet<>(defaultList(response.warnings()));
         if (!failedUrls.isEmpty()) {
             warnings.add("Some sources failed to load and were skipped.");
         }
+
         return new UniversitySourcesAnalysisResponse(
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
@@ -381,7 +418,10 @@ public class GeminiService {
                 List.of("BSc Computer Science", "BCom Information Systems", "Diploma in IT", "BSc Engineering")
                         .stream().limit(max).toList(),
                 sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
-                List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for computing and engineering pathways"),
+                List.of(
+                        "Check subject requirements on programme-specific pages",
+                        "Mathematics is commonly required for computing and engineering pathways"
+                ),
                 List.of("Build a practical portfolio", "Strengthen analytical and communication skills"),
                 List.of("Open programme detail pages", "Compare your subjects with entry requirements", "Upload your transcript and CV"),
                 warnings,
