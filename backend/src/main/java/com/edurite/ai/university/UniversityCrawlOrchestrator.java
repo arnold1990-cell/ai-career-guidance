@@ -73,7 +73,7 @@ public class UniversityCrawlOrchestrator {
             page.setErrorType(null);
         } else {
             page.setCrawlStatus(CrawlStatus.FAILED);
-            page.setFailureReason(pageResult.errorMessage());
+            page.setFailureReason(pageResult.failureReason());
             page.setErrorType("FETCH_ERROR");
             page.setLastFailureAt(OffsetDateTime.now());
         }
