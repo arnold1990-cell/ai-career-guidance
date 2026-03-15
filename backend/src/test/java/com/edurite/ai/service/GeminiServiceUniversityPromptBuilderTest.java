@@ -49,7 +49,7 @@ class GeminiServiceUniversityPromptBuilderTest {
         assertThat(prompt).contains("https://www.unisa.ac.za/a");
         assertThat(prompt).contains("https://www.uj.ac.za/b");
         assertThat(prompt).contains("MERGED-CONTEXT-BLOCK");
-        assertThat(prompt).contains("\"admissionRequirements\"");
-        assertThat(prompt).contains("Not found in fetched sources");
+        assertThat(prompt).contains("\"minimumRequirements\"");
+        assertThat(prompt).contains("Do not include application due dates");
     }
 }
