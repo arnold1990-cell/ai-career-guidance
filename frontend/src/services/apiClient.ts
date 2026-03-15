@@ -41,7 +41,10 @@ apiClient.interceptors.response.use(
     }
 
     const normalized: ApiError = {
-      message: error.response?.data?.message ?? 'Unexpected error occurred',
+      message: error.response?.data?.message
+        ?? error.response?.data?.error
+        ?? error.message
+        ?? 'Unexpected error occurred',
       status: error.response?.status,
       details: error.response?.data?.errors,
     };
