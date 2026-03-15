@@ -262,17 +262,23 @@ export const StudentApplicationsPage = () => {
   const qc = useQueryClient();
   const [filters, setFilters] = useState({ q: '', qualificationLevel: '', region: '', eligibility: '' });
   const apps = useAppQuery({ queryKey: ['apps'], queryFn: applicationService.listMine });
-  const bursaries = useAppQuery({ queryKey: ['burs', filters], queryFn: () => bursaryService.list(filters) });
+  const bursaries = useAppQuery({ queryKey: ['burs-search', filters], queryFn: () => bursaryService.search({ q: filters.q, qualification: filters.qualificationLevel, region: filters.region, eligibility: filters.eligibility }) });
   const saved = useAppQuery({ queryKey: ['saved-bursary-ids'], queryFn: studentService.savedBursaries });
+  const recommendations = useAppQuery({ queryKey: ['recs-bursary-finder'], queryFn: bursaryService.recommended });
   const toggle = useMutation({ mutationFn: ({ id, exists }: { id: string; exists: boolean }) => exists ? studentService.unsaveBursary(id) : studentService.saveBursary(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-bursary-ids'] }) });
   return <Section title="Bursary Finder">
+    <div className="rounded border p-3">
+      <h3 className="font-semibold mb-2">AI Recommended Bursaries</h3>
+      {(recommendations.data ?? []).slice(0, 3).map((item) => <p key={item.externalId}>• {item.title} ({item.relevanceScore}%)</p>)}
+      {!((recommendations.data ?? []).length) && <p className="text-sm text-slate-500">No AI bursary suggestions yet. Complete your profile for better matches.</p>}
+    </div>
     <div className="grid gap-2 md:grid-cols-2">
       <Input placeholder="Search bursaries" value={filters.q} onChange={(e) => setFilters((s) => ({ ...s, q: e.target.value }))} />
       <Input placeholder="Qualification" value={filters.qualificationLevel} onChange={(e) => setFilters((s) => ({ ...s, qualificationLevel: e.target.value }))} />
       <Input placeholder="Region" value={filters.region} onChange={(e) => setFilters((s) => ({ ...s, region: e.target.value }))} />
       <Input placeholder="Eligibility" value={filters.eligibility} onChange={(e) => setFilters((s) => ({ ...s, eligibility: e.target.value }))} />
     </div>
-    {asList(bursaries.data).map((b) => {
+    {((bursaries.data?.items ?? []) as Array<any>).map((b) => {
       const exists = (saved.data ?? []).includes(b.id);
       return <div key={b.id} className="flex justify-between border p-2 rounded"><span>{b.title} - {b.region}</span><div className="space-x-2"><Button onClick={() => toggle.mutate({ id: b.id, exists })}>{exists ? 'Saved' : 'Bookmark'}</Button><Button onClick={() => applicationService.submit(b.id)}>Apply</Button></div></div>;
     })}

@@ -1,5 +1,7 @@
 package com.edurite.student.service;
 import com.edurite.application.repository.ApplicationRepository;
+import com.edurite.bursary.entity.Bursary;
+import com.edurite.bursary.repository.BursaryRepository;
 import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.security.service.CurrentUserService;
 import com.edurite.student.dto.StudentProfileDto;
@@ -42,8 +44,9 @@ public class StudentService {
     private final ApplicationRepository applicationRepository;
     private final NotificationRepository notificationRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final BursaryRepository bursaryRepository;
 
-    public StudentService(StudentProfileRepository repository, CurrentUserService currentUserService, StorageService storageService, SavedCareerRepository savedCareerRepository, SavedBursaryRepository savedBursaryRepository, ApplicationRepository applicationRepository, NotificationRepository notificationRepository, SubscriptionRepository subscriptionRepository) {
+    public StudentService(StudentProfileRepository repository, CurrentUserService currentUserService, StorageService storageService, SavedCareerRepository savedCareerRepository, SavedBursaryRepository savedBursaryRepository, ApplicationRepository applicationRepository, NotificationRepository notificationRepository, SubscriptionRepository subscriptionRepository, BursaryRepository bursaryRepository) {
         this.repository = repository;
         this.currentUserService = currentUserService;
         this.storageService = storageService;
@@ -52,6 +55,7 @@ public class StudentService {
         this.applicationRepository = applicationRepository;
         this.notificationRepository = notificationRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.bursaryRepository = bursaryRepository;
     }
 
     /**
@@ -229,6 +233,14 @@ public class StudentService {
     public List<UUID> savedBursaryIds(Principal principal) {
         StudentProfile profile = getProfileEntity(principal);
         return savedBursaryRepository.findByStudentId(profile.getId()).stream().map(SavedBursary::getBursaryId).toList();
+    }
+
+    public List<Bursary> savedBursaries(Principal principal) {
+        List<UUID> ids = savedBursaryIds(principal);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return bursaryRepository.findAllById(ids);
     }
 
     /**

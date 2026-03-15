@@ -1,6 +1,7 @@
 package com.edurite.student;
 
 import com.edurite.application.repository.ApplicationRepository;
+import com.edurite.bursary.repository.BursaryRepository;
 import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.security.service.CurrentUserService;
 import com.edurite.student.dto.StudentSettingsDto;
@@ -47,6 +48,8 @@ class StudentServiceTest {
     NotificationRepository notificationRepository;
     @Mock
     SubscriptionRepository subscriptionRepository;
+    @Mock
+    BursaryRepository bursaryRepository;
 
     private StudentService studentService;
     private User user;
@@ -62,7 +65,8 @@ class StudentServiceTest {
                 savedBursaryRepository,
                 applicationRepository,
                 notificationRepository,
-                subscriptionRepository
+                subscriptionRepository,
+                bursaryRepository
         );
 
         user = new User();
