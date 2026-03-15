@@ -3,6 +3,8 @@ package com.edurite.subscription.service;
 import com.edurite.notification.service.NotificationService;
 import com.edurite.security.service.CurrentUserService;
 import com.edurite.subscription.entity.PaymentRecord;
+import com.edurite.subscription.payment.PaymentGateway;
+import com.edurite.subscription.payment.PaymentGatewayResult;
 import com.edurite.subscription.entity.SubscriptionRecord;
 import com.edurite.subscription.repository.PaymentRepository;
 import com.edurite.subscription.repository.SubscriptionRepository;
@@ -23,12 +25,14 @@ public class SubscriptionService {
     private final PaymentRepository paymentRepository;
     private final CurrentUserService currentUserService;
     private final NotificationService notificationService;
+    private final PaymentGateway paymentGateway;
 
-    public SubscriptionService(SubscriptionRepository subscriptionRepository, PaymentRepository paymentRepository, CurrentUserService currentUserService, NotificationService notificationService) {
+    public SubscriptionService(SubscriptionRepository subscriptionRepository, PaymentRepository paymentRepository, CurrentUserService currentUserService, NotificationService notificationService, PaymentGateway paymentGateway) {
         this.subscriptionRepository = subscriptionRepository;
         this.paymentRepository = paymentRepository;
         this.currentUserService = currentUserService;
         this.notificationService = notificationService;
+        this.paymentGateway = paymentGateway;
     }
 
     /**
@@ -62,17 +66,20 @@ public class SubscriptionService {
         subscription.setEndDate(LocalDate.now().plusMonths(1));
         subscriptionRepository.save(subscription);
 
+        BigDecimal amount = "PLAN_PREMIUM".equals(subscription.getPlanCode()) ? new BigDecimal("99.00") : new BigDecimal("0.00");
+        PaymentGatewayResult gatewayResult = paymentGateway.charge(subscription.getUserId(), amount, "ZAR", "EduRite subscription purchase");
+
         PaymentRecord payment = new PaymentRecord();
         payment.setSubscriptionId(subscription.getId());
-        payment.setAmount("PLAN_PREMIUM".equals(subscription.getPlanCode()) ? new BigDecimal("99.00") : new BigDecimal("0.00"));
+        payment.setAmount(amount);
         payment.setCurrency("ZAR");
-        payment.setStatus("SUCCESS");
+        payment.setStatus(gatewayResult.status());
         paymentRepository.save(payment);
-        subscription.setPaymentReference("PAY-" + payment.getId());
+        subscription.setPaymentReference(gatewayResult.reference());
         subscriptionRepository.save(subscription);
 
         notificationService.createInApp(subscription.getUserId(), "SUBSCRIPTION", "Subscription updated",
                 "You are now on " + subscription.getPlanCode().replace("PLAN_", "") + " plan.");
-        return Map.of("subscription", subscription, "payment", payment, "paymentGateway", "placeholder");
+        return Map.of("subscription", subscription, "payment", payment, "paymentGateway", gatewayResult.provider());
     }
 }

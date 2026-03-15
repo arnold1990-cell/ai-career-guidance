@@ -1,7 +1,14 @@
 package com.edurite.bursary.controller;
 
+import com.edurite.bursary.dto.BursarySearchRequest;
+import com.edurite.bursary.dto.BursaryResultDto;
+import com.edurite.bursary.dto.BursarySearchResponse;
 import com.edurite.bursary.entity.Bursary;
 import com.edurite.bursary.repository.BursaryRepository;
+import com.edurite.bursary.service.BursaryAggregationService;
+import com.edurite.bursary.service.BursaryRecommendationService;
+import java.security.Principal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -11,23 +18,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// @RestController tells Spring this class exposes REST API endpoints.
 @RestController
-// @RequestMapping defines the base URL path for endpoints in this controller.
 @RequestMapping("/api/v1/bursaries")
-/**
- * This class named BursaryController is part of the Spring Boot application.
- * It groups related logic so the project stays organized and easier to learn.
- */
 public class BursaryController {
 
     private final BursaryRepository bursaryRepository;
+    private final BursaryAggregationService bursaryAggregationService;
+    private final BursaryRecommendationService bursaryRecommendationService;
 
-    public BursaryController(BursaryRepository bursaryRepository) {
+    public BursaryController(
+            BursaryRepository bursaryRepository,
+            BursaryAggregationService bursaryAggregationService,
+            BursaryRecommendationService bursaryRecommendationService
+    ) {
         this.bursaryRepository = bursaryRepository;
+        this.bursaryAggregationService = bursaryAggregationService;
+        this.bursaryRecommendationService = bursaryRecommendationService;
     }
 
-// @GetMapping handles HTTP GET requests for reading data.
     @GetMapping
     public Page<Bursary> list(
             @RequestParam(defaultValue = "") String q,
@@ -41,7 +49,25 @@ public class BursaryController {
                 q, qualificationLevel, location, eligibility, PageRequest.of(page, size));
     }
 
-// @GetMapping handles HTTP GET requests for reading data.
+    @GetMapping("/search")
+    public BursarySearchResponse search(
+            @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "") String qualification,
+            @RequestParam(defaultValue = "") String region,
+            @RequestParam(defaultValue = "") String eligibility,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return bursaryAggregationService.search(new BursarySearchRequest(q, qualification, region, eligibility, page, size));
+    }
+
+    @GetMapping("/recommendations/me")
+    public List<BursaryResultDto> myRecommendations(Principal principal) {
+        return bursaryRecommendationService.recommendForStudent(principal);
+    }
+
     @GetMapping("/{id}")
-    public Bursary get(@PathVariable UUID id) { return bursaryRepository.findById(id).orElseThrow(); }
+    public Bursary get(@PathVariable UUID id) {
+        return bursaryRepository.findById(id).orElseThrow();
+    }
 }

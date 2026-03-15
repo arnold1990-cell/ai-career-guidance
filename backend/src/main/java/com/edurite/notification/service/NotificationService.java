@@ -1,12 +1,16 @@
 package com.edurite.notification.service;
 
 import com.edurite.notification.entity.NotificationRecord;
+import com.edurite.notification.events.BursaryDeadlineReminderEvent;
+import com.edurite.notification.events.CareerInsightUpdateEvent;
+import com.edurite.notification.events.NewBursaryPublishedEvent;
 import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.student.repository.StudentProfileRepository;
 import com.edurite.security.service.CurrentUserService;
 import java.security.Principal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 // @Service marks a class that contains business logic.
@@ -70,5 +74,34 @@ public class NotificationService {
         record.setMessage(message);
         record.setSentAt(OffsetDateTime.now());
         return notificationRepository.save(record);
+    }
+
+    @EventListener
+    public void onNewBursaryPublished(NewBursaryPublishedEvent event) {
+        notifyAllStudents("BURSARY_ALERT", "New bursary alert", event.bursaryTitle() == null ? "A new bursary has been published." : event.bursaryTitle());
+    }
+
+    @EventListener
+    public void onBursaryDeadlineReminder(BursaryDeadlineReminderEvent event) {
+        notifyAllStudents("DEADLINE_REMINDER", "Application deadline reminder", event.bursaryTitle() == null ? "A bursary deadline is approaching." : event.bursaryTitle());
+    }
+
+    @EventListener
+    public void onCareerInsightUpdate(CareerInsightUpdateEvent event) {
+        notifyAllStudents("CAREER_INSIGHT", event.title(), event.summary());
+    }
+
+    private void notifyAllStudents(String eventType, String title, String message) {
+        studentProfileRepository.findAll().forEach(profile -> {
+            if (profile.isInAppNotificationsEnabled()) {
+                createInApp(profile.getUserId(), eventType, title, message);
+            }
+            if (profile.isEmailNotificationsEnabled()) {
+                sendEmail(profile.getUserId().toString(), title + ": " + message);
+            }
+            if (profile.isSmsNotificationsEnabled()) {
+                sendSms(profile.getUserId().toString(), title + ": " + message);
+            }
+        });
     }
 }
