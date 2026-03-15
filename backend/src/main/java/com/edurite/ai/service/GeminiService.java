@@ -40,7 +40,7 @@ public class GeminiService {
     private final Gson gson;
     private final ObjectMapper objectMapper;
 
-    @Value("${gemini.api-key:${GEMINI_API_KEY:}}")
+    @Value("${gemini.api-key:}")
     private String apiKey;
 
     @Value("${gemini.model:gemini-2.5-flash}")
@@ -70,54 +70,33 @@ public class GeminiService {
             List<UniversitySourcePageResult> fetchedPages,
             String combinedContext
     ) {
-        List<String> successUrls = fetchedPages.stream()
-                .filter(UniversitySourcePageResult::success)
-                .map(UniversitySourcePageResult::sourceUrl)
-                .toList();
-
-        List<String> failedUrls = fetchedPages.stream()
-                .filter(page -> !page.success())
-                .map(UniversitySourcePageResult::sourceUrl)
-                .toList();
+        List<String> successUrls = fetchedPages.stream().filter(UniversitySourcePageResult::success)
+                .map(UniversitySourcePageResult::sourceUrl).toList();
+        List<String> failedUrls = fetchedPages.stream().filter(p -> !p.success())
+                .map(UniversitySourcePageResult::sourceUrl).toList();
 
         if (apiKey == null || apiKey.isBlank()) {
-            return fallbackUniversityResponse(
-                    request,
-                    sourceUrls,
-                    successUrls,
-                    failedUrls,
-                    List.of("AI model is unavailable, fallback guidance was generated from source metadata.")
-            );
+            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
+                    List.of("AI model is unavailable, fallback guidance was generated from source metadata."));
         }
 
         try {
             String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext);
             String modelText = invokeGemini(prompt);
-            UniversitySourcesAnalysisResponse parsed =
-                    parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
+            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
             return enrichWithWarnings(parsed, failedUrls);
         } catch (Exception ex) {
             log.warn("University sources analysis fell back after model error: {}", ex.getMessage());
-            return fallbackUniversityResponse(
-                    request,
-                    sourceUrls,
-                    successUrls,
-                    failedUrls,
-                    List.of(
-                            "Model parsing failed, fallback guidance was generated.",
-                            "Reason: " + ex.getMessage()
-                    )
-            );
+            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
+                    List.of("Model parsing failed, fallback guidance was generated.", "Reason: " + ex.getMessage()));
         }
     }
 
     private void ensureApiKey() {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
-            throw new AiServiceException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "Career AI is currently unavailable. Gemini API key is not configured."
-            );
+            throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Career AI is currently unavailable. Gemini API key is not configured.");
         }
     }
 
@@ -146,34 +125,26 @@ public class GeminiService {
 
         try (Response response = okHttpClient.newCall(httpRequest).execute()) {
             log.info("Gemini HTTP response received: status={}", response.code());
-
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "";
                 HttpStatus status = response.code() == 401 || response.code() == 403
                         ? HttpStatus.BAD_GATEWAY
                         : HttpStatus.SERVICE_UNAVAILABLE;
-
-                throw new AiServiceException(
-                        status,
-                        "Gemini request failed with status " + response.code() + ". " + trim(errorBody)
-                );
+                throw new AiServiceException(status,
+                        "Gemini request failed with status " + response.code() + ". " + trim(errorBody));
             }
 
             if (response.body() == null) {
-                throw new AiServiceException(
-                        HttpStatus.BAD_GATEWAY,
-                        "Gemini returned an empty response body."
-                );
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                        "Gemini returned an empty response body.");
             }
 
             String geminiBody = response.body().string();
             return extractModelText(geminiBody);
         } catch (IOException ex) {
             log.error("Gemini call failed due to IO issue.", ex);
-            throw new AiServiceException(
-                    HttpStatus.GATEWAY_TIMEOUT,
-                    "Gemini request timed out or failed: " + ex.getMessage()
-            );
+            throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
+                    "Gemini request timed out or failed: " + ex.getMessage());
         }
     }
 
@@ -182,12 +153,12 @@ public class GeminiService {
                 You are a career guidance assistant.
                 Return ONLY strict JSON with this exact schema:
                 {
-                  "recommendedCareers": [
+                  \"recommendedCareers\": [
                     {
-                      "name": "string",
-                      "matchScore": 0,
-                      "reason": "string",
-                      "improvements": ["string"]
+                      \"name\": \"string\",
+                      \"matchScore\": 0,
+                      \"reason\": \"string\",
+                      \"improvements\": [\"string\"]
                     }
                   ]
                 }
@@ -210,18 +181,13 @@ public class GeminiService {
         );
     }
 
-    private String buildUniversityPrompt(
-            UniversitySourcesAnalysisRequest request,
-            com.edurite.student.entity.StudentProfile profile,
-            List<UniversitySourcePageResult> fetchedPages,
-            String combinedContext
-    ) {
+    private String buildUniversityPrompt(UniversitySourcesAnalysisRequest request,
+                                         com.edurite.student.entity.StudentProfile profile,
+                                         List<UniversitySourcePageResult> fetchedPages,
+                                         String combinedContext) {
         String pageMetadata = fetchedPages.stream()
                 .map(page -> "%s | %s | %s | keywords=%s".formatted(
-                        page.sourceUrl(),
-                        page.success() ? "success" : "failed",
-                        page.pageType(),
-                        page.extractedKeywords()))
+                        page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
                 .reduce("", (a, b) -> a + "\n" + b);
 
         return """
@@ -229,8 +195,23 @@ public class GeminiService {
                 Return ONLY valid JSON with this schema:
                 {
                   "summary": "string",
-                  "recommendedCareers": ["string"],
-                  "recommendedProgrammes": ["string"],
+                  "recommendedCareers": [
+                    {
+                      "name": "string",
+                      "reason": "string",
+                      "requirements": ["string"],
+                      "relatedProgrammes": ["string"]
+                    }
+                  ],
+                  "recommendedProgrammes": [
+                    {
+                      "name": "string",
+                      "university": "string",
+                      "admissionRequirements": ["string"],
+                      "applicationDeadline": "string",
+                      "notes": "string"
+                    }
+                  ],
                   "recommendedUniversities": ["string"],
                   "keyRequirements": ["string"],
                   "skillGaps": ["string"],
@@ -244,9 +225,14 @@ public class GeminiService {
                 - The evidence comes from multiple universities and only shortlisted relevant pages.
                 - Recommend at least %d careers if enough evidence exists.
                 - Recommend at least %d university programmes if enough evidence exists.
+                - Each recommended career must include specific requirements and relatedProgrammes.
+                - Each recommended programme must include admissionRequirements, applicationDeadline, and notes.
+                - Include application deadlines only if explicitly found in fetched university content.
+                - If a requirement or deadline is not found in fetched sources, return "Not found in fetched sources".
+                - Do not hallucinate APS scores, subject minimums, or deadlines.
+                - Ground programmes and universities in the retrieved source content.
                 - Recommend universities grounded in the retrieved page list.
                 - Mention limitation warnings when sources are generic list pages.
-                - Do not hallucinate programme-specific requirements that do not appear in the sources.
                 - Keep suitabilityScore between 0 and 100.
 
                 Student profile:
@@ -298,28 +284,29 @@ public class GeminiService {
         try {
             JsonObject root = JsonParser.parseString(geminiBody).getAsJsonObject();
             JsonArray candidates = root.has("candidates") ? root.getAsJsonArray("candidates") : null;
-
             if (candidates == null || candidates.isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no candidates.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                        "Gemini returned no candidates.");
             }
 
             JsonObject first = candidates.get(0).getAsJsonObject();
             JsonObject content = first.has("content") ? first.getAsJsonObject("content") : null;
             JsonArray parts = content != null && content.has("parts") ? content.getAsJsonArray("parts") : null;
-
             if (parts == null || parts.isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no text parts.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                        "Gemini returned no text parts.");
             }
 
             JsonObject textPart = parts.get(0).getAsJsonObject();
             if (!textPart.has("text")) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini text part was missing.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                        "Gemini text part was missing.");
             }
-
             return stripCodeFences(textPart.get("text").getAsString());
         } catch (IllegalStateException ex) {
             log.error("Gemini payload parsing failed before extracting model text.", ex);
-            throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned malformed JSON payload.");
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                    "Gemini returned malformed JSON payload.");
         }
     }
 
@@ -327,7 +314,8 @@ public class GeminiService {
         try {
             CareerAdviceResponse response = objectMapper.readValue(modelText, CareerAdviceResponse.class);
             if (response.recommendedCareers() == null || response.recommendedCareers().isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no career recommendations.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                        "Gemini returned no career recommendations.");
             }
 
             List<CareerAdviceResponse.RecommendedCareer> sanitized = response.recommendedCareers().stream()
@@ -338,21 +326,19 @@ public class GeminiService {
                             item.improvements() == null ? List.of() : item.improvements()
                     ))
                     .toList();
-
             log.info("Gemini JSON parsed successfully: recommendations={}", sanitized.size());
             return new CareerAdviceResponse(sanitized);
         } catch (JsonProcessingException ex) {
             log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
-            throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned non-JSON or invalid JSON output.");
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                    "Gemini returned non-JSON or invalid JSON output.");
         }
     }
 
-    private UniversitySourcesAnalysisResponse parseUniversityAdvice(
-            String modelText,
-            List<String> sourceUrls,
-            List<String> successUrls,
-            List<String> failedUrls
-    ) throws JsonProcessingException {
+    private UniversitySourcesAnalysisResponse parseUniversityAdvice(String modelText,
+                                                                    List<String> sourceUrls,
+                                                                    List<String> successUrls,
+                                                                    List<String> failedUrls) throws JsonProcessingException {
         UniversityModelResponse parsed = objectMapper.readValue(modelText, UniversityModelResponse.class);
         return new UniversitySourcesAnalysisResponse(
                 sourceUrls,
@@ -360,8 +346,8 @@ public class GeminiService {
                 failedUrls,
                 successUrls.size(),
                 sanitizePromptValue(parsed.summary),
-                defaultList(parsed.recommendedCareers),
-                defaultList(parsed.recommendedProgrammes),
+                defaultCareerList(parsed.recommendedCareers),
+                defaultProgrammeList(parsed.recommendedProgrammes),
                 defaultList(parsed.recommendedUniversities),
                 defaultList(parsed.keyRequirements),
                 defaultList(parsed.skillGaps),
@@ -372,15 +358,12 @@ public class GeminiService {
         );
     }
 
-    private UniversitySourcesAnalysisResponse enrichWithWarnings(
-            UniversitySourcesAnalysisResponse response,
-            List<String> failedUrls
-    ) {
+    private UniversitySourcesAnalysisResponse enrichWithWarnings(UniversitySourcesAnalysisResponse response,
+                                                                 List<String> failedUrls) {
         Set<String> warnings = new LinkedHashSet<>(defaultList(response.warnings()));
         if (!failedUrls.isEmpty()) {
             warnings.add("Some sources failed to load and were skipped.");
         }
-
         return new UniversitySourcesAnalysisResponse(
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
@@ -413,15 +396,70 @@ public class GeminiService {
                 failedUrls,
                 successUrls.size(),
                 "Based on the available university sources and your profile, here are practical options to explore next.",
-                List.of("Software Developer", "Data Analyst", "IT Support Specialist", "Business Analyst", "Systems Analyst")
+                List.of(
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Software Developer",
+                                        "Strong fit for students interested in technology and problem solving.",
+                                        List.of("Programming fundamentals", "Mathematics and logical reasoning"),
+                                        List.of("BSc Computer Science", "Diploma in IT")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Data Analyst",
+                                        "Good pathway for students who enjoy working with numbers and insights.",
+                                        List.of("Statistics basics", "Spreadsheet and data literacy"),
+                                        List.of("BCom Information Systems", "BSc Computer Science")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "IT Support Specialist",
+                                        "Suitable for students interested in practical technology support roles.",
+                                        List.of("Basic networking knowledge", "Troubleshooting and communication skills"),
+                                        List.of("Diploma in IT")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Business Analyst",
+                                        "Recommended when combining business interest with digital systems.",
+                                        List.of("Business process understanding", "Communication and documentation"),
+                                        List.of("BCom Information Systems")
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                                        "Systems Analyst",
+                                        "Useful for students interested in improving how systems work.",
+                                        List.of("Systems thinking", "Problem analysis"),
+                                        List.of("BSc Computer Science", "BCom Information Systems")
+                                ))
                         .stream().limit(max).toList(),
-                List.of("BSc Computer Science", "BCom Information Systems", "Diploma in IT", "BSc Engineering")
+                List.of(
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "BSc Computer Science",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Programme requirements and deadlines should be verified on official faculty pages."
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "BCom Information Systems",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Admission criteria were not explicitly available in fetched content."
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "Diploma in IT",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Check programme-specific pages for exact subject and score minimums."
+                                ),
+                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                                        "BSc Engineering",
+                                        "University Source",
+                                        List.of("Not found in fetched sources"),
+                                        "Not found in fetched sources",
+                                        "Use official admissions pages to confirm current requirements."
+                                ))
                         .stream().limit(max).toList(),
                 sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
-                List.of(
-                        "Check subject requirements on programme-specific pages",
-                        "Mathematics is commonly required for computing and engineering pathways"
-                ),
+                List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for computing and engineering pathways"),
                 List.of("Build a practical portfolio", "Strengthen analytical and communication skills"),
                 List.of("Open programme detail pages", "Compare your subjects with entry requirements", "Upload your transcript and CV"),
                 warnings,
@@ -447,6 +485,14 @@ public class GeminiService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? "not provided" : trimmed;
+    }
+
+    private String sanitizeSourceBoundValue(String value) {
+        if (value == null) {
+            return "Not found in fetched sources";
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? "Not found in fetched sources" : trimmed;
     }
 
     private Integer normalizeScore(Integer score) {
@@ -478,15 +524,70 @@ public class GeminiService {
         return value == null ? List.of() : value;
     }
 
+    private List<String> defaultListOrNotFound(List<String> value) {
+        if (value == null || value.isEmpty()) {
+            return List.of("Not found in fetched sources");
+        }
+        return value;
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedCareer> defaultCareerList(
+            List<UniversityModelResponse.RecommendedCareerPayload> value) {
+        if (value == null) {
+            return List.of();
+        }
+        return value.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                        item.name,
+                        sanitizeSourceBoundValue(item.reason),
+                        defaultListOrNotFound(item.requirements),
+                        defaultList(item.relatedProgrammes)
+                ))
+                .toList();
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedProgramme> defaultProgrammeList(
+            List<UniversityModelResponse.RecommendedProgrammePayload> value) {
+        if (value == null) {
+            return List.of();
+        }
+        return value.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                        item.name,
+                        sanitizeSourceBoundValue(item.university),
+                        defaultListOrNotFound(item.admissionRequirements),
+                        sanitizeSourceBoundValue(item.applicationDeadline),
+                        sanitizeSourceBoundValue(item.notes)
+                ))
+                .toList();
+    }
+
     private static class UniversityModelResponse {
         public String summary;
-        public List<String> recommendedCareers;
-        public List<String> recommendedProgrammes;
+        public List<RecommendedCareerPayload> recommendedCareers;
+        public List<RecommendedProgrammePayload> recommendedProgrammes;
         public List<String> recommendedUniversities;
         public List<String> keyRequirements;
         public List<String> skillGaps;
         public List<String> recommendedNextSteps;
         public List<String> warnings;
         public Integer suitabilityScore;
+
+        private static class RecommendedCareerPayload {
+            public String name;
+            public String reason;
+            public List<String> requirements;
+            public List<String> relatedProgrammes;
+        }
+
+        private static class RecommendedProgrammePayload {
+            public String name;
+            public String university;
+            public List<String> admissionRequirements;
+            public String applicationDeadline;
+            public String notes;
+        }
     }
 }
