@@ -8,8 +8,8 @@ public record UniversitySourcesAnalysisResponse(
         List<String> failedUrls,
         Integer totalSourcesUsed,
         String summary,
-        List<String> recommendedCareers,
-        List<String> recommendedProgrammes,
+        List<RecommendedCareer> recommendedCareers,
+        List<RecommendedProgramme> recommendedProgrammes,
         List<String> recommendedUniversities,
         List<String> keyRequirements,
         List<String> skillGaps,
@@ -18,4 +18,21 @@ public record UniversitySourcesAnalysisResponse(
         Integer suitabilityScore,
         String rawModelUsed
 ) {
+
+    public record RecommendedCareer(
+            String name,
+            String reason,
+            List<String> requirements,
+            List<String> relatedProgrammes
+    ) {
+    }
+
+    public record RecommendedProgramme(
+            String name,
+            String university,
+            List<String> admissionRequirements,
+            String applicationDeadline,
+            String notes
+    ) {
+    }
 }

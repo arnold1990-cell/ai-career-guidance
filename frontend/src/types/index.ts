@@ -69,14 +69,29 @@ export interface UniversitySourcesAnalysisRequest {
   maxRecommendations?: number;
 }
 
+export interface UniversityRecommendedCareer {
+  name: string;
+  reason: string;
+  requirements: string[];
+  relatedProgrammes: string[];
+}
+
+export interface UniversityRecommendedProgramme {
+  name: string;
+  university: string;
+  admissionRequirements: string[];
+  applicationDeadline: string;
+  notes: string;
+}
+
 export interface UniversitySourcesAnalysisResponse {
   sourceUrls: string[];
   successfullyAnalysedUrls: string[];
   failedUrls: string[];
   totalSourcesUsed: number;
   summary: string;
-  recommendedCareers: string[];
-  recommendedProgrammes: string[];
+  recommendedCareers: UniversityRecommendedCareer[];
+  recommendedProgrammes: UniversityRecommendedProgramme[];
   recommendedUniversities: string[];
   keyRequirements: string[];
   skillGaps: string[];
