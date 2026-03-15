@@ -40,6 +40,14 @@ class UniversityPageClassifierTest {
         assertThat(type).isEqualTo(UniversityPageType.ADMISSIONS_OVERVIEW);
     }
 
+
+    @Test
+    void deprioritizesNewsAndPrivacyLinksButNotProgrammeLinks() {
+        assertThat(classifier.shouldDeprioritizeLink("https://uni.ac.za/news/latest", "Latest News")).isTrue();
+        assertThat(classifier.shouldDeprioritizeLink("https://uni.ac.za/privacy", "Privacy policy")).isTrue();
+        assertThat(classifier.shouldDeprioritizeLink("https://uni.ac.za/programmes", "Find undergraduate programmes")).isFalse();
+    }
+
     private String readFixture(String name) throws IOException {
         Path path = Path.of("src", "test", "resources", "fixtures", "university", name);
         return Files.readString(path);

@@ -56,6 +56,7 @@ public class UniversitySourcesGuidanceService {
                                 summary.summaryExcerpt(),
                                 summary.keywords(),
                                 true,
+                                null,
                                 null
                         ))
                         .toList();

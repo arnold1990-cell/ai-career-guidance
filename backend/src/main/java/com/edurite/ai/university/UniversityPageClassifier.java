@@ -31,6 +31,14 @@ public class UniversityPageClassifier {
             "apply for admission", "admission requirements", "how to apply", "admissions", "application dates"
     );
 
+
+    private static final List<String> DEPRIORITIZED_HINTS = List.of(
+            "news", "event", "staff", "directory", "privacy", "cookie", "legal", "terms", "vacancy"
+    );
+
+    private static final List<String> HIGH_VALUE_HINTS = List.of(
+            "programme", "program", "course", "study", "faculty", "admission", "entry requirement", "bursary", "financial aid"
+    );
     private static final List<String> ACADEMIC_KEYWORDS = List.of(
             "computer science", "information systems", "accounting", "economics", "engineering", "software",
             "technology", "mathematics", "faculty", "college", "campus", "diploma", "degree", "bachelor"
@@ -63,6 +71,13 @@ public class UniversityPageClassifier {
             return UniversityPageType.ADMISSIONS_OVERVIEW;
         }
         return UniversityPageType.UNKNOWN;
+    }
+
+
+    public boolean shouldDeprioritizeLink(String url, String anchorText) {
+        String content = normalize(url) + " " + normalize(anchorText);
+        boolean hasHighValue = containsAny(content, HIGH_VALUE_HINTS);
+        return !hasHighValue && containsAny(content, DEPRIORITIZED_HINTS);
     }
 
     public Set<String> extractKeywords(String title, String text) {

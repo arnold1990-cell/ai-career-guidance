@@ -19,10 +19,10 @@ class UniversitySourcesAggregatorServiceTest {
 
         UniversitySourcePageResult relevant = new UniversitySourcePageResult(
                 "https://www.unisa.ac.za/a", "Computer Science Programme", UniversityPageType.PROGRAMME_DETAIL,
-                "Computer science software engineering modules", Set.of("computer science"), true, null);
+                "Computer science software engineering modules", Set.of("computer science"), true, null, null);
         UniversitySourcePageResult lessRelevant = new UniversitySourcePageResult(
                 "https://www.unisa.ac.za/b", "History", UniversityPageType.UNKNOWN,
-                "History and arts", Set.of("arts"), true, null);
+                "History and arts", Set.of("arts"), true, null, null);
 
         String context = service.buildCombinedContext(
                 List.of(lessRelevant, relevant),

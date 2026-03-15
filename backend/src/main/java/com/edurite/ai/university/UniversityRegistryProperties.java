@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 public class UniversityRegistryProperties {
 
     private List<UniversityRegistryEntry> registry = new ArrayList<>();
+    private CrawlProperties crawl = new CrawlProperties();
 
     public List<UniversityRegistryEntry> getRegistry() {
         return registry;
@@ -18,6 +19,76 @@ public class UniversityRegistryProperties {
 
     public void setRegistry(List<UniversityRegistryEntry> registry) {
         this.registry = registry;
+    }
+
+    public CrawlProperties getCrawl() {
+        return crawl;
+    }
+
+    public void setCrawl(CrawlProperties crawl) {
+        this.crawl = crawl;
+    }
+
+    public static class CrawlProperties {
+
+        private List<String> candidatePaths = new ArrayList<>(List.of(
+                "/programmes", "/programs", "/study", "/studies", "/courses", "/course-finder",
+                "/undergraduate", "/postgraduate", "/faculties", "/admissions", "/academic-programmes"
+        ));
+
+        private int maxDiscoveredCandidatesPerUniversity = 60;
+        private int maxFetchedPagesPerUniversity = 30;
+        private int maxCrawlDepth = 1;
+        private int timeoutMs = 8_000;
+        private int maxFetchRetries = 3;
+
+        public List<String> getCandidatePaths() {
+            return candidatePaths;
+        }
+
+        public void setCandidatePaths(List<String> candidatePaths) {
+            this.candidatePaths = candidatePaths;
+        }
+
+        public int getMaxDiscoveredCandidatesPerUniversity() {
+            return maxDiscoveredCandidatesPerUniversity;
+        }
+
+        public void setMaxDiscoveredCandidatesPerUniversity(int maxDiscoveredCandidatesPerUniversity) {
+            this.maxDiscoveredCandidatesPerUniversity = maxDiscoveredCandidatesPerUniversity;
+        }
+
+        public int getMaxFetchedPagesPerUniversity() {
+            return maxFetchedPagesPerUniversity;
+        }
+
+        public void setMaxFetchedPagesPerUniversity(int maxFetchedPagesPerUniversity) {
+            this.maxFetchedPagesPerUniversity = maxFetchedPagesPerUniversity;
+        }
+
+        public int getMaxCrawlDepth() {
+            return maxCrawlDepth;
+        }
+
+        public void setMaxCrawlDepth(int maxCrawlDepth) {
+            this.maxCrawlDepth = maxCrawlDepth;
+        }
+
+        public int getTimeoutMs() {
+            return timeoutMs;
+        }
+
+        public void setTimeoutMs(int timeoutMs) {
+            this.timeoutMs = timeoutMs;
+        }
+
+        public int getMaxFetchRetries() {
+            return maxFetchRetries;
+        }
+
+        public void setMaxFetchRetries(int maxFetchRetries) {
+            this.maxFetchRetries = maxFetchRetries;
+        }
     }
 
     public static class UniversityRegistryEntry {

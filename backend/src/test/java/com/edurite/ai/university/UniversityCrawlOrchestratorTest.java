@@ -2,6 +2,7 @@ package com.edurite.ai.university;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,14 +42,16 @@ class UniversityCrawlOrchestratorTest {
         when(registryService.getActiveUniversities()).thenReturn(universities);
         when(fetcherService.discoverCandidateUrls(any(), any(Integer.class))).thenAnswer(invocation -> List.of(invocation.getArgument(0, UniversityRegistryProperties.UniversityRegistryEntry.class).getSeedUrls().get(0)));
         when(fetcherService.fetchPages(any())).thenReturn(List.of(
-                new UniversitySourcePageResult("https://www.university-1.ac.za/programmes", "Programmes", PROGRAMME_DETAIL, "text", Set.of("software"), true, null)
+                new UniversitySourcePageResult("https://www.university-1.ac.za/programmes", "Programmes", PROGRAMME_DETAIL, "text", Set.of("software"), true, null, null),
+                new UniversitySourcePageResult("https://www.university-1.ac.za/forbidden", "", UniversityPageType.UNKNOWN, "", Set.of(), false, "forbidden", UniversityCrawlFailureType.ACCESS_DENIED)
         ));
-        when(repository.findBySourceUrl(anyString())).thenReturn(java.util.Optional.empty());
+        when(repository.findBySourceUrl(anyString())).thenReturn(Optional.empty());
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         UniversityCrawlSummary summary = orchestrator.crawlAllActiveUniversities();
 
         assertThat(summary.universitiesProcessed()).isEqualTo(50);
-        assertThat(summary.pagesSaved()).isGreaterThan(0);
+        assertThat(summary.pagesSaved()).isEqualTo(100);
+        assertThat(summary.failures()).isEqualTo(50);
     }
 }

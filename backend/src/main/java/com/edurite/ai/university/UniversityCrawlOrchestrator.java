@@ -74,7 +74,7 @@ public class UniversityCrawlOrchestrator {
         } else {
             page.setCrawlStatus(CrawlStatus.FAILED);
             page.setFailureReason(pageResult.failureReason());
-            page.setErrorType("FETCH_ERROR");
+            page.setErrorType(pageResult.failureType() == null ? UniversityCrawlFailureType.FETCH_ERROR.name() : pageResult.failureType().name());
             page.setLastFailureAt(OffsetDateTime.now());
         }
         repository.save(page);
