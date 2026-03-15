@@ -161,6 +161,11 @@ public class StudentController {
     }
 
 // @GetMapping handles HTTP GET requests for reading data.
+    @GetMapping("/bursaries/bookmarks")
+    public Map<String, Object> bookmarkedBursaries(Principal principal) {
+        return Map.of("items", studentService.savedBursaries(principal));
+    }
+
     @GetMapping("/bursaries/saved")
     /**
      * this method handles the "savedBursaries" step of the feature.
