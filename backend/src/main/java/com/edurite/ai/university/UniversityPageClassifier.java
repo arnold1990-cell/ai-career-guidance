@@ -38,21 +38,28 @@ public class UniversityPageClassifier {
 
     public UniversityPageType classify(String title, String text) {
         String content = normalize(title) + "\n" + normalize(text);
-        // Important: specific academic page types are checked before broad admissions wording.
-        // This prevents admissions phrases from swallowing qualification/programme pages.
-        if (containsAny(content, PROGRAMME_DETAIL_HINTS)) {
+        // We score every page type and pick the strongest one.
+        // This keeps specific pages ahead of broad admissions wording.
+        int programmeDetailScore = score(content, PROGRAMME_DETAIL_HINTS, 1);
+        int filteredProgrammeScore = score(content, FILTERED_PROGRAMME_LIST_HINTS, 1);
+        int qualificationScore = score(content, QUALIFICATION_LIST_HINTS, 1)
+                + score(content, List.of("all qualifications", "list of qualifications", "available qualifications"), 1);
+        int feesFundingScore = score(content, FEES_FUNDING_HINTS, 1);
+        int admissionsScore = score(content, ADMISSIONS_HINTS, 1);
+
+        if (programmeDetailScore > 0) {
             return UniversityPageType.PROGRAMME_DETAIL;
         }
-        if (containsAny(content, FILTERED_PROGRAMME_LIST_HINTS)) {
+        if (filteredProgrammeScore > 0) {
             return UniversityPageType.FILTERED_PROGRAMME_LIST;
         }
-        if (containsAny(content, QUALIFICATION_LIST_HINTS)) {
+        if (qualificationScore > 0 && qualificationScore >= admissionsScore) {
             return UniversityPageType.QUALIFICATION_LIST;
         }
-        if (containsAny(content, FEES_FUNDING_HINTS)) {
+        if (feesFundingScore > 0) {
             return UniversityPageType.FEES_FUNDING;
         }
-        if (containsAny(content, ADMISSIONS_HINTS)) {
+        if (admissionsScore > 0) {
             return UniversityPageType.ADMISSIONS_OVERVIEW;
         }
         return UniversityPageType.UNKNOWN;
@@ -71,6 +78,16 @@ public class UniversityPageClassifier {
 
     private boolean containsAny(String content, List<String> terms) {
         return terms.stream().anyMatch(content::contains);
+    }
+
+    private int score(String content, List<String> terms, int perMatch) {
+        int result = 0;
+        for (String term : terms) {
+            if (content.contains(term)) {
+                result += perMatch;
+            }
+        }
+        return result;
     }
 
     private String normalize(String value) {

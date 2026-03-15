@@ -83,9 +83,15 @@ export const StudentExperiencePage = StudentProfilePage;
 
 export const StudentCareerRecommendationsPage = () => {
   const profile = useAppQuery({ queryKey: ['me'], queryFn: studentService.getMe });
+  const defaultSources = useAppQuery({
+    queryKey: ['default-university-sources'],
+    enabled: !aiGuidanceService.demoModeEnabled,
+    queryFn: aiGuidanceService.getDefaultUniversitySources,
+  });
+
   const aiAdvice = useAppQuery({
-    queryKey: ['ai-guidance', profile.data?.id, profile.data?.profileCompleteness],
-    enabled: Boolean(profile.data),
+    queryKey: ['ai-guidance-university-sources', profile.data?.id, profile.data?.profileCompleteness],
+    enabled: Boolean(profile.data) && !aiGuidanceService.demoModeEnabled,
     queryFn: async () => {
       const currentProfile = profile.data;
       if (!currentProfile) {
@@ -93,15 +99,20 @@ export const StudentCareerRecommendationsPage = () => {
       }
 
       const qualificationLevel = currentProfile.qualificationLevel?.trim() ?? '';
-      const interests = (currentProfile.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
-      const skills = (currentProfile.skills ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
-      const location = currentProfile.location?.trim() ?? '';
+      const careerInterest = (currentProfile.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
+      const targetProgram = currentProfile.careerGoals?.trim() || careerInterest;
 
-      if (!qualificationLevel || !interests || !skills || !location) {
-        throw new Error('Please complete your profile (qualification, interests, skills, and location) before generating AI guidance.');
+      if (!qualificationLevel || !careerInterest) {
+        throw new Error('Please complete your profile (qualification level and interests) before generating AI guidance.');
       }
 
-      return aiGuidanceService.getCareerAdvice({ qualificationLevel, interests, skills, location });
+      return aiGuidanceService.analyseUniversitySources({
+        urls: [], // Empty list triggers backend default-source mode.
+        targetProgram,
+        careerInterest,
+        qualificationLevel,
+        maxRecommendations: 10,
+      });
     },
     retry: false,
   });
@@ -112,37 +123,82 @@ export const StudentCareerRecommendationsPage = () => {
     queryFn: aiGuidanceService.getDemoGuidance,
   });
 
-  if (profile.isLoading || aiAdvice.isLoading || demoAdvice.isLoading) return <LoadingState message="Generating AI guidance..." />;
+  if (profile.isLoading || aiAdvice.isLoading || demoAdvice.isLoading || defaultSources.isLoading) return <LoadingState message="Generating AI guidance..." />;
   if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
 
   const apiErrorMessage = aiAdvice.error?.message;
   const isDemoMode = aiGuidanceService.demoModeEnabled;
   if (!isDemoMode && aiAdvice.isError) return <ErrorState message={apiErrorMessage ?? 'AI guidance failed. Please try again.'} />;
 
-  const liveRecommendations = aiAdvice.data?.recommendedCareers ?? [];
-  const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => ({
-    name: item.title,
-    matchScore: item.score,
-    reason: item.rationale,
-    improvements: [],
-  }));
-  const recommendations = isDemoMode ? demoRecommendations : liveRecommendations;
-  const hasRecommendations = recommendations.length > 0;
+  const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
+  const careers = isDemoMode ? demoRecommendations : (aiAdvice.data?.recommendedCareers ?? []);
+  const programmes = aiAdvice.data?.recommendedProgrammes ?? [];
+  const universities = aiAdvice.data?.recommendedUniversities ?? [];
+  const skillGaps = aiAdvice.data?.skillGaps ?? [];
+  const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
+  const warnings = aiAdvice.data?.warnings ?? [];
+  const sourceUrls = aiAdvice.data?.successfullyAnalysedUrls ?? defaultSources.data ?? [];
+
+  const renderSimpleList = (items: string[], emptyText: string) => {
+    if (items.length === 0) {
+      return <p className="text-sm text-slate-500">{emptyText}</p>;
+    }
+    return <div className="grid gap-2 md:grid-cols-2">{items.map((item) => <div key={item} className="border p-2 rounded text-sm">{item}</div>)}</div>;
+  };
 
   return <Section title="AI Guidance">
-    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : 'live Gemini'}</p>
-    {!hasRecommendations && <EmptyState title="No guidance yet" message="Complete your profile to generate recommendations." />}
+    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : 'live Gemini multi-source'}</p>
+    {!isDemoMode && <div className="grid gap-3 md:grid-cols-3">
+      <Card label="Sources used" value={aiAdvice.data?.totalSourcesUsed ?? 0} />
+      <Card label="Requested sources" value={aiAdvice.data?.sourceUrls?.length ?? 0} />
+      <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
+    </div>}
+
+    {!isDemoMode && <div className="space-y-2">
+      <h3 className="font-semibold">Analysed source URLs</h3>
+      {renderSimpleList(sourceUrls, 'No source URLs were analysed.')}
+      {aiAdvice.data?.failedUrls && aiAdvice.data.failedUrls.length > 0 && <>
+        <h4 className="font-medium">Failed URLs</h4>
+        {renderSimpleList(aiAdvice.data.failedUrls, 'No failed URLs.')}
+      </>}
+    </div>}
+
     <div className="space-y-2">
       <h3 className="font-semibold">Recommended careers</h3>
-      {recommendations.map((item) => <div key={`${item.name}-${item.matchScore}`} className="border p-2 rounded">
-        <p className="font-medium">{item.name} ({item.matchScore}%)</p>
-        <p className="text-sm">{item.reason}</p>
-        {item.improvements.length > 0 && <div className="mt-2 text-sm">
-          <p className="font-medium">Improvements</p>
-          {item.improvements.map((improvement) => <p key={improvement}>• {improvement}</p>)}
-        </div>}
-      </div>)}
+      {renderSimpleList(careers.slice(0, 10), 'No career recommendations yet.')}
     </div>
+
+    {!isDemoMode && <>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Recommended programmes</h3>
+        {renderSimpleList(programmes.slice(0, 10), 'No programme recommendations yet.')}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Recommended universities</h3>
+        {renderSimpleList(universities, 'No university recommendations yet.')}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Skill gaps</h3>
+        {renderSimpleList(skillGaps, 'No skill gaps identified.')}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Recommended next steps</h3>
+        {renderSimpleList(nextSteps, 'No next steps provided.')}
+      </div>
+
+      {warnings.length > 0 && <div className="space-y-2">
+        <h3 className="font-semibold">Warnings</h3>
+        {renderSimpleList(warnings, 'No warnings.')}
+      </div>}
+
+      {aiAdvice.data?.summary && <div className="rounded border p-3 bg-slate-50">
+        <h3 className="font-semibold mb-1">Summary</h3>
+        <p className="text-sm">{aiAdvice.data.summary}</p>
+      </div>}
+    </>}
   </Section>;
 };
 export const StudentBursaryRecommendationsPage = StudentCareerRecommendationsPage;

@@ -322,6 +322,7 @@ public class GeminiService {
                 sourceUrls,
                 successUrls,
                 failedUrls,
+                successUrls.size(),
                 sanitizePromptValue(parsed.summary),
                 defaultList(parsed.recommendedCareers),
                 defaultList(parsed.recommendedProgrammes),
@@ -330,7 +331,6 @@ public class GeminiService {
                 defaultList(parsed.skillGaps),
                 defaultList(parsed.recommendedNextSteps),
                 defaultList(parsed.warnings),
-                successUrls.size(),
                 normalizeScore(parsed.suitabilityScore),
                 GeminiModelResolver.resolveModelName(model)
         );
@@ -346,6 +346,7 @@ public class GeminiService {
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
+                response.totalSourcesUsed(),
                 response.summary(),
                 response.recommendedCareers(),
                 response.recommendedProgrammes(),
@@ -354,7 +355,6 @@ public class GeminiService {
                 response.skillGaps(),
                 response.recommendedNextSteps(),
                 new ArrayList<>(warnings),
-                response.totalSourcesUsed(),
                 response.suitabilityScore(),
                 response.rawModelUsed()
         );
@@ -372,6 +372,7 @@ public class GeminiService {
                 sourceUrls,
                 successUrls,
                 failedUrls,
+                successUrls.size(),
                 "Based on the available university sources and your profile, here are practical options to explore next.",
                 List.of("Software Developer", "Data Analyst", "IT Support Specialist", "Business Analyst", "Systems Analyst")
                         .stream().limit(max).toList(),
@@ -382,7 +383,6 @@ public class GeminiService {
                 List.of("Build a practical portfolio", "Strengthen analytical and communication skills"),
                 List.of("Open programme detail pages", "Compare your subjects with entry requirements", "Upload your transcript and CV"),
                 warnings,
-                successUrls.size(),
                 70,
                 GeminiModelResolver.resolveModelName(model)
         );
