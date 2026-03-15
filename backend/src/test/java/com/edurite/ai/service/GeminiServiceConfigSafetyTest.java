@@ -46,7 +46,7 @@ class GeminiServiceConfigSafetyTest {
                 profile,
                 List.of("https://www.unisa.ac.za/page"),
                 List.of(new UniversitySourcePageResult("https://www.unisa.ac.za/page", "t", UniversityPageType.QUALIFICATION_LIST,
-                        "content", Set.of("computer science"), true, null)),
+                        "content", Set.of("computer science"), true, null, null)),
                 "content"
         );
 

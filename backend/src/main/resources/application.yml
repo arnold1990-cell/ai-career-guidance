@@ -32,6 +32,23 @@ edurite:
   university:
     crawl:
       cron: "0 0 2 * * *"
+      timeout-ms: 8000
+      max-fetch-retries: 3
+      max-discovered-candidates-per-university: 60
+      max-fetched-pages-per-university: 30
+      max-crawl-depth: 1
+      candidate-paths:
+        - "/programmes"
+        - "/programs"
+        - "/study"
+        - "/studies"
+        - "/courses"
+        - "/course-finder"
+        - "/undergraduate"
+        - "/postgraduate"
+        - "/faculties"
+        - "/admissions"
+        - "/academic-programmes"
     registry:
       - university-name: "University of Cape Town"
         base-domain: "uct.ac.za"

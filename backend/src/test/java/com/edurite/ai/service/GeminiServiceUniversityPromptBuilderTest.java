@@ -32,9 +32,9 @@ class GeminiServiceUniversityPromptBuilderTest {
 
         List<UniversitySourcePageResult> pages = List.of(
                 new UniversitySourcePageResult("https://www.unisa.ac.za/a", "UNISA qualifications", UniversityPageType.QUALIFICATION_LIST,
-                        "UNISA content", Set.of("computer science"), true, null),
+                        "UNISA content", Set.of("computer science"), true, null, null),
                 new UniversitySourcePageResult("https://www.uj.ac.za/b", "UJ programmes", UniversityPageType.PROGRAMME_DETAIL,
-                        "UJ content", Set.of("software"), true, null)
+                        "UJ content", Set.of("software"), true, null, null)
         );
 
         String prompt = (String) ReflectionTestUtils.invokeMethod(

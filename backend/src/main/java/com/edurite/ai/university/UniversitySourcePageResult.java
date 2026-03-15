@@ -9,6 +9,7 @@ public record UniversitySourcePageResult(
         String cleanedText,
         Set<String> extractedKeywords,
         boolean success,
-        String failureReason
+        String failureReason,
+        UniversityCrawlFailureType failureType
 ) {
 }
