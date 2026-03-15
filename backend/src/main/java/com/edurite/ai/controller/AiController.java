@@ -7,6 +7,8 @@ import com.edurite.ai.dto.UniversitySourcesAnalysisResponse;
 import com.edurite.ai.exception.AiServiceException;
 import com.edurite.ai.service.GeminiService;
 import com.edurite.ai.service.UniversitySourcesGuidanceService;
+import com.edurite.ai.university.UniversitySourceCoverage;
+import com.edurite.ai.university.UniversitySourceCoverageService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.security.Principal;
@@ -31,10 +33,14 @@ public class AiController {
 
     private final GeminiService geminiService;
     private final UniversitySourcesGuidanceService universitySourcesGuidanceService;
+    private final UniversitySourceCoverageService sourceCoverageService;
 
-    public AiController(GeminiService geminiService, UniversitySourcesGuidanceService universitySourcesGuidanceService) {
+    public AiController(GeminiService geminiService,
+                        UniversitySourcesGuidanceService universitySourcesGuidanceService,
+                        UniversitySourceCoverageService sourceCoverageService) {
         this.geminiService = geminiService;
         this.universitySourcesGuidanceService = universitySourcesGuidanceService;
+        this.sourceCoverageService = sourceCoverageService;
     }
 
     @PostMapping("/career-advice")
@@ -70,6 +76,11 @@ public class AiController {
     @GetMapping("/default-university-sources")
     public ResponseEntity<List<String>> defaultUniversitySources() {
         return ResponseEntity.ok(universitySourcesGuidanceService.getDefaultSources());
+    }
+
+    @GetMapping("/source-coverage")
+    public ResponseEntity<UniversitySourceCoverage> sourceCoverage() {
+        return ResponseEntity.ok(sourceCoverageService.getCoverage());
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(HttpServletRequest httpRequest, AiServiceException ex) {

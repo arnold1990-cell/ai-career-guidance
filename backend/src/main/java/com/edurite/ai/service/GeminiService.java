@@ -207,8 +207,10 @@ public class GeminiService {
 
                 Rules:
                 - Return student-friendly, practical guidance.
+                - The evidence comes from multiple universities and only shortlisted relevant pages.
                 - Recommend at least %d careers if enough evidence exists.
                 - Recommend at least %d university programmes if enough evidence exists.
+                - Recommend universities grounded in the retrieved page list.
                 - Mention limitation warnings when sources are generic list pages.
                 - Do not hallucinate programme-specific requirements that do not appear in the sources.
                 - Keep suitabilityScore between 0 and 100.

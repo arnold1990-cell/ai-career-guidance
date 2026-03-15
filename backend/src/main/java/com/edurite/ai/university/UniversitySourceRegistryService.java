@@ -1,47 +1,98 @@
 package com.edurite.ai.university;
 
 import java.net.URI;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UniversitySourceRegistryService {
 
-    private static final List<String> DEFAULT_SOURCES = List.of(
-            "https://www.unisa.ac.za/sites/corporate/default/Register-to-study-through-Unisa/Undergraduate-qualifications",
-            "https://www.uj.ac.za/studyatuj/undergraduate/"
-    );
+    private final UniversityRegistryProperties properties;
+    private final UniversityUrlNormalizer urlNormalizer;
 
-    private static final Set<String> TRUSTED_DOMAINS = Set.of(
-            "unisa.ac.za", "uj.ac.za", "wits.ac.za", "uct.ac.za", "up.ac.za", "sun.ac.za"
-    );
+    public UniversitySourceRegistryService(UniversityRegistryProperties properties, UniversityUrlNormalizer urlNormalizer) {
+        this.properties = properties;
+        this.urlNormalizer = urlNormalizer;
+    }
+
+    public List<UniversityRegistryProperties.UniversityRegistryEntry> getActiveUniversities() {
+        return properties.getRegistry().stream()
+                .filter(UniversityRegistryProperties.UniversityRegistryEntry::isActive)
+                .sorted(Comparator.comparingInt(UniversityRegistryProperties.UniversityRegistryEntry::getCrawlPriority)
+                        .thenComparing(UniversityRegistryProperties.UniversityRegistryEntry::getUniversityName))
+                .toList();
+    }
 
     public List<String> getDefaultSources() {
-        return DEFAULT_SOURCES;
+        return getActiveUniversities().stream()
+                .flatMap(entry -> entry.getSeedUrls().stream())
+                .map(urlNormalizer::normalize)
+                .filter(url -> !url.isBlank())
+                .distinct()
+                .limit(100)
+                .toList();
     }
 
     public boolean isAllowedUrl(String url) {
-        try {
-            URI uri = URI.create(url.trim());
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            if (scheme == null || host == null) {
-                return false;
-            }
-            if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")) {
-                return false;
-            }
-            String normalizedHost = host.toLowerCase(Locale.ROOT);
-            return TRUSTED_DOMAINS.stream().anyMatch(domain -> normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain));
-        } catch (RuntimeException ex) {
+        String host = host(url);
+        if (host == null) {
             return false;
         }
+        return properties.getRegistry().stream().anyMatch(university -> matchesAllowedDomain(host, university));
+    }
+
+    public boolean isAllowedUrlForUniversity(String universityName, String url) {
+        String host = host(url);
+        if (host == null) {
+            return false;
+        }
+        return properties.getRegistry().stream()
+                .filter(university -> university.getUniversityName().equalsIgnoreCase(universityName))
+                .anyMatch(university -> matchesAllowedDomain(host, university));
     }
 
     public List<String> deduplicate(List<String> urls) {
-        return new LinkedHashSet<>(urls).stream().toList();
+        if (urls == null || urls.isEmpty()) {
+            return List.of();
+        }
+        return urls.stream()
+                .filter(Objects::nonNull)
+                .map(urlNormalizer::normalize)
+                .filter(url -> !url.isBlank())
+                .collect(Collectors.collectingAndThen(Collectors.toCollection(LinkedHashSet::new), List::copyOf));
+    }
+
+    public int configuredUniversityCount() {
+        return properties.getRegistry().size();
+    }
+
+    private String host(String url) {
+        try {
+            URI uri = URI.create(urlNormalizer.normalize(url));
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || host == null) {
+                return null;
+            }
+            if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")) {
+                return null;
+            }
+            return host.toLowerCase(Locale.ROOT);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private boolean matchesAllowedDomain(String normalizedHost, UniversityRegistryProperties.UniversityRegistryEntry university) {
+        Set<String> domains = new LinkedHashSet<>();
+        domains.add(university.getBaseDomain().toLowerCase(Locale.ROOT));
+        domains.addAll(university.getAllowedDomains().stream().map(value -> value.toLowerCase(Locale.ROOT)).toList());
+        return domains.stream().anyMatch(domain -> normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain));
     }
 }
