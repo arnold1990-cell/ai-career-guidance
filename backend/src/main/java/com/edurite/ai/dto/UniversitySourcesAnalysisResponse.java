@@ -11,6 +11,7 @@ public record UniversitySourcesAnalysisResponse(
         List<RecommendedCareer> recommendedCareers,
         List<RecommendedProgramme> recommendedProgrammes,
         List<String> recommendedUniversities,
+        List<String> minimumRequirements,
         List<String> keyRequirements,
         List<String> skillGaps,
         List<String> recommendedNextSteps,
@@ -31,7 +32,6 @@ public record UniversitySourcesAnalysisResponse(
             String name,
             String university,
             List<String> admissionRequirements,
-            String applicationDeadline,
             String notes
     ) {
     }

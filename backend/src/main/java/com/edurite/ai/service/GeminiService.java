@@ -15,8 +15,10 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -194,7 +196,6 @@ public class GeminiService {
                 You are EduRite's academic and career guidance assistant.
                 Return ONLY valid JSON with this schema:
                 {
-                  "summary": "string",
                   "recommendedCareers": [
                     {
                       "name": "string",
@@ -208,32 +209,33 @@ public class GeminiService {
                       "name": "string",
                       "university": "string",
                       "admissionRequirements": ["string"],
-                      "applicationDeadline": "string",
                       "notes": "string"
                     }
                   ],
                   "recommendedUniversities": ["string"],
+                  "minimumRequirements": ["string"],
                   "keyRequirements": ["string"],
                   "skillGaps": ["string"],
                   "recommendedNextSteps": ["string"],
                   "warnings": ["string"],
+                  "summary": "string",
                   "suitabilityScore": 0
                 }
 
                 Rules:
                 - Return student-friendly, practical guidance.
-                - The evidence comes from multiple universities and only shortlisted relevant pages.
+                - Keep section order exactly: recommendedCareers, recommendedProgrammes, recommendedUniversities, skillGaps, recommendedNextSteps, warnings, summary.
                 - Recommend at least %d careers if enough evidence exists.
                 - Recommend at least %d university programmes if enough evidence exists.
                 - Each recommended career must include specific requirements and relatedProgrammes.
-                - Each recommended programme must include admissionRequirements, applicationDeadline, and notes.
-                - Include application deadlines only if explicitly found in fetched university content.
-                - If a requirement or deadline is not found in fetched sources, return "Not found in fetched sources".
-                - Do not hallucinate APS scores, subject minimums, or deadlines.
+                - Each recommended programme must include admissionRequirements and notes.
+                - Do not include application due dates or deadline fields anywhere.
+                - minimumRequirements MUST always mention Grade 12 passes, English, and Mathematics for mathematics-related pathways.
+                - Do not hallucinate APS scores, subject minimums, or due dates.
                 - Ground programmes and universities in the retrieved source content.
-                - Recommend universities grounded in the retrieved page list.
                 - Mention limitation warnings when sources are generic list pages.
                 - Keep suitabilityScore between 0 and 100.
+                - If model cannot provide clean JSON, still provide the seven sections as plain headings with bullet points.
 
                 Student profile:
                 firstName: %s
@@ -339,7 +341,25 @@ public class GeminiService {
                                                                     List<String> sourceUrls,
                                                                     List<String> successUrls,
                                                                     List<String> failedUrls) throws JsonProcessingException {
-        UniversityModelResponse parsed = objectMapper.readValue(modelText, UniversityModelResponse.class);
+        try {
+            UniversityModelResponse parsed = objectMapper.readValue(modelText, UniversityModelResponse.class);
+            return buildUniversityResponse(parsed, sourceUrls, successUrls, failedUrls);
+        } catch (JsonProcessingException ex) {
+            log.warn("University guidance JSON parse failed, attempting section-based parsing: contentSnippet={}", trim(modelText));
+            UniversityModelResponse sectionParsed = parseSectionedUniversityAdvice(modelText);
+            if (sectionParsed == null) {
+                throw ex;
+            }
+            return buildUniversityResponse(sectionParsed, sourceUrls, successUrls, failedUrls);
+        }
+    }
+
+    private UniversitySourcesAnalysisResponse buildUniversityResponse(UniversityModelResponse parsed,
+                                                                      List<String> sourceUrls,
+                                                                      List<String> successUrls,
+                                                                      List<String> failedUrls) {
+        List<String> minimumRequirements = enforceMinimumRequirements(defaultList(parsed.minimumRequirements), parsed);
+        List<String> keyRequirements = mergeKeyAndMinimumRequirements(defaultList(parsed.keyRequirements), minimumRequirements);
         return new UniversitySourcesAnalysisResponse(
                 sourceUrls,
                 successUrls,
@@ -349,7 +369,8 @@ public class GeminiService {
                 defaultCareerList(parsed.recommendedCareers),
                 defaultProgrammeList(parsed.recommendedProgrammes),
                 defaultList(parsed.recommendedUniversities),
-                defaultList(parsed.keyRequirements),
+                minimumRequirements,
+                keyRequirements,
                 defaultList(parsed.skillGaps),
                 defaultList(parsed.recommendedNextSteps),
                 defaultList(parsed.warnings),
@@ -357,6 +378,78 @@ public class GeminiService {
                 GeminiModelResolver.resolveModelName(model)
         );
     }
+
+    private UniversityModelResponse parseSectionedUniversityAdvice(String modelText) {
+        if (modelText == null || modelText.isBlank()) {
+            return null;
+        }
+
+        List<String> headers = List.of(
+                "Recommended careers",
+                "Recommended programmes",
+                "Recommended universities",
+                "Skill gaps",
+                "Recommended next steps",
+                "Warnings",
+                "Summary"
+        );
+
+        String normalized = modelText.replace("\r", "").trim();
+        Map<String, List<String>> sections = new LinkedHashMap<>();
+        String currentHeader = null;
+
+        for (String line : normalized.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            String header = headers.stream().filter(h -> h.equalsIgnoreCase(trimmed.replace(":", ""))).findFirst().orElse(null);
+            if (header != null) {
+                currentHeader = header;
+                sections.putIfAbsent(header, new ArrayList<>());
+                continue;
+            }
+            if (currentHeader != null) {
+                sections.get(currentHeader).add(stripBullet(trimmed));
+            }
+        }
+
+        if (sections.isEmpty()) {
+            return null;
+        }
+
+        UniversityModelResponse response = new UniversityModelResponse();
+        response.recommendedCareers = sections.getOrDefault("Recommended careers", List.of()).stream()
+                .filter(v -> !v.isBlank())
+                .map(v -> {
+                    UniversityModelResponse.RecommendedCareerPayload payload = new UniversityModelResponse.RecommendedCareerPayload();
+                    payload.name = v;
+                    payload.reason = "Derived from section-based fallback parsing.";
+                    payload.requirements = List.of("Verify subject requirements with the university");
+                    payload.relatedProgrammes = List.of();
+                    return payload;
+                }).toList();
+        response.recommendedProgrammes = sections.getOrDefault("Recommended programmes", List.of()).stream()
+                .filter(v -> !v.isBlank())
+                .map(v -> {
+                    UniversityModelResponse.RecommendedProgrammePayload payload = new UniversityModelResponse.RecommendedProgrammePayload();
+                    payload.name = v;
+                    payload.university = "University Source";
+                    payload.admissionRequirements = List.of("Not found in fetched sources");
+                    payload.notes = "Verify exact programme requirements from official university programme pages.";
+                    return payload;
+                }).toList();
+        response.recommendedUniversities = sections.getOrDefault("Recommended universities", List.of());
+        response.skillGaps = sections.getOrDefault("Skill gaps", List.of());
+        response.recommendedNextSteps = sections.getOrDefault("Recommended next steps", List.of());
+        response.warnings = sections.getOrDefault("Warnings", List.of());
+        response.summary = String.join(" ", sections.getOrDefault("Summary", List.of()));
+        response.minimumRequirements = List.of();
+        response.keyRequirements = List.of();
+        response.suitabilityScore = 60;
+        return response;
+    }
+
 
     private UniversitySourcesAnalysisResponse enrichWithWarnings(UniversitySourcesAnalysisResponse response,
                                                                  List<String> failedUrls) {
@@ -373,6 +466,7 @@ public class GeminiService {
                 response.recommendedCareers(),
                 response.recommendedProgrammes(),
                 response.recommendedUniversities(),
+                response.minimumRequirements(),
                 response.keyRequirements(),
                 response.skillGaps(),
                 response.recommendedNextSteps(),
@@ -433,39 +527,68 @@ public class GeminiService {
                                         "BSc Computer Science",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Not found in fetched sources",
-                                        "Programme requirements and deadlines should be verified on official faculty pages."
+                                        "Programme requirements should be verified on official faculty pages."
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                                         "BCom Information Systems",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Not found in fetched sources",
                                         "Admission criteria were not explicitly available in fetched content."
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                                         "Diploma in IT",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Not found in fetched sources",
                                         "Check programme-specific pages for exact subject and score minimums."
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                                         "BSc Engineering",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Not found in fetched sources",
                                         "Use official admissions pages to confirm current requirements."
                                 ))
                         .stream().limit(max).toList(),
                 sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
-                List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for computing and engineering pathways"),
+                defaultMinimumRequirements(),
+                List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for quantitative pathways", "English proficiency is required for most programmes"),
                 List.of("Build a practical portfolio", "Strengthen analytical and communication skills"),
                 List.of("Open programme detail pages", "Compare your subjects with entry requirements", "Upload your transcript and CV"),
                 warnings,
                 70,
                 GeminiModelResolver.resolveModelName(model)
         );
+    }
+
+    private List<String> enforceMinimumRequirements(List<String> provided,
+                                                    UniversityModelResponse parsed) {
+        Set<String> merged = new LinkedHashSet<>();
+        merged.addAll(defaultMinimumRequirements());
+        merged.addAll(provided);
+        merged.addAll(defaultList(parsed.keyRequirements).stream()
+                .filter(item -> item.toLowerCase().contains("grade 12")
+                        || item.toLowerCase().contains("mathematics")
+                        || item.toLowerCase().contains("english"))
+                .toList());
+        return new ArrayList<>(merged);
+    }
+
+    private List<String> mergeKeyAndMinimumRequirements(List<String> keyRequirements,
+                                                         List<String> minimumRequirements) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>(minimumRequirements);
+        merged.addAll(keyRequirements);
+        return new ArrayList<>(merged);
+    }
+
+    private List<String> defaultMinimumRequirements() {
+        return List.of(
+                "Grade 12 passes are required for university admission pathways.",
+                "Mathematics is required for mathematics-related programmes.",
+                "English is required for admission and academic communication."
+        );
+    }
+
+    private String stripBullet(String value) {
+        return value.replaceFirst("^[-*•]+\s*", "").trim();
     }
 
     private String toUniversityName(String url) {
@@ -558,7 +681,6 @@ public class GeminiService {
                         item.name,
                         sanitizeSourceBoundValue(item.university),
                         defaultListOrNotFound(item.admissionRequirements),
-                        sanitizeSourceBoundValue(item.applicationDeadline),
                         sanitizeSourceBoundValue(item.notes)
                 ))
                 .toList();
@@ -569,6 +691,7 @@ public class GeminiService {
         public List<RecommendedCareerPayload> recommendedCareers;
         public List<RecommendedProgrammePayload> recommendedProgrammes;
         public List<String> recommendedUniversities;
+        public List<String> minimumRequirements;
         public List<String> keyRequirements;
         public List<String> skillGaps;
         public List<String> recommendedNextSteps;
@@ -586,7 +709,6 @@ public class GeminiService {
             public String name;
             public String university;
             public List<String> admissionRequirements;
-            public String applicationDeadline;
             public String notes;
         }
     }

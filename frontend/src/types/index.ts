@@ -80,7 +80,6 @@ export interface UniversityRecommendedProgramme {
   name: string;
   university: string;
   admissionRequirements: string[];
-  applicationDeadline: string;
   notes: string;
 }
 
@@ -93,6 +92,7 @@ export interface UniversitySourcesAnalysisResponse {
   recommendedCareers: UniversityRecommendedCareer[];
   recommendedProgrammes: UniversityRecommendedProgramme[];
   recommendedUniversities: string[];
+  minimumRequirements: string[];
   keyRequirements: string[];
   skillGaps: string[];
   recommendedNextSteps: string[];
