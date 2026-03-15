@@ -6,6 +6,7 @@ public record UniversitySourcesAnalysisResponse(
         List<String> sourceUrls,
         List<String> successfullyAnalysedUrls,
         List<String> failedUrls,
+        Integer totalSourcesUsed,
         String summary,
         List<String> recommendedCareers,
         List<String> recommendedProgrammes,
@@ -14,7 +15,6 @@ public record UniversitySourcesAnalysisResponse(
         List<String> skillGaps,
         List<String> recommendedNextSteps,
         List<String> warnings,
-        Integer totalSourcesUsed,
         Integer suitabilityScore,
         String rawModelUsed
 ) {

@@ -73,6 +73,7 @@ class UniversitySourcesGuidanceServiceTest {
                 dedupedUrls,
                 List.of(dedupedUrls.get(0), dedupedUrls.get(1)),
                 List.of(dedupedUrls.get(2)),
+                2,
                 "summary",
                 List.of("Software Developer"),
                 List.of("BSc Computer Science"),
@@ -81,7 +82,6 @@ class UniversitySourcesGuidanceServiceTest {
                 List.of(),
                 List.of(),
                 List.of(),
-                2,
                 80,
                 "gemini-2.5-flash"
         );
@@ -138,6 +138,7 @@ class UniversitySourcesGuidanceServiceTest {
                         defaultSources,
                         defaultSources,
                         List.of(),
+                        2,
                         "summary",
                         List.of(),
                         List.of(),
@@ -146,7 +147,6 @@ class UniversitySourcesGuidanceServiceTest {
                         List.of(),
                         List.of(),
                         List.of(),
-                        2,
                         50,
                         "gemini-2.5-flash"
                 ));

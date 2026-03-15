@@ -2,9 +2,9 @@ package com.edurite.ai.dto;
 
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import org.junit.jupiter.api.Test;
-
+import java.util.List;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,5 +18,20 @@ class UniversitySourcesAnalysisRequestValidationTest {
         var request = new UniversitySourcesAnalysisRequest(urls, null, null, null, 10);
 
         assertThat(validator.validate(request)).isNotEmpty();
+    }
+
+    @Test
+    void rejectsInvalidUrlFormat() {
+        var request = new UniversitySourcesAnalysisRequest(List.of("ftp://unisa.ac.za/file"), null, null, null, 10);
+
+        assertThat(validator.validate(request)).isNotEmpty();
+    }
+
+    @Test
+    void defaultsMaxRecommendationsToTen() {
+        var request = new UniversitySourcesAnalysisRequest(null, null, null, null, null);
+
+        assertThat(request.safeMaxRecommendations()).isEqualTo(10);
+        assertThat(request.usesDefaultSources()).isTrue();
     }
 }

@@ -60,6 +60,31 @@ export interface CareerAdviceItem {
 export interface CareerAdviceResponse {
   recommendedCareers: CareerAdviceItem[];
 }
+
+export interface UniversitySourcesAnalysisRequest {
+  urls?: string[];
+  targetProgram?: string;
+  careerInterest?: string;
+  qualificationLevel?: string;
+  maxRecommendations?: number;
+}
+
+export interface UniversitySourcesAnalysisResponse {
+  sourceUrls: string[];
+  successfullyAnalysedUrls: string[];
+  failedUrls: string[];
+  totalSourcesUsed: number;
+  summary: string;
+  recommendedCareers: string[];
+  recommendedProgrammes: string[];
+  recommendedUniversities: string[];
+  keyRequirements: string[];
+  skillGaps: string[];
+  recommendedNextSteps: string[];
+  warnings: string[];
+  suitabilityScore: number;
+  rawModelUsed: string;
+}
 export interface Notification { id: string; title: string; message: string; read: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }
 export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; number: number; size: number; }
