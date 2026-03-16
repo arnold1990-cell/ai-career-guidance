@@ -7,6 +7,7 @@ import { RequireCompanyApproval } from '@/routes/RequireCompanyApproval';
 import { AboutPage, BursariesPage, BursaryDetailsPage, CareerDetailsPage, CareersPage, CourseDetailsPage, CoursesPage, InstitutionDetailsPage, InstitutionsPage, LandingPage, PricingPage } from '@/pages/public/PublicPages';
 import { ForgotPasswordPage, LoginPage, RegisterCompanyPage, RegisterStudentPage, ResetPasswordPage } from '@/pages/public/AuthPages';
 import { StudentAcademicProfilePage, StudentApplicationsPage, StudentBursaryRecommendationsPage, StudentCareerRecommendationsPage, StudentDashboardPage, StudentDocumentsPage, StudentExperiencePage, StudentNotificationsPage, StudentProfilePage, StudentQualificationsPage, StudentSavedPage, StudentSettingsPage, StudentSubscriptionPage, StudentUniversitiesPage } from '@/pages/student/StudentPages';
+import { StudentBookwormPage } from '@/pages/student/StudentBookwormPage';
 import { CompanyApplicantsPage, CompanyBursariesPage, CompanyCreateBursaryPage, CompanyDashboardPage, CompanyEditBursaryPage, CompanyNotificationsPage, CompanyPendingApprovalPage, CompanyProfilePage, CompanySettingsPage, CompanyShortlistedPage, CompanyTalentSearchPage, CompanyVerificationDocsPage } from '@/pages/company/CompanyPages';
 import { AdminAnalyticsPage, AdminAuditLogsPage, AdminBursaryModerationPage, AdminCompanyReviewPage, AdminDashboardPage, AdminNotificationTemplatesPage, AdminPaymentsPage, AdminPendingApprovalsPage, AdminRolesPage, AdminSettingsPage, AdminSubscriptionsPage, AdminUsersPage } from '@/pages/admin/AdminPages';
 
@@ -50,6 +51,7 @@ export const App = () => (
           <Route path="/student/saved" element={<StudentSavedPage />} />
           <Route path="/student/applications" element={<StudentApplicationsPage />} />
           <Route path="/student/universities" element={<StudentUniversitiesPage />} />
+          <Route path="/student/bookworm" element={<StudentBookwormPage />} />
           <Route path="/student/notifications" element={<StudentNotificationsPage />} />
           <Route path="/student/subscription" element={<StudentSubscriptionPage />} />
           <Route path="/student/settings" element={<StudentSettingsPage />} />

@@ -100,6 +100,38 @@ export interface UniversitySourcesAnalysisResponse {
   suitabilityScore: number;
   rawModelUsed: string;
 }
+
+export interface BookwormChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface BookwormChatRequest {
+  message: string;
+  history?: BookwormChatMessage[];
+}
+
+export interface BookwormUniversityRecommendation {
+  name: string;
+  location?: string;
+  officialWebsite?: string;
+  category?: string;
+  programmes: string[];
+  entryRequirements: string[];
+  source: string;
+}
+
+export interface BookwormChatResponse {
+  answerText: string;
+  recommendedCareers: string[];
+  recommendedProgrammes: string[];
+  recommendedUniversities: BookwormUniversityRecommendation[];
+  universityWebsites: string[];
+  bursarySuggestions: string[];
+  roadmapSteps: string[];
+  warnings: string[];
+  source: string;
+}
 export interface Notification { id: string; title: string; message: string; read: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }
 export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; number: number; size: number; }
