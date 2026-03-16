@@ -7,7 +7,7 @@ import eduriteSidebarLogo from '@/assets/Edurite-dashboard.jpeg';
 
 const navByRole: Record<Role, Array<{ to: string; label: string }>> = {
   STUDENT: [
-    { to: '/student/dashboard', label: 'Dashboard' }, { to: '/student/profile', label: 'My Profile' }, { to: '/student/recommendations/careers', label: 'AI Guidance' }, { to: '/student/saved', label: 'Career Search' }, { to: '/student/applications', label: 'Bursary Finder' }, { to: '/student/subscription', label: 'Subscription' }, { to: '/student/notifications', label: 'Notifications' }, { to: '/student/settings', label: 'Settings' },
+    { to: '/student/dashboard', label: 'Dashboard' }, { to: '/student/profile', label: 'My Profile' }, { to: '/student/recommendations/careers', label: 'AI Guidance' }, { to: '/student/saved', label: 'Career Search' }, { to: '/student/applications', label: 'Bursary Finder' }, { to: '/student/universities', label: 'Universities' }, { to: '/student/subscription', label: 'Subscription' }, { to: '/student/notifications', label: 'Notifications' }, { to: '/student/settings', label: 'Settings' },
   ],
   COMPANY: [
     { to: '/company/dashboard', label: 'Dashboard' }, { to: '/company/profile', label: 'Company Profile' }, { to: '/company/bursaries/new', label: 'Post Bursary' }, { to: '/company/bursaries', label: 'Manage Bursaries' }, { to: '/company/applicants', label: 'Applications' }, { to: '/company/verification-docs', label: 'Documents' }, { to: '/company/notifications', label: 'Notifications' }, { to: '/company/settings', label: 'Settings' },

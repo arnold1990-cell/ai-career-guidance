@@ -31,7 +31,7 @@ export interface Career { id: string; title: string; description?: string; indus
 export interface Bursary { id: string; title: string; provider?: string; qualificationLevel?: string; region?: string; eligibility?: string; deadline?: string; status: string; }
 
 export interface Course { id: string; name: string; institutionName: string; duration: string; }
-export interface Institution { id: string; name: string; location: string; }
+export interface Institution { id: string; name: string; location?: string; city?: string; province?: string; country?: string; website?: string; logoUrl?: string; category?: string; featured?: boolean; active?: boolean; }
 
 export interface Application { id: string; status: string; createdAt: string; bursaryId: string; }
 export interface RecommendationItem { id: string; title: string; score: number; rationale: string; }

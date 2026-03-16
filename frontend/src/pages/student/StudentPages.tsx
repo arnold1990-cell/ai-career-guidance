@@ -360,3 +360,4 @@ export const StudentSettingsPage = () => {
     {save.isError && <p className="text-sm text-red-600">Unable to save settings right now.</p>}
   </Section>;
 };
+export { StudentUniversitiesPage } from './StudentUniversitiesPage';
