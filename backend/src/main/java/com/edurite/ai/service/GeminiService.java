@@ -70,7 +70,8 @@ public class GeminiService {
             com.edurite.student.entity.StudentProfile profile,
             List<String> sourceUrls,
             List<UniversitySourcePageResult> fetchedPages,
-            String combinedContext
+            String combinedContext,
+            String internalUniversityContext
     ) {
         List<String> successUrls = fetchedPages.stream().filter(UniversitySourcePageResult::success)
                 .map(UniversitySourcePageResult::sourceUrl).toList();
@@ -83,7 +84,7 @@ public class GeminiService {
         }
 
         try {
-            String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext);
+            String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext, internalUniversityContext);
             String modelText = invokeGemini(prompt);
             UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
             return enrichWithWarnings(parsed, failedUrls);
@@ -186,7 +187,8 @@ public class GeminiService {
     private String buildUniversityPrompt(UniversitySourcesAnalysisRequest request,
                                          com.edurite.student.entity.StudentProfile profile,
                                          List<UniversitySourcePageResult> fetchedPages,
-                                         String combinedContext) {
+                                         String combinedContext,
+                                         String internalUniversityContext) {
         String pageMetadata = fetchedPages.stream()
                 .map(page -> "%s | %s | %s | keywords=%s".formatted(
                         page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
@@ -259,6 +261,9 @@ public class GeminiService {
                 Combined academic context (truncated):
                 %s
 
+                Internal university module data (highest priority for institution-specific details):
+                %s
+
                 Optional internal seed careers:
                 Software Developer, Data Analyst, Systems Analyst, IT Support Specialist, Business Analyst,
                 QA Tester, Accountant, Economist, Electrical Engineer, Civil Engineer, Teacher.
@@ -278,7 +283,8 @@ public class GeminiService {
                 sanitizePromptValue(request.careerInterest()),
                 sanitizePromptValue(request.qualificationLevel()),
                 pageMetadata,
-                sanitizePromptValue(combinedContext)
+                sanitizePromptValue(combinedContext),
+                sanitizePromptValue(internalUniversityContext)
         );
     }
 
