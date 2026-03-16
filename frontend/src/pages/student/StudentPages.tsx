@@ -10,6 +10,7 @@ import { notificationService } from '@/services/notificationService';
 import { applicationService } from '@/services/applicationService';
 import { subscriptionService } from '@/services/subscriptionService';
 import { settingsService } from '@/services/settingsService';
+import { bookwormService } from '@/services/bookwormService';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback/States';
@@ -234,6 +235,57 @@ export const StudentCareerRecommendationsPage = () => {
   </Section>;
 };
 export const StudentBursaryRecommendationsPage = StudentCareerRecommendationsPage;
+
+
+
+export const StudentBookwormPage = () => {
+  const profile = useAppQuery({ queryKey: ['me'], queryFn: studentService.getMe });
+  const [question, setQuestion] = useState('');
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
+
+  const chat = useMutation({
+    mutationFn: (q: string) => bookwormService.chat({ question: q, studentProfileId: profile.data?.id }),
+    onSuccess: (response, submittedQuestion) => {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', text: submittedQuestion },
+        { role: 'assistant', text: response.answer },
+      ]);
+      setQuestion('');
+    },
+  });
+
+  const ask = (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed || chat.isPending) return;
+    chat.mutate(trimmed);
+  };
+
+  const suggestions = [
+    'What careers fit Maths and Physics?',
+    'Show universities for Computer Science',
+    'Find bursaries for IT',
+  ];
+
+  return <Section title="Bookworm">
+    <p className="text-sm text-slate-500">AI Career Chat Assistant</p>
+    <div className="rounded border p-3 h-[360px] overflow-y-auto space-y-3 bg-slate-50">
+      {!messages.length && <p className="text-sm text-slate-500">Ask Bookworm anything about careers, universities, programmes, and bursaries.</p>}
+      {messages.map((message, index) => <div key={`${message.role}-${index}`} className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${message.role === 'user' ? 'ml-auto bg-indigo-600 text-white' : 'mr-auto bg-white border text-slate-800'}`}>
+        {message.text}
+      </div>)}
+      {chat.isPending && <p className="text-sm text-slate-500">Bookworm is thinking...</p>}
+    </div>
+    <div className="flex flex-wrap gap-2">
+      {suggestions.map((suggestion) => <Button key={suggestion} onClick={() => ask(suggestion)}>{suggestion}</Button>)}
+    </div>
+    <div className="flex gap-2">
+      <Input placeholder="Ask Bookworm a career question..." value={question} onChange={(e) => setQuestion(e.target.value)} />
+      <Button onClick={() => ask(question)} disabled={chat.isPending || !question.trim()}>Send</Button>
+    </div>
+    {chat.isError && <p className="text-sm text-red-600">Bookworm is temporarily unavailable. Please try again.</p>}
+  </Section>;
+};
 
 export const StudentSavedPage = () => {
   const qc = useQueryClient();
