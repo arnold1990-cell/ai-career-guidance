@@ -72,25 +72,46 @@ public class GeminiService {
             List<UniversitySourcePageResult> fetchedPages,
             String combinedContext
     ) {
-        List<String> successUrls = fetchedPages.stream().filter(UniversitySourcePageResult::success)
+        List<UniversitySourcePageResult> safeFetchedPages = fetchedPages == null ? List.of() : fetchedPages;
+        List<String> safeSourceUrls = sourceUrls == null ? List.of() : sourceUrls;
+        String safeCombinedContext = combinedContext == null ? "" : combinedContext;
+
+        List<String> successUrls = safeFetchedPages.stream().filter(UniversitySourcePageResult::success)
                 .map(UniversitySourcePageResult::sourceUrl).toList();
-        List<String> failedUrls = fetchedPages.stream().filter(p -> !p.success())
+        List<String> failedUrls = safeFetchedPages.stream().filter(p -> !p.success())
                 .map(UniversitySourcePageResult::sourceUrl).toList();
 
+        log.info("University source Gemini analysis started: sourceUrls={}, fetchedPages={}, successfulPages={}, failedPages={}",
+                safeSourceUrls.size(), safeFetchedPages.size(), successUrls.size(), failedUrls.size());
+
         if (apiKey == null || apiKey.isBlank()) {
-            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("AI model is unavailable, fallback guidance was generated from source metadata."));
+            log.warn("University source Gemini analysis blocked: Gemini API key is missing.");
+            throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Failed to analyse university sources: Gemini API key is not configured.");
         }
 
         try {
-            String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext);
+            String prompt = buildUniversityPrompt(request, profile, safeFetchedPages, safeCombinedContext);
+            log.info("University source Gemini call prepared: promptLength={}, model={}", prompt.length(), GeminiModelResolver.resolveModelName(model));
             String modelText = invokeGemini(prompt);
-            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
-            return enrichWithWarnings(parsed, failedUrls);
+            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, safeSourceUrls, successUrls, failedUrls);
+            UniversitySourcesAnalysisResponse response = enrichWithWarnings(parsed, failedUrls);
+            log.info("University source Gemini analysis completed successfully: recommendedCareers={}, recommendedProgrammes={}, warnings={}",
+                    response.recommendedCareers() == null ? 0 : response.recommendedCareers().size(),
+                    response.recommendedProgrammes() == null ? 0 : response.recommendedProgrammes().size(),
+                    response.warnings() == null ? 0 : response.warnings().size());
+            return response;
+        } catch (AiServiceException ex) {
+            log.error("University source Gemini analysis failed with service error: status={}, message={}", ex.getStatus().value(), ex.getMessage());
+            throw new AiServiceException(ex.getStatus(), "Failed to analyse university sources: " + ex.getMessage());
+        } catch (JsonProcessingException ex) {
+            log.error("University source Gemini analysis failed to parse model JSON output.", ex);
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                    "Failed to analyse university sources: Gemini returned invalid JSON output.");
         } catch (Exception ex) {
-            log.warn("University sources analysis fell back after model error: {}", ex.getMessage());
-            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("Model parsing failed, fallback guidance was generated.", "Reason: " + ex.getMessage()));
+            log.error("University source Gemini analysis failed unexpectedly.", ex);
+            throw new AiServiceException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to analyse university sources: " + ex.getMessage());
         }
     }
 
@@ -187,6 +208,9 @@ public class GeminiService {
                                          com.edurite.student.entity.StudentProfile profile,
                                          List<UniversitySourcePageResult> fetchedPages,
                                          String combinedContext) {
+        UniversitySourcesAnalysisRequest safeRequest = request == null
+                ? new UniversitySourcesAnalysisRequest(List.of(), null, null, null, null)
+                : request;
         String pageMetadata = fetchedPages.stream()
                 .map(page -> "%s | %s | %s | keywords=%s".formatted(
                         page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
@@ -263,20 +287,20 @@ public class GeminiService {
                 Software Developer, Data Analyst, Systems Analyst, IT Support Specialist, Business Analyst,
                 QA Tester, Accountant, Economist, Electrical Engineer, Civil Engineer, Teacher.
                 """.formatted(
-                request.safeMaxRecommendations(),
-                request.safeMaxRecommendations(),
-                sanitizePromptValue(profile.getFirstName()),
-                sanitizePromptValue(profile.getLastName()),
-                sanitizePromptValue(profile.getQualificationLevel()),
-                sanitizePromptValue(profile.getInterests()),
-                sanitizePromptValue(profile.getSkills()),
-                sanitizePromptValue(profile.getExperience()),
-                sanitizePromptValue(profile.getLocation()),
-                profile.getCvFileUrl() != null,
-                profile.getTranscriptFileUrl() != null,
-                sanitizePromptValue(request.targetProgram()),
-                sanitizePromptValue(request.careerInterest()),
-                sanitizePromptValue(request.qualificationLevel()),
+                safeRequest.safeMaxRecommendations(),
+                safeRequest.safeMaxRecommendations(),
+                sanitizePromptValue(profile == null ? null : profile.getFirstName()),
+                sanitizePromptValue(profile == null ? null : profile.getLastName()),
+                sanitizePromptValue(profile == null ? null : profile.getQualificationLevel()),
+                sanitizePromptValue(profile == null ? null : profile.getInterests()),
+                sanitizePromptValue(profile == null ? null : profile.getSkills()),
+                sanitizePromptValue(profile == null ? null : profile.getExperience()),
+                sanitizePromptValue(profile == null ? null : profile.getLocation()),
+                profile != null && profile.getCvFileUrl() != null,
+                profile != null && profile.getTranscriptFileUrl() != null,
+                sanitizePromptValue(safeRequest.targetProgram()),
+                sanitizePromptValue(safeRequest.careerInterest()),
+                sanitizePromptValue(safeRequest.qualificationLevel()),
                 pageMetadata,
                 sanitizePromptValue(combinedContext)
         );

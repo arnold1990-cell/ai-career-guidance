@@ -65,11 +65,25 @@ public class AiController {
     public ResponseEntity<?> analyseUniversitySources(@Valid @RequestBody UniversitySourcesAnalysisRequest request,
                                                       Principal principal,
                                                       HttpServletRequest httpRequest) {
+        log.info("University source analysis endpoint hit: path={}, principalPresent={}, qualificationLevel={}, targetProgramPresent={}, careerInterestPresent={}, requestedUrls={}",
+                httpRequest.getRequestURI(),
+                principal != null,
+                safeValue(request.qualificationLevel()),
+                request.targetProgram() != null && !request.targetProgram().isBlank(),
+                request.careerInterest() != null && !request.careerInterest().isBlank(),
+                request.urls() == null ? 0 : request.urls().size());
         try {
             UniversitySourcesAnalysisResponse response = universitySourcesGuidanceService.analyse(principal, request);
+            log.info("University source analysis completed successfully: recommendedCareers={}, recommendedProgrammes={}, warnings={}",
+                    response.recommendedCareers() == null ? 0 : response.recommendedCareers().size(),
+                    response.recommendedProgrammes() == null ? 0 : response.recommendedProgrammes().size(),
+                    response.warnings() == null ? 0 : response.warnings().size());
             return ResponseEntity.ok(response);
         } catch (AiServiceException ex) {
-            return errorResponse(httpRequest, ex);
+            return universityAnalysisErrorResponse(httpRequest, ex.getStatus().value(), ex.getMessage());
+        } catch (Exception ex) {
+            log.error("Unhandled error in university source analysis controller.", ex);
+            return universityAnalysisErrorResponse(httpRequest, 500, ex.getMessage());
         }
     }
 
@@ -92,6 +106,21 @@ public class AiController {
         body.put("message", ex.getMessage());
         body.put("path", httpRequest.getRequestURI());
         return ResponseEntity.status(ex.getStatus()).body(body);
+    }
+
+    private ResponseEntity<Map<String, Object>> universityAnalysisErrorResponse(HttpServletRequest httpRequest,
+                                                                                 int status,
+                                                                                 String reason) {
+        String safeReason = reason == null || reason.isBlank() ? "Unexpected internal error" : reason;
+        log.warn("University source analysis failed: status={}, reason={}, path={}", status, safeReason, httpRequest.getRequestURI());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", false);
+        body.put("message", "Failed to analyse university sources");
+        body.put("error", safeReason);
+        body.put("status", status);
+        body.put("path", httpRequest.getRequestURI());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(status).body(body);
     }
 
     private String safeValue(String value) {
