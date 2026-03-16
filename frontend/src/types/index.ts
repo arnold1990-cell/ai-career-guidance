@@ -57,8 +57,16 @@ export interface CareerAdviceItem {
   improvements: string[];
 }
 
+export interface CareerAdviceUniversity { name: string; website?: string; }
+export interface CareerAdviceProgramme { name: string; university: string; admissionRequirements: string[]; }
+
 export interface CareerAdviceResponse {
   recommendedCareers: CareerAdviceItem[];
+  recommendedProgrammes: CareerAdviceProgramme[];
+  recommendedUniversities: CareerAdviceUniversity[];
+  entryRequirements: string[];
+  skillGaps: string[];
+  nextSteps: string[];
 }
 
 export interface UniversitySourcesAnalysisRequest {
