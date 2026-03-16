@@ -89,7 +89,7 @@ public class AiController {
         body.put("timestamp", Instant.now().toString());
         body.put("status", ex.getStatus().value());
         body.put("error", ex.getStatus().getReasonPhrase());
-        body.put("message", ex.getMessage());
+        body.put("message", "AI guidance is temporarily unavailable. Please try again shortly.");
         body.put("path", httpRequest.getRequestURI());
         return ResponseEntity.status(ex.getStatus()).body(body);
     }
