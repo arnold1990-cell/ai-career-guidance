@@ -15,6 +15,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,6 +26,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +37,7 @@ import org.springframework.stereotype.Service;
 public class GeminiService {
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+    private static final int MAX_GEMINI_RETRIES = 2;
     private static final MediaType JSON = MediaType.get("application/json");
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
@@ -52,10 +55,10 @@ public class GeminiService {
         this.objectMapper = objectMapper;
         this.gson = new Gson();
         this.okHttpClient = new OkHttpClient.Builder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .readTimeout(Duration.ofSeconds(25))
-                .writeTimeout(Duration.ofSeconds(25))
-                .callTimeout(Duration.ofSeconds(30))
+                .connectTimeout(Duration.ofSeconds(20))
+                .readTimeout(Duration.ofSeconds(45))
+                .writeTimeout(Duration.ofSeconds(45))
+                .callTimeout(Duration.ofSeconds(60))
                 .build();
     }
 
@@ -79,7 +82,7 @@ public class GeminiService {
 
         if (apiKey == null || apiKey.isBlank()) {
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("AI model is unavailable, fallback guidance was generated from source metadata."));
+                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
 
         try {
@@ -90,7 +93,7 @@ public class GeminiService {
         } catch (Exception ex) {
             log.warn("University sources analysis fell back after model error: {}", ex.getMessage());
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("Model parsing failed, fallback guidance was generated.", "Reason: " + ex.getMessage()));
+                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
     }
 
@@ -105,7 +108,7 @@ public class GeminiService {
     private String invokeGemini(String prompt) {
         String endpointPath = GeminiModelResolver.buildGenerateContentPath(model);
         String resolvedModel = GeminiModelResolver.resolveModelName(model);
-        String endpoint = GEMINI_BASE_URL + endpointPath + "?key=" + apiKey.trim();
+        String endpoint = GEMINI_BASE_URL + endpointPath;
 
         JsonObject payload = new JsonObject();
         JsonArray contents = new JsonArray();
@@ -120,34 +123,55 @@ public class GeminiService {
 
         Request httpRequest = new Request.Builder()
                 .url(endpoint)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("x-goog-api-key", apiKey.trim())
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
         log.info("Starting Gemini call: model={}, endpointPath={}", resolvedModel, endpointPath);
 
-        try (Response response = okHttpClient.newCall(httpRequest).execute()) {
-            log.info("Gemini HTTP response received: status={}", response.code());
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "";
-                HttpStatus status = response.code() == 401 || response.code() == 403
+        for (int attempt = 0; attempt <= MAX_GEMINI_RETRIES; attempt++) {
+            boolean retry = attempt < MAX_GEMINI_RETRIES;
+            try (Response response = okHttpClient.newCall(httpRequest).execute()) {
+                int statusCode = response.code();
+                String bodySnippet = readSnippet(response.body());
+                log.info("Gemini HTTP response received: status={}, model={}, attempt={}, retried={}",
+                        statusCode, resolvedModel, attempt + 1, attempt > 0);
+
+                if (response.isSuccessful()) {
+                    if (bodySnippet.isBlank()) {
+                        throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                                "Gemini returned an empty response body.");
+                    }
+                    return extractModelText(bodySnippet);
+                }
+
+                boolean retriableStatus = statusCode == 408 || statusCode == 429 || statusCode >= 500;
+                log.warn("Gemini call failed: status={}, model={}, retried={}, snippet={}",
+                        statusCode, resolvedModel, attempt > 0, trim(bodySnippet));
+
+                if (retry && retriableStatus) {
+                    continue;
+                }
+
+                HttpStatus status = statusCode == 401 || statusCode == 403 || statusCode == 400
                         ? HttpStatus.BAD_GATEWAY
                         : HttpStatus.SERVICE_UNAVAILABLE;
                 throw new AiServiceException(status,
-                        "Gemini request failed with status " + response.code() + ". " + trim(errorBody));
+                        "Gemini request failed with status " + statusCode + ". " + trim(bodySnippet));
+            } catch (IOException ex) {
+                log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, message={}",
+                        resolvedModel, attempt + 1, attempt > 0, ex.getMessage());
+                if (retry) {
+                    continue;
+                }
+                throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
+                        "Gemini request timed out or failed.");
             }
-
-            if (response.body() == null) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned an empty response body.");
-            }
-
-            String geminiBody = response.body().string();
-            return extractModelText(geminiBody);
-        } catch (IOException ex) {
-            log.error("Gemini call failed due to IO issue.", ex);
-            throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
-                    "Gemini request timed out or failed: " + ex.getMessage());
         }
+
+        throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
+                "Gemini request failed after retries.");
     }
 
     private String buildPrompt(CareerAdviceRequest request) {
@@ -165,7 +189,7 @@ public class GeminiService {
                   ]
                 }
                 Rules:
-                - Output valid JSON only (no markdown, no prose).
+                - Output valid JSON only (no markdown, no prose, no code fences).
                 - Recommend 3-5 careers.
                 - matchScore must be integer from 0 to 100.
                 - reason and improvements should be concise and actionable.
@@ -224,6 +248,7 @@ public class GeminiService {
 
                 Rules:
                 - Return student-friendly, practical guidance.
+                - Output valid JSON only (no markdown, no code fences, no prose outside JSON).
                 - Keep section order exactly: recommendedCareers, recommendedProgrammes, recommendedUniversities, skillGaps, recommendedNextSteps, warnings, summary.
                 - Recommend at least %d careers if enough evidence exists.
                 - Recommend at least %d university programmes if enough evidence exists.
@@ -291,20 +316,31 @@ public class GeminiService {
                         "Gemini returned no candidates.");
             }
 
-            JsonObject first = candidates.get(0).getAsJsonObject();
-            JsonObject content = first.has("content") ? first.getAsJsonObject("content") : null;
-            JsonArray parts = content != null && content.has("parts") ? content.getAsJsonArray("parts") : null;
-            if (parts == null || parts.isEmpty()) {
+            List<String> textParts = new ArrayList<>();
+            for (int i = 0; i < candidates.size(); i++) {
+                JsonObject candidate = candidates.get(i).getAsJsonObject();
+                JsonObject content = candidate.has("content") ? candidate.getAsJsonObject("content") : null;
+                JsonArray parts = content != null && content.has("parts") ? content.getAsJsonArray("parts") : null;
+                if (parts == null) {
+                    continue;
+                }
+                for (int j = 0; j < parts.size(); j++) {
+                    JsonObject part = parts.get(j).getAsJsonObject();
+                    if (part.has("text")) {
+                        String value = part.get("text").getAsString();
+                        if (!value.isBlank()) {
+                            textParts.add(value.trim());
+                        }
+                    }
+                }
+            }
+
+            if (textParts.isEmpty()) {
                 throw new AiServiceException(HttpStatus.BAD_GATEWAY,
                         "Gemini returned no text parts.");
             }
 
-            JsonObject textPart = parts.get(0).getAsJsonObject();
-            if (!textPart.has("text")) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini text part was missing.");
-            }
-            return stripCodeFences(textPart.get("text").getAsString());
+            return stripCodeFences(String.join("\n", textParts));
         } catch (IllegalStateException ex) {
             log.error("Gemini payload parsing failed before extracting model text.", ex);
             throw new AiServiceException(HttpStatus.BAD_GATEWAY,
@@ -314,7 +350,7 @@ public class GeminiService {
 
     private CareerAdviceResponse parseCareerAdvice(String modelText) {
         try {
-            CareerAdviceResponse response = objectMapper.readValue(modelText, CareerAdviceResponse.class);
+            CareerAdviceResponse response = objectMapper.readValue(extractLikelyJson(modelText), CareerAdviceResponse.class);
             if (response.recommendedCareers() == null || response.recommendedCareers().isEmpty()) {
                 throw new AiServiceException(HttpStatus.BAD_GATEWAY,
                         "Gemini returned no career recommendations.");
@@ -332,8 +368,7 @@ public class GeminiService {
             return new CareerAdviceResponse(sanitized);
         } catch (JsonProcessingException ex) {
             log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
-            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                    "Gemini returned non-JSON or invalid JSON output.");
+            return fallbackCareerAdvice(modelText);
         }
     }
 
@@ -342,7 +377,7 @@ public class GeminiService {
                                                                     List<String> successUrls,
                                                                     List<String> failedUrls) throws JsonProcessingException {
         try {
-            UniversityModelResponse parsed = objectMapper.readValue(modelText, UniversityModelResponse.class);
+            UniversityModelResponse parsed = objectMapper.readValue(extractLikelyJson(modelText), UniversityModelResponse.class);
             return buildUniversityResponse(parsed, sourceUrls, successUrls, failedUrls);
         } catch (JsonProcessingException ex) {
             log.warn("University guidance JSON parse failed, attempting section-based parsing: contentSnippet={}", trim(modelText));
@@ -390,6 +425,7 @@ public class GeminiService {
                 "Recommended universities",
                 "Skill gaps",
                 "Recommended next steps",
+                "Next steps",
                 "Warnings",
                 "Summary"
         );
@@ -441,7 +477,9 @@ public class GeminiService {
                 }).toList();
         response.recommendedUniversities = sections.getOrDefault("Recommended universities", List.of());
         response.skillGaps = sections.getOrDefault("Skill gaps", List.of());
-        response.recommendedNextSteps = sections.getOrDefault("Recommended next steps", List.of());
+        response.recommendedNextSteps = sections.containsKey("Recommended next steps")
+                ? sections.get("Recommended next steps")
+                : sections.getOrDefault("Next steps", List.of());
         response.warnings = sections.getOrDefault("Warnings", List.of());
         response.summary = String.join(" ", sections.getOrDefault("Summary", List.of()));
         response.minimumRequirements = List.of();
@@ -641,6 +679,65 @@ public class GeminiService {
             return "";
         }
         return value.length() <= 250 ? value : value.substring(0, 250) + "...";
+    }
+
+    private String extractLikelyJson(String value) {
+        String cleaned = stripCodeFences(value);
+        if (cleaned == null || cleaned.isBlank()) {
+            return "";
+        }
+
+        int objectStart = cleaned.indexOf('{');
+        int objectEnd = cleaned.lastIndexOf('}');
+        if (objectStart >= 0 && objectEnd > objectStart) {
+            return cleaned.substring(objectStart, objectEnd + 1).trim();
+        }
+
+        int arrayStart = cleaned.indexOf('[');
+        int arrayEnd = cleaned.lastIndexOf(']');
+        if (arrayStart >= 0 && arrayEnd > arrayStart) {
+            return cleaned.substring(arrayStart, arrayEnd + 1).trim();
+        }
+        return cleaned.trim();
+    }
+
+    private CareerAdviceResponse fallbackCareerAdvice(String modelText) {
+        List<String> lines = modelText == null ? List.of() : modelText.lines()
+                .map(this::stripBullet)
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .filter(line -> !line.toLowerCase().startsWith("recommended careers"))
+                .distinct()
+                .limit(5)
+                .toList();
+
+        List<CareerAdviceResponse.RecommendedCareer> careers = lines.stream()
+                .map(line -> new CareerAdviceResponse.RecommendedCareer(
+                        line.length() > 70 ? line.substring(0, 70) : line,
+                        65,
+                        "Based on your profile and current guidance context.",
+                        List.of("Review this option with your school counsellor.")
+                ))
+                .toList();
+
+        if (careers.isEmpty()) {
+            careers = List.of(
+                    new CareerAdviceResponse.RecommendedCareer(
+                            "General career exploration",
+                            60,
+                            "Broaden your choices using your interests and strengths.",
+                            List.of("Update your profile and try AI guidance again.")
+                    )
+            );
+        }
+
+        return new CareerAdviceResponse(careers.stream()
+                .sorted(Comparator.comparing(CareerAdviceResponse.RecommendedCareer::name))
+                .toList());
+    }
+
+    private String readSnippet(ResponseBody responseBody) throws IOException {
+        return responseBody == null ? "" : responseBody.string();
     }
 
     private List<String> defaultList(List<String> value) {

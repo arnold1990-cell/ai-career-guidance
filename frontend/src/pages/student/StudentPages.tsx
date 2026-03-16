@@ -127,9 +127,8 @@ export const StudentCareerRecommendationsPage = () => {
   if (profile.isLoading || aiAdvice.isLoading || demoAdvice.isLoading || defaultSources.isLoading) return <LoadingState message="Generating AI guidance..." />;
   if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
 
-  const apiErrorMessage = aiAdvice.error?.message;
   const isDemoMode = aiGuidanceService.demoModeEnabled;
-  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={apiErrorMessage ?? 'AI guidance failed. Please try again.'} />;
+  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={'Unable to generate AI guidance right now. Please try again shortly.'} />;
 
   const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
   const careers = aiAdvice.data?.recommendedCareers ?? [];
