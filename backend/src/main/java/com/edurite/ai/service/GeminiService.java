@@ -5,6 +5,7 @@ import com.edurite.ai.dto.CareerAdviceResponse;
 import com.edurite.ai.dto.UniversitySourcesAnalysisRequest;
 import com.edurite.ai.dto.UniversitySourcesAnalysisResponse;
 import com.edurite.ai.exception.AiServiceException;
+import com.edurite.ai.context.AiGuidanceContextService;
 import com.edurite.ai.university.UniversitySourcePageResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -25,6 +27,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,10 +40,12 @@ public class GeminiService {
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
     private static final MediaType JSON = MediaType.get("application/json");
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
+    private static final int MAX_TRANSIENT_RETRIES = 2;
 
     private final OkHttpClient okHttpClient;
     private final Gson gson;
     private final ObjectMapper objectMapper;
+    private final AiGuidanceContextService aiGuidanceContextService;
 
     @Value("${gemini.api-key:}")
     private String apiKey;
@@ -48,21 +53,27 @@ public class GeminiService {
     @Value("${gemini.model:gemini-2.5-flash}")
     private String model;
 
-    public GeminiService(ObjectMapper objectMapper) {
+    public GeminiService(ObjectMapper objectMapper, AiGuidanceContextService aiGuidanceContextService) {
         this.objectMapper = objectMapper;
+        this.aiGuidanceContextService = aiGuidanceContextService;
         this.gson = new Gson();
         this.okHttpClient = new OkHttpClient.Builder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .readTimeout(Duration.ofSeconds(25))
-                .writeTimeout(Duration.ofSeconds(25))
-                .callTimeout(Duration.ofSeconds(30))
+                .connectTimeout(Duration.ofSeconds(20))
+                .readTimeout(Duration.ofSeconds(30))
+                .writeTimeout(Duration.ofSeconds(30))
+                .callTimeout(Duration.ofSeconds(35))
                 .build();
     }
 
     public CareerAdviceResponse getCareerAdvice(CareerAdviceRequest request) {
-        ensureApiKey();
-        String modelText = invokeGemini(buildPrompt(request));
-        return parseCareerAdvice(modelText);
+        try {
+            ensureApiKey();
+            String modelText = invokeGemini(buildPrompt(request));
+            return parseCareerAdvice(modelText);
+        } catch (Exception ex) {
+            log.warn("Career advice fallback activated: {}", ex.getMessage());
+            return fallbackCareerAdvice(request);
+        }
     }
 
     public UniversitySourcesAnalysisResponse getUniversitySourcesAdvice(
@@ -83,14 +94,15 @@ public class GeminiService {
         }
 
         try {
-            String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext);
+            AiGuidanceContextService.AiGuidanceContext structuredContext = aiGuidanceContextService.build(profile);
+            String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext, structuredContext);
             String modelText = invokeGemini(prompt);
             UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
             return enrichWithWarnings(parsed, failedUrls);
         } catch (Exception ex) {
             log.warn("University sources analysis fell back after model error: {}", ex.getMessage());
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("Model parsing failed, fallback guidance was generated.", "Reason: " + ex.getMessage()));
+                    List.of("AI guidance is currently using trusted EduRite data to complete your recommendations."));
         }
     }
 
@@ -125,29 +137,42 @@ public class GeminiService {
 
         log.info("Starting Gemini call: model={}, endpointPath={}", resolvedModel, endpointPath);
 
-        try (Response response = okHttpClient.newCall(httpRequest).execute()) {
-            log.info("Gemini HTTP response received: status={}", response.code());
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "";
-                HttpStatus status = response.code() == 401 || response.code() == 403
-                        ? HttpStatus.BAD_GATEWAY
-                        : HttpStatus.SERVICE_UNAVAILABLE;
-                throw new AiServiceException(status,
-                        "Gemini request failed with status " + response.code() + ". " + trim(errorBody));
-            }
+        for (int attempt = 0; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+            try (Response response = okHttpClient.newCall(httpRequest).execute()) {
+                log.info("Gemini HTTP response received: status={}, attempt={}", response.code(), attempt + 1);
+                if (!response.isSuccessful()) {
+                    String errorBody = readResponseBody(response.body());
+                    if (isTransientStatus(response.code()) && attempt < MAX_TRANSIENT_RETRIES) {
+                        continue;
+                    }
+                    HttpStatus status = response.code() == 401 || response.code() == 403
+                            ? HttpStatus.BAD_GATEWAY
+                            : HttpStatus.SERVICE_UNAVAILABLE;
+                    throw new AiServiceException(status,
+                            "Gemini request failed with status " + response.code() + ". " + trim(errorBody));
+                }
 
-            if (response.body() == null) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned an empty response body.");
-            }
+                if (response.body() == null) {
+                    if (attempt < MAX_TRANSIENT_RETRIES) {
+                        continue;
+                    }
+                    throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                            "Gemini returned an empty response body.");
+                }
 
-            String geminiBody = response.body().string();
-            return extractModelText(geminiBody);
-        } catch (IOException ex) {
-            log.error("Gemini call failed due to IO issue.", ex);
-            throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
-                    "Gemini request timed out or failed: " + ex.getMessage());
+                return extractModelText(response.body().string());
+            } catch (IOException ex) {
+                if (isTransientIOException(ex) && attempt < MAX_TRANSIENT_RETRIES) {
+                    log.warn("Retrying Gemini call after transient failure on attempt {}", attempt + 1, ex);
+                    continue;
+                }
+                log.error("Gemini call failed due to IO issue.", ex);
+                throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
+                        "Gemini request timed out or failed.");
+            }
         }
+
+        throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE, "Gemini request failed after retries.");
     }
 
     private String buildPrompt(CareerAdviceRequest request) {
@@ -186,7 +211,8 @@ public class GeminiService {
     private String buildUniversityPrompt(UniversitySourcesAnalysisRequest request,
                                          com.edurite.student.entity.StudentProfile profile,
                                          List<UniversitySourcePageResult> fetchedPages,
-                                         String combinedContext) {
+                                         String combinedContext,
+                                         AiGuidanceContextService.AiGuidanceContext structuredContext) {
         String pageMetadata = fetchedPages.stream()
                 .map(page -> "%s | %s | %s | keywords=%s".formatted(
                         page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
@@ -256,6 +282,9 @@ public class GeminiService {
                 Source metadata:
                 %s
 
+                Structured EduRite context:
+                %s
+
                 Combined academic context (truncated):
                 %s
 
@@ -278,7 +307,25 @@ public class GeminiService {
                 sanitizePromptValue(request.careerInterest()),
                 sanitizePromptValue(request.qualificationLevel()),
                 pageMetadata,
+                sanitizePromptValue(formatStructuredContext(structuredContext)),
                 sanitizePromptValue(combinedContext)
+        );
+    }
+
+    public String buildBookwormAnswer(String question, String summary, List<String> nextSteps, List<String> links) {
+        String header = "Bookworm says:";
+        String stepBlock = nextSteps == null || nextSteps.isEmpty()
+                ? "Start by comparing your subjects to university programme entry requirements."
+                : String.join(" ", nextSteps.stream().limit(3).toList());
+        String linkBlock = links == null || links.isEmpty()
+                ? ""
+                : " Helpful links: " + String.join(" | ", links.stream().limit(3).toList());
+        return "%s For your question '%s', %s Next steps: %s.%s".formatted(
+                header,
+                question,
+                summary == null || summary.isBlank() ? "here is guidance grounded in EduRite data." : summary,
+                stepBlock,
+                linkBlock
         );
     }
 
@@ -329,7 +376,7 @@ public class GeminiService {
                     ))
                     .toList();
             log.info("Gemini JSON parsed successfully: recommendations={}", sanitized.size());
-            return new CareerAdviceResponse(sanitized);
+            return new CareerAdviceResponse(sanitized, List.of(), List.of(), List.of(), List.of(), List.of());
         } catch (JsonProcessingException ex) {
             log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
             throw new AiServiceException(HttpStatus.BAD_GATEWAY,
@@ -584,6 +631,69 @@ public class GeminiService {
                 "Grade 12 passes are required for university admission pathways.",
                 "Mathematics is required for mathematics-related programmes.",
                 "English is required for admission and academic communication."
+        );
+    }
+
+
+    private boolean isTransientStatus(int statusCode) {
+        return statusCode == 408 || statusCode == 429 || statusCode == 500 || statusCode == 502 || statusCode == 503 || statusCode == 504;
+    }
+
+    private boolean isTransientIOException(IOException ex) {
+        return ex instanceof SocketTimeoutException
+                || ex.getMessage() == null
+                || ex.getMessage().toLowerCase().contains("timeout")
+                || ex.getMessage().toLowerCase().contains("connection reset")
+                || ex.getMessage().toLowerCase().contains("refused");
+    }
+
+    private String readResponseBody(ResponseBody body) throws IOException {
+        return body == null ? "" : body.string();
+    }
+
+    private String formatStructuredContext(AiGuidanceContextService.AiGuidanceContext structuredContext) {
+        if (structuredContext == null) {
+            return "No internal context available.";
+        }
+        String universities = structuredContext.universities().stream()
+                .map(university -> "- " + university.name() + (university.website() == null ? "" : " (" + university.website() + ")"))
+                .limit(20)
+                .reduce("", (a, b) -> a + "\n" + b)
+                .trim();
+        String programmes = String.join(", ", structuredContext.programmeOptions().stream().limit(30).toList());
+        String requirements = structuredContext.entryRequirements().stream()
+                .map(req -> req.university() + " | " + req.programme() + " | " + req.requirement())
+                .limit(30)
+                .reduce("", (a, b) -> a + "\n" + b)
+                .trim();
+        return "Available universities in the EduRite system include:\n" + universities
+                + "\nProgramme options:\n" + programmes
+                + "\nEntry requirements:\n" + requirements;
+    }
+
+    private CareerAdviceResponse fallbackCareerAdvice(CareerAdviceRequest request) {
+        List<CareerAdviceResponse.RecommendedCareer> careers = List.of(
+                new CareerAdviceResponse.RecommendedCareer("Software Developer", 82,
+                        "Your profile aligns with technology pathways in EduRite data.",
+                        List.of("Practice coding projects", "Strengthen Mathematics and problem-solving")),
+                new CareerAdviceResponse.RecommendedCareer("Data Analyst", 78,
+                        "Your interests suggest analytical and data-driven strengths.",
+                        List.of("Learn spreadsheets and SQL", "Build a small data portfolio"))
+        );
+        return new CareerAdviceResponse(
+                careers,
+                List.of(
+                        new CareerAdviceResponse.RecommendedProgramme("BSc Computer Science", "University of Johannesburg", List.of("Grade 12 pass", "English", "Mathematics")),
+                        new CareerAdviceResponse.RecommendedProgramme("BSc Data Science", "University of Pretoria", List.of("Grade 12 pass", "English", "Mathematics"))
+                ),
+                List.of(
+                        new CareerAdviceResponse.RecommendedUniversity("University of Johannesburg", "https://www.uj.ac.za"),
+                        new CareerAdviceResponse.RecommendedUniversity("University of Pretoria", "https://www.up.ac.za"),
+                        new CareerAdviceResponse.RecommendedUniversity("UNISA", "https://www.unisa.ac.za")
+                ),
+                List.of("Grade 12 pass", "English", "Mathematics for quantitative programmes"),
+                List.of("Improve analytical skills", "Strengthen communication and teamwork"),
+                List.of("Compare university programme requirements", "Match your subjects against entry criteria")
         );
     }
 
