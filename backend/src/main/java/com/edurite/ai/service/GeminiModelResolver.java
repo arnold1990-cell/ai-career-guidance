@@ -2,7 +2,7 @@ package com.edurite.ai.service;
 
 final class GeminiModelResolver {
 
-    private static final String DEFAULT_MODEL = "gemini-2.5-flash                                                            ";
+    private static final String DEFAULT_MODEL = "gemini-2.5-flash";
 
     private GeminiModelResolver() {
     }
@@ -37,6 +37,10 @@ final class GeminiModelResolver {
             normalized = normalized.substring("v1beta/".length()).trim();
         }
 
+        if (normalized.startsWith("v1/")) {
+            normalized = normalized.substring("v1/".length()).trim();
+        }
+
         while (normalized.startsWith("models/")) {
             normalized = normalized.substring("models/".length()).trim();
         }
@@ -55,10 +59,10 @@ final class GeminiModelResolver {
             normalized = normalized.substring("models/".length()).trim();
         }
 
-        return normalized;
+        return normalized.trim();
     }
 
     static String buildGenerateContentPath(String configuredModel) {
-        return "/v1beta/models/" + resolveModelName(configuredModel) + ":generateContent";
+        return "/v1/models/" + resolveModelName(configuredModel) + ":generateContent";
     }
 }

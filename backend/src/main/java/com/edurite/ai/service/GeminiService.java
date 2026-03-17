@@ -52,10 +52,10 @@ public class GeminiService {
     @Value("${gemini.api-key:}")
     private String configuredApiKey;
 
-    @Value("${gemini.model}")
+    @Value("${gemini.model:}")
     private String model;
 
-    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
+    @Value("${gemini.base-url:}")
     private String baseUrl;
 
     public GeminiService(ObjectMapper objectMapper, Environment environment) {
@@ -88,11 +88,10 @@ public class GeminiService {
     }
 
 
-
     public GeminiHealthCheck checkHealth() {
         String resolvedApiKey = resolveApiKey();
         String resolvedModel = resolveModel();
-        String endpoint = resolveBaseUrl() + "/v1beta/models/" + resolvedModel;
+        String endpoint = resolveBaseUrl() + "/v1/models/" + resolvedModel;
 
         if (resolvedApiKey.isBlank()) {
             return new GeminiHealthCheck(false, false, resolvedModel, endpoint,
