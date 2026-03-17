@@ -22,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -32,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -68,6 +70,10 @@ public class GeminiService {
                 .writeTimeout(Duration.ofSeconds(45))
                 .callTimeout(Duration.ofSeconds(60))
                 .build();
+    }
+
+    public GeminiService(ObjectMapper objectMapper) {
+        this(objectMapper, new StandardEnvironment());
     }
 
     @PostConstruct
@@ -300,7 +306,7 @@ public class GeminiService {
         String pageMetadata = fetchedPages.stream()
                 .map(page -> "%s | %s | %s | keywords=%s".formatted(
                         page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
-                .reduce("", (a, b) -> a + "\n" + b);
+                .collect(Collectors.joining("\n"));
 
         return """
                 You are EduRite's academic and career guidance assistant.
