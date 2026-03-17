@@ -2,27 +2,15 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/edurite_test
     username: postgres
-    password: Crt@Ailsa
+    password: postgres
+
   jpa:
     hibernate:
       ddl-auto: validate
-    properties:
-      hibernate.jdbc.time_zone: UTC
+
   flyway:
     enabled: true
     locations: classpath:db/migration
-  cache:
-    type: none
-  data:
-    redis:
-      repositories:
-        enabled: false
 
-security:
-  jwt:
-    secret: test-secret-key-change-me-please-test-secret-key-change-me-please
-
-
-gemini:
-  api-key: AIzaSyCo5MrVWRexb_hyec_74O_xIpG3uRfh0A4
-  model: gemini-2.5-flash
+server:
+  port: 8080

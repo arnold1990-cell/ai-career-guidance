@@ -3,44 +3,68 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
+    container_name: edurite-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: edurite
-      POSTGRES_USER: edurite
-      POSTGRES_PASSWORD: edurite
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - edurite_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: edurite-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - edurite_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   backend:
-    image: maven:3.9.8-eclipse-temurin-21
-    working_dir: /workspace/backend
-    volumes:
-      - ./backend:/workspace/backend
-    command: sh -c "mvn spring-boot:run"
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edurite-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/edurite
-      SPRING_DATA_REDIS_HOST: redis
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_PORT: ${SERVER_PORT}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL}
+      SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED}
+      SPRING_FLYWAY_LOCATIONS: ${SPRING_FLYWAY_LOCATIONS}
     ports:
       - "8080:8080"
-    depends_on:
-      - postgres
-      - redis
-
-  frontend:
-    image: node:20-alpine
-    working_dir: /workspace/frontend
-    volumes:
-      - ./frontend:/workspace/frontend
-    command: sh -c "echo 'Frontend Vite shell scaffold in place' && tail -f /dev/null"
-    ports:
-      - "5173:5173"
 
 volumes:
-  postgres_data:
+  edurite_postgres_data:
+  edurite_redis_data:
