@@ -13,7 +13,6 @@ import { settingsService } from '@/services/settingsService';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback/States';
-import type { UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => <section className="card p-5 space-y-4"><h1 className="text-xl font-semibold">{title}</h1>{children}</section>;
 const Card = ({ label, value }: { label: string; value: string | number }) => <div className="rounded border p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-2xl font-semibold">{value}</p></div>;
@@ -84,152 +83,67 @@ export const StudentExperiencePage = StudentProfilePage;
 
 export const StudentCareerRecommendationsPage = () => {
   const profile = useAppQuery({ queryKey: ['me'], queryFn: studentService.getMe });
-  const defaultSources = useAppQuery({
-    queryKey: ['default-university-sources'],
-    enabled: !aiGuidanceService.demoModeEnabled,
-    queryFn: aiGuidanceService.getDefaultUniversitySources,
-  });
 
   const aiAdvice = useAppQuery({
-    queryKey: ['ai-guidance-university-sources', profile.data?.id, profile.data?.profileCompleteness],
-    enabled: Boolean(profile.data) && !aiGuidanceService.demoModeEnabled,
+    queryKey: ['ai-career-guidance', profile.data?.id, profile.data?.profileCompleteness],
+    enabled: Boolean(profile.data),
     queryFn: async () => {
       const currentProfile = profile.data;
-      if (!currentProfile) {
-        throw new Error('Student profile is required before requesting AI guidance.');
-      }
+      if (!currentProfile) throw new Error('Student profile is required before requesting AI guidance.');
 
       const qualificationLevel = currentProfile.qualificationLevel?.trim() ?? '';
-      const careerInterest = (currentProfile.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
-      const targetProgram = currentProfile.careerGoals?.trim() || careerInterest;
+      const interests = (currentProfile.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
+      const skills = (currentProfile.skills ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
+      const location = currentProfile.location?.trim() ?? '';
 
-      if (!qualificationLevel || !careerInterest) {
-        throw new Error('Please complete your profile (qualification level and interests) before generating AI guidance.');
+      if (!qualificationLevel || !interests || !skills || !location) {
+        throw new Error('Please complete qualification level, interests, skills, and location in your profile before generating AI guidance.');
       }
 
-      return aiGuidanceService.analyseUniversitySources({
-        urls: [], // Empty list triggers backend default-source mode.
-        targetProgram,
-        careerInterest,
+      return aiGuidanceService.getCareerAdvice({
         qualificationLevel,
-        maxRecommendations: 10,
+        interests,
+        skills,
+        location,
       });
     },
     retry: false,
   });
 
-  const demoAdvice = useAppQuery({
-    queryKey: ['ai-guidance-demo'],
-    enabled: aiGuidanceService.demoModeEnabled,
-    queryFn: aiGuidanceService.getDemoGuidance,
-  });
-
-  if (profile.isLoading || aiAdvice.isLoading || demoAdvice.isLoading || defaultSources.isLoading) return <LoadingState message="Generating AI guidance..." />;
+  if (profile.isLoading || aiAdvice.isLoading) return <LoadingState message="Generating AI guidance..." />;
   if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
 
-  const isDemoMode = aiGuidanceService.demoModeEnabled;
-  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={'Unable to generate AI guidance right now. Please try again shortly.'} />;
+  if (aiAdvice.isError) {
+    return <ErrorState message={aiAdvice.error?.message ?? 'Unable to generate AI guidance right now. Please try again shortly.'} />;
+  }
 
-  const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
+  if (aiGuidanceService.demoModeEnabled) {
+    return <Section title="AI Guidance">
+      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+        Demo mode is enabled. Live backend AI guidance is disabled.
+      </p>
+    </Section>;
+  }
+
   const careers = aiAdvice.data?.recommendedCareers ?? [];
-  const programmes = aiAdvice.data?.recommendedProgrammes ?? [];
-  const universities = aiAdvice.data?.recommendedUniversities ?? [];
-  const minimumRequirements = aiAdvice.data?.minimumRequirements ?? [];
-  const skillGaps = aiAdvice.data?.skillGaps ?? [];
-  const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
-  const warnings = aiAdvice.data?.warnings ?? [];
-
-  const renderSimpleList = (items: string[], emptyText: string) => {
-    if (items.length === 0) {
-      return <p className="text-sm text-slate-500">{emptyText}</p>;
-    }
-    return <div className="grid gap-2 md:grid-cols-2">{items.map((item) => <div key={item} className="border p-2 rounded text-sm">{item}</div>)}</div>;
-  };
-
-  const renderCareerCards = (items: UniversityRecommendedCareer[]) => {
-    if (items.length === 0) {
-      return <p className="text-sm text-slate-500">No career recommendations yet.</p>;
-    }
-    return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((career) => <article key={career.name} className="rounded border p-3 space-y-2 bg-white">
-      <h4 className="font-semibold">{career.name}</h4>
-      <p className="text-sm text-slate-600">{career.reason}</p>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-slate-500">Requirements</p>
-        <ul className="list-disc ml-5 text-sm">{career.requirements.map((requirement) => <li key={`${career.name}-${requirement}`}>{requirement}</li>)}</ul>
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-slate-500">Related programmes</p>
-        <ul className="list-disc ml-5 text-sm">{career.relatedProgrammes.map((programme) => <li key={`${career.name}-${programme}`}>{programme}</li>)}</ul>
-      </div>
-    </article>)}</div>;
-  };
-
-  const renderProgrammeCards = (items: UniversityRecommendedProgramme[]) => {
-    if (items.length === 0) {
-      return <p className="text-sm text-slate-500">No programme recommendations yet.</p>;
-    }
-    return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((programme) => <article key={`${programme.name}-${programme.university}`} className="rounded border p-3 space-y-2 bg-white">
-      <h4 className="font-semibold">{programme.name}</h4>
-      <p className="text-sm text-slate-600">{programme.university}</p>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-slate-500">Admission requirements</p>
-        <ul className="list-disc ml-5 text-sm">{programme.admissionRequirements.map((requirement) => <li key={`${programme.name}-${requirement}`}>{requirement}</li>)}</ul>
-      </div>
-      <div className="text-sm">
-        <p><span className="font-medium">Notes:</span> {programme.notes}</p>
-      </div>
-    </article>)}</div>;
-  };
 
   return <Section title="AI Guidance">
-    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : 'live Gemini multi-source'}</p>
-    {!isDemoMode && <div className="grid gap-3 md:grid-cols-3">
-      <Card label="Sources used" value={aiAdvice.data?.totalSourcesUsed ?? 0} />
-      <Card label="Requested sources" value={aiAdvice.data?.sourceUrls?.length ?? 0} />
-      <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
-    </div>}
-
+    <p className="text-sm text-slate-500">Mode: live backend Gemini guidance</p>
     <div className="space-y-2">
       <h3 className="font-semibold">Recommended careers</h3>
-      {isDemoMode ? renderSimpleList(demoRecommendations.slice(0, 10), 'No career recommendations yet.') : renderCareerCards(careers)}
+      {careers.length === 0 && <p className="text-sm text-slate-500">No career recommendations yet.</p>}
+      {careers.length > 0 && <div className="grid gap-3 md:grid-cols-2">{careers.map((career) => <article key={career.name} className="rounded border p-3 space-y-2 bg-white">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold">{career.name}</h4>
+          <span className="text-xs rounded bg-slate-100 px-2 py-1">{career.matchScore}% match</span>
+        </div>
+        <p className="text-sm text-slate-600">{career.reason}</p>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Suggested improvements</p>
+          <ul className="list-disc ml-5 text-sm">{career.improvements.map((improvement) => <li key={`${career.name}-${improvement}`}>{improvement}</li>)}</ul>
+        </div>
+      </article>)}</div>}
     </div>
-
-    {!isDemoMode && <>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Recommended programmes</h3>
-        {renderProgrammeCards(programmes)}
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">Recommended universities</h3>
-        {renderSimpleList(universities, 'No university recommendations yet.')}
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">Minimum requirements</h3>
-        {renderSimpleList(minimumRequirements, 'Minimum requirements are currently unavailable.')}
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">Skill gaps</h3>
-        {renderSimpleList(skillGaps, 'No skill gaps identified.')}
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">Recommended next steps</h3>
-        {renderSimpleList(nextSteps, 'No next steps provided.')}
-      </div>
-
-      {warnings.length > 0 && <div className="space-y-2">
-        <h3 className="font-semibold">Warnings</h3>
-        {renderSimpleList(warnings, 'No warnings.')}
-      </div>}
-
-      {aiAdvice.data?.summary && <div className="rounded border p-3 bg-slate-50">
-        <h3 className="font-semibold mb-1">Summary</h3>
-        <p className="text-sm">{aiAdvice.data.summary}</p>
-      </div>}
-    </>}
   </Section>;
 };
 export const StudentBursaryRecommendationsPage = StudentCareerRecommendationsPage;
