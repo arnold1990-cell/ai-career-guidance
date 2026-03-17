@@ -6,15 +6,15 @@ services:
     container_name: edurite-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: edurite
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Crt@Ailsa
     ports:
       - "5432:5432"
     volumes:
       - edurite_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d edurite"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -44,24 +44,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      SERVER_PORT: ${SERVER_PORT}
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST}
-      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION}
-      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL}
-      GEMINI_BASE_URL: ${GEMINI_BASE_URL}
-      SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED}
-      SPRING_FLYWAY_LOCATIONS: ${SPRING_FLYWAY_LOCATIONS}
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/edurite
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Crt@Ailsa
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: 8f4c2b9d1e7a5c3f8b6a0d2e4f9c1b7a6e3d5f8a2c4b6e9d1f7a3c5b8e0d2f4
+      JWT_ACCESS_TOKEN_EXPIRATION: 900000
+      JWT_REFRESH_TOKEN_EXPIRATION: 604800000
+      GEMINI_API_KEY: AIzaSyCo5MrVWRexb_hyec_74O_xIpG3uRfh0A4
+      GEMINI_MODEL: gemini-2.5-flash
+      GEMINI_BASE_URL: https://generativelanguage.googleapis.com
+      SPRING_FLYWAY_ENABLED: true
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
     ports:
       - "8080:8080"
 

@@ -30,15 +30,16 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GeminiService {
 
-    private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
-    private static final String GEMINI_MODEL = "gemini-2.5-flash";
-    private static final String GEMINI_API_KEY = "AIzaSyCo5MrVWRexb_hyec_74O_xIpG3uRfh0A4";
+    private static final String DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+    private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
     private static final int MAX_GEMINI_RETRIES = 2;
     private static final long[] RETRY_BACKOFF_MS = {300L, 800L};
@@ -48,9 +49,20 @@ public class GeminiService {
     private final OkHttpClient okHttpClient;
     private final Gson gson;
     private final ObjectMapper objectMapper;
+    private final Environment environment;
+
+    private String configuredApiKey;
+    private String model;
+    private String baseUrl;
 
     public GeminiService(ObjectMapper objectMapper) {
+        this(objectMapper, null);
+    }
+
+    @Autowired
+    public GeminiService(ObjectMapper objectMapper, Environment environment) {
         this.objectMapper = objectMapper;
+        this.environment = environment;
         this.gson = new Gson();
         this.okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(20))
@@ -58,45 +70,115 @@ public class GeminiService {
                 .writeTimeout(Duration.ofSeconds(45))
                 .callTimeout(Duration.ofSeconds(60))
                 .build();
+
+        this.configuredApiKey = "";
+this.model = "";
+this.baseUrl = "";
     }
 
     @PostConstruct
     void logStartupConfiguration() {
-        log.info("Gemini configuration loaded: apiKeyPresent=true, keyMask={}, model={}, baseUrl={}",
-                maskSecret(GEMINI_API_KEY), GEMINI_MODEL, GEMINI_BASE_URL);
+        log.info(
+                "Gemini configuration loaded: apiKeyPresent={}, keyMask={}, model={}, baseUrl={}",
+                !resolveApiKey().isBlank(),
+                maskSecret(resolveApiKey()),
+                resolveModel(),
+                resolveBaseUrl()
+        );
+    }
+
+    private String resolveApiKey() {
+        if (configuredApiKey != null && !configuredApiKey.isBlank()) {
+            return configuredApiKey.trim();
+        }
+        if (environment == null) {
+            return "";
+        }
+
+        String[] keys = {
+                "gemini.api.key",
+                "GEMINI_API_KEY",
+                "google.ai.api.key",
+                "GOOGLE_AI_API_KEY"
+        };
+
+        for (String key : keys) {
+            String value = environment.getProperty(key);
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    private String resolveModel() {
+        if (model != null && !model.isBlank()) {
+            return model.trim();
+        }
+        if (environment == null) {
+            return DEFAULT_GEMINI_MODEL;
+        }
+
+        String value = environment.getProperty("gemini.model");
+        return (value == null || value.isBlank()) ? DEFAULT_GEMINI_MODEL : value.trim();
+    }
+
+    private String resolveBaseUrl() {
+        String value = null;
+
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            value = baseUrl.trim();
+        } else if (environment != null) {
+            value = environment.getProperty("gemini.base-url");
+            if (value == null || value.isBlank()) {
+                value = environment.getProperty("gemini.baseUrl");
+            }
+        }
+
+        if (value == null || value.isBlank()) {
+            value = DEFAULT_GEMINI_BASE_URL;
+        }
+
+        value = value.trim();
+        value = value.replaceAll("/+$", "");
+        value = value.replaceAll("/v1beta$", "");
+        value = value.replaceAll("/v1$", "");
+
+        return value;
     }
 
     public GeminiHealthCheck checkHealth() {
-        String endpoint = GEMINI_BASE_URL + "/v1beta/models/" + GEMINI_MODEL;
+        String endpoint = resolveBaseUrl() + "/v1beta/models/" + resolveModel();
+        String apiKey = resolveApiKey();
 
         Request request = new Request.Builder()
                 .url(endpoint)
-                .addHeader("x-goog-api-key", GEMINI_API_KEY.trim())
+                .addHeader("x-goog-api-key", apiKey)
                 .get()
                 .build();
 
         try (Response response = okHttpClient.newCall(request).execute()) {
             int statusCode = response.code();
             if (statusCode >= 200 && statusCode < 300) {
-                return new GeminiHealthCheck(true, true, GEMINI_MODEL, endpoint, "Gemini endpoint reachable.");
+                return new GeminiHealthCheck(true, true, resolveModel(), endpoint, "Gemini endpoint reachable.");
             }
 
             String body = readSnippet(response.body());
             return new GeminiHealthCheck(
                     true,
                     false,
-                    GEMINI_MODEL,
+                    resolveModel(),
                     endpoint,
                     "Gemini endpoint check failed with status " + statusCode + ": " + trim(body)
             );
         } catch (Exception ex) {
             log.warn("Gemini health check failed: model={}, endpoint={}, message={}",
-                    GEMINI_MODEL, endpoint, ex.getMessage(), ex);
+                    resolveModel(), endpoint, ex.getMessage(), ex);
 
             return new GeminiHealthCheck(
                     true,
                     false,
-                    GEMINI_MODEL,
+                    resolveModel(),
                     endpoint,
                     "Gemini endpoint check exception: " + ex.getMessage()
             );
@@ -166,9 +248,17 @@ public class GeminiService {
     }
 
     private String invokeGemini(String prompt) {
-        String endpoint = GEMINI_BASE_URL
+        String apiKey = resolveApiKey();
+        if (apiKey.isBlank()) {
+            throw new AiServiceException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Career AI is currently unavailable. Gemini API key is not configured."
+            );
+        }
+
+        String endpoint = resolveBaseUrl()
                 + "/v1beta/models/"
-                + GEMINI_MODEL
+                + resolveModel()
                 + ":generateContent";
 
         JsonObject payload = new JsonObject();
@@ -186,12 +276,12 @@ public class GeminiService {
         Request httpRequest = new Request.Builder()
                 .url(endpoint)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("x-goog-api-key", GEMINI_API_KEY.trim())
+                .addHeader("x-goog-api-key", apiKey)
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
         log.info("Starting Gemini call: model={}, endpoint={}, apiKeyMask={}",
-                GEMINI_MODEL, endpoint, maskSecret(GEMINI_API_KEY));
+                resolveModel(), endpoint, maskSecret(apiKey));
 
         for (int attempt = 0; attempt <= MAX_GEMINI_RETRIES; attempt++) {
             boolean retry = attempt < MAX_GEMINI_RETRIES;
@@ -201,7 +291,7 @@ public class GeminiService {
                 String bodySnippet = readSnippet(response.body());
 
                 log.info("Gemini HTTP response received: status={}, model={}, attempt={}, retried={}",
-                        statusCode, GEMINI_MODEL, attempt + 1, attempt > 0);
+                        statusCode, resolveModel(), attempt + 1, attempt > 0);
 
                 if (response.isSuccessful()) {
                     if (bodySnippet.isBlank()) {
@@ -216,7 +306,7 @@ public class GeminiService {
                 boolean retriableStatus = statusCode == 408 || statusCode == 429 || statusCode >= 500;
 
                 log.warn("Gemini call failed: status={}, model={}, retried={}, snippet={}",
-                        statusCode, GEMINI_MODEL, attempt > 0, trim(bodySnippet));
+                        statusCode, resolveModel(), attempt > 0, trim(bodySnippet));
 
                 if (retry && retriableStatus) {
                     sleepBeforeRetry(attempt);
@@ -233,7 +323,7 @@ public class GeminiService {
                 );
             } catch (IOException ex) {
                 log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, message={}",
-                        GEMINI_MODEL, attempt + 1, attempt > 0, ex.getMessage(), ex);
+                        resolveModel(), attempt + 1, attempt > 0, ex.getMessage(), ex);
 
                 if (retry) {
                     sleepBeforeRetry(attempt);
@@ -509,7 +599,7 @@ public class GeminiService {
                 defaultList(parsed.recommendedNextSteps),
                 defaultList(parsed.warnings),
                 normalizeScore(parsed.suitabilityScore),
-                GEMINI_MODEL
+                resolveModel()
         );
     }
 
@@ -759,7 +849,7 @@ public class GeminiService {
                 ),
                 warnings,
                 70,
-                GEMINI_MODEL
+                resolveModel()
         );
     }
 
