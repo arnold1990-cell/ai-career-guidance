@@ -10,6 +10,10 @@ public record UniversitySourcesAnalysisResponse(
         List<String> successfullyAnalysedUrls,
         List<String> failedUrls,
         Integer totalSourcesUsed,
+        String analysisModeLabel,
+        String sourceTrustLabel,
+        String confidenceLevel,
+        Boolean sourceBackedAnalysis,
         String summary,
         List<RecommendedCareer> recommendedCareers,
         List<RecommendedProgramme> recommendedProgrammes,
@@ -27,7 +31,8 @@ public record UniversitySourcesAnalysisResponse(
             String name,
             String reason,
             List<String> requirements,
-            List<String> relatedProgrammes
+            List<String> relatedProgrammes,
+            String recommendationBasis
     ) {
     }
 
@@ -35,7 +40,8 @@ public record UniversitySourcesAnalysisResponse(
             String name,
             String university,
             List<String> admissionRequirements,
-            String notes
+            String notes,
+            String recommendationBasis
     ) {
     }
 }
