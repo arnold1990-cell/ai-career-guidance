@@ -90,4 +90,28 @@ class GeminiServiceConfigSafetyTest {
         assertThat(resolved).isEqualTo("https://example.googleapis.com");
     }
 
+    @Test
+    void resolveBaseUrlStripsVersionAndTrailingSlash() {
+        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment();
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "baseUrl", "https://generativelanguage.googleapis.com/v1beta/");
+
+        String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveBaseUrl");
+
+        assertThat(resolved).isEqualTo("https://generativelanguage.googleapis.com");
+    }
+
+    @Test
+    void healthCheckUsesSameApiVersionAsGenerateContentPath() {
+        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment();
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "configuredApiKey", "");
+        ReflectionTestUtils.setField(service, "model", "v1/models/gemini-2.0-flash");
+        ReflectionTestUtils.setField(service, "baseUrl", "https://generativelanguage.googleapis.com/");
+
+        GeminiService.GeminiHealthCheck health = service.checkHealth();
+
+        assertThat(health.endpoint()).contains("/v1/models/gemini-2.0-flash");
+    }
+
 }

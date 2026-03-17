@@ -52,10 +52,10 @@ public class GeminiService {
     @Value("${gemini.api-key:}")
     private String configuredApiKey;
 
-    @Value("${gemini.model:}")
+    @Value("${gemini.model:gemini-2.5-flash}")
     private String model;
 
-    @Value("${gemini.base-url:}")
+    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
     private String baseUrl;
 
     public GeminiService(ObjectMapper objectMapper, Environment environment) {
@@ -88,10 +88,13 @@ public class GeminiService {
     }
 
 
+
     public GeminiHealthCheck checkHealth() {
         String resolvedApiKey = resolveApiKey();
-        String resolvedModel = resolveModel();
-        String endpoint = resolveBaseUrl() + "/v1/models/" + resolvedModel;
+        String configuredModelInput = resolveConfiguredModelInput();
+        String resolvedModel = GeminiModelResolver.resolveModelName(configuredModelInput);
+        String resolvedBaseUrl = resolveBaseUrl();
+        String endpoint = resolvedBaseUrl + GeminiModelResolver.buildModelInfoPath(configuredModelInput, resolvedBaseUrl);
 
         if (resolvedApiKey.isBlank()) {
             return new GeminiHealthCheck(false, false, resolvedModel, endpoint,
@@ -132,30 +135,51 @@ public class GeminiService {
             List<UniversitySourcePageResult> fetchedPages,
             String combinedContext
     ) {
-        List<String> successUrls = fetchedPages.stream().filter(UniversitySourcePageResult::success)
+        List<String> safeSourceUrls = sourceUrls == null ? List.of() : sourceUrls;
+        List<UniversitySourcePageResult> safeFetchedPages = fetchedPages == null ? List.of() : fetchedPages;
+        String safeCombinedContext = combinedContext == null ? "" : combinedContext.trim();
+
+        List<String> successUrls = safeFetchedPages.stream().filter(UniversitySourcePageResult::success)
                 .map(UniversitySourcePageResult::sourceUrl).toList();
-        List<String> failedUrls = fetchedPages.stream().filter(p -> !p.success())
+        List<String> failedUrls = safeFetchedPages.stream().filter(page -> !page.success())
                 .map(UniversitySourcePageResult::sourceUrl).toList();
-        int sourceUrlCount = sourceUrls == null ? 0 : sourceUrls.size();
-        int fetchedPageCount = fetchedPages == null ? 0 : fetchedPages.size();
-        int contextLength = combinedContext == null ? 0 : combinedContext.length();
+        int sourceUrlCount = safeSourceUrls.size();
+        int fetchedPageCount = safeFetchedPages.size();
+        int contextLength = safeCombinedContext.length();
+
+        List<String> sourceLimitations = new ArrayList<>();
+        if (sourceUrlCount == 0) {
+            sourceLimitations.add("No external university sources were available for this request; guidance was generated from profile context.");
+        }
+        if (fetchedPageCount == 0) {
+            sourceLimitations.add("No university pages were fetched; guidance was generated from profile context.");
+        }
+        if (contextLength == 0) {
+            sourceLimitations.add("No combined source context was available; guidance was generated from profile context.");
+        }
 
         log.info("University guidance context: sourceUrls={}, fetchedPages={}, successfulPages={}, failedPages={}, combinedContextLength={}",
                 sourceUrlCount, fetchedPageCount, successUrls.size(), failedUrls.size(), contextLength);
 
-        if (resolveApiKey().isBlank()) {
-            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
+        String resolvedApiKey = resolveApiKey();
+        String resolvedModel = resolveModel();
+        String resolvedBaseUrl = resolveBaseUrl();
+        if (resolvedApiKey.isBlank() || resolvedModel.isBlank() || resolvedBaseUrl.isBlank()) {
+            log.warn("Fallback path used before Gemini attempt: apiKeyPresent={}, modelPresent={}, baseUrlPresent={}",
+                    !resolvedApiKey.isBlank(), !resolvedModel.isBlank(), !resolvedBaseUrl.isBlank());
+            return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
                     List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
 
         try {
-            String prompt = buildUniversityPrompt(request, profile, fetchedPages, combinedContext);
+            String prompt = buildUniversityPrompt(request, profile, safeFetchedPages, safeCombinedContext);
             String modelText = invokeGemini(prompt);
-            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
-            return enrichWithWarnings(parsed, failedUrls);
+            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, safeSourceUrls, successUrls, failedUrls);
+            log.info("Fallback decision: Gemini succeeded, fallbackUsed=false");
+            return withRuntimeWarnings(enrichWithWarnings(parsed, failedUrls), sourceLimitations);
         } catch (Exception ex) {
-            log.warn("University sources analysis fell back after model error: {}", ex.getMessage(), ex);
-            return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
+            log.warn("Fallback decision: Gemini failed after live attempt, fallbackUsed=true, reason={}", ex.getMessage(), ex);
+            return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
                     List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
     }
@@ -169,9 +193,11 @@ public class GeminiService {
     }
 
     private String invokeGemini(String prompt) {
-        String resolvedModel = resolveModel();
-        String endpointPath = GeminiModelResolver.buildGenerateContentPath(resolvedModel);
-        String endpoint = resolveBaseUrl() + endpointPath;
+        String configuredModelInput = resolveConfiguredModelInput();
+        String resolvedModel = GeminiModelResolver.resolveModelName(configuredModelInput);
+        String resolvedBaseUrl = resolveBaseUrl();
+        String endpointPath = GeminiModelResolver.buildGenerateContentPath(configuredModelInput, resolvedBaseUrl);
+        String endpoint = resolvedBaseUrl + endpointPath;
         String resolvedApiKey = resolveApiKey();
 
         logEnvironmentPresence("invokeGemini");
@@ -589,6 +615,38 @@ public class GeminiService {
         );
     }
 
+
+    private UniversitySourcesAnalysisResponse withRuntimeWarnings(UniversitySourcesAnalysisResponse response,
+                                                                  List<String> runtimeWarnings) {
+        if (runtimeWarnings == null || runtimeWarnings.isEmpty()) {
+            return response;
+        }
+
+        LinkedHashSet<String> warnings = new LinkedHashSet<>(defaultList(response.warnings()));
+        warnings.addAll(runtimeWarnings);
+
+        return new UniversitySourcesAnalysisResponse(
+                true,
+                false,
+                runtimeWarnings.get(0),
+                response.sourceUrls(),
+                response.successfullyAnalysedUrls(),
+                response.failedUrls(),
+                response.totalSourcesUsed(),
+                response.summary(),
+                response.recommendedCareers(),
+                response.recommendedProgrammes(),
+                response.recommendedUniversities(),
+                response.minimumRequirements(),
+                response.keyRequirements(),
+                response.skillGaps(),
+                response.recommendedNextSteps(),
+                new ArrayList<>(warnings),
+                response.suitabilityScore(),
+                response.rawModelUsed()
+        );
+    }
+
     private UniversitySourcesAnalysisResponse fallbackUniversityResponse(
             UniversitySourcesAnalysisRequest request,
             List<String> sourceUrls,
@@ -834,19 +892,22 @@ public class GeminiService {
         return environment.getProperty("GEMINI_API_KEY", "").trim();
     }
 
-    private String resolveModel() {
+    private String resolveConfiguredModelInput() {
         String configured = model == null ? "" : model.trim();
         if (!configured.isBlank()) {
-            return GeminiModelResolver.resolveModelName(configured);
+            return configured;
         }
 
         String fromProperty = environment.getProperty("gemini.model", "").trim();
         if (!fromProperty.isBlank()) {
-            return GeminiModelResolver.resolveModelName(fromProperty);
+            return fromProperty;
         }
 
-        String fromEnv = environment.getProperty("GEMINI_MODEL", "").trim();
-        return GeminiModelResolver.resolveModelName(fromEnv);
+        return environment.getProperty("GEMINI_MODEL", "").trim();
+    }
+
+    private String resolveModel() {
+        return GeminiModelResolver.resolveModelName(resolveConfiguredModelInput());
     }
 
     private String resolveBaseUrl() {
@@ -861,9 +922,10 @@ public class GeminiService {
             resolved = environment.getProperty("GEMINI_BASE_URL", "").trim();
         }
         if (resolved.isBlank()) {
-            return GEMINI_BASE_URL;
+            resolved = GEMINI_BASE_URL;
         }
-        return resolved.endsWith("/") ? resolved.substring(0, resolved.length() - 1) : resolved;
+        String normalized = GeminiModelResolver.normalizeBaseUrl(resolved);
+        return normalized.isBlank() ? GEMINI_BASE_URL : normalized;
     }
 
     private void logEnvironmentPresence(String context) {

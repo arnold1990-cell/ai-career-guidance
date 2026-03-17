@@ -3,6 +3,7 @@ package com.edurite.ai.service;
 final class GeminiModelResolver {
 
     private static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    private static final String DEFAULT_API_VERSION = "v1beta";
 
     private GeminiModelResolver() {
     }
@@ -10,6 +11,60 @@ final class GeminiModelResolver {
     static String resolveModelName(String configuredModel) {
         String normalized = normalizeConfiguredModel(configuredModel);
         return normalized.isEmpty() ? DEFAULT_MODEL : normalized;
+    }
+
+    static String resolveApiVersion(String configuredModel, String configuredBaseUrl) {
+        String fromModel = extractApiVersion(configuredModel);
+        if (!fromModel.isBlank()) {
+            return fromModel;
+        }
+        String fromBaseUrl = extractApiVersion(configuredBaseUrl);
+        if (!fromBaseUrl.isBlank()) {
+            return fromBaseUrl;
+        }
+        return DEFAULT_API_VERSION;
+    }
+
+    static String normalizeBaseUrl(String configuredBaseUrl) {
+        if (configuredBaseUrl == null) {
+            return "";
+        }
+
+        String normalized = configuredBaseUrl.trim();
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1).trim();
+        }
+
+        int modelsIndex = normalized.indexOf("/models/");
+        if (modelsIndex > 0) {
+            normalized = normalized.substring(0, modelsIndex).trim();
+            while (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1).trim();
+            }
+        }
+
+        normalized = stripVersionSuffix(normalized, "/v1beta");
+        normalized = stripVersionSuffix(normalized, "/v1");
+
+        return normalized;
+    }
+
+    static String buildGenerateContentPath(String configuredModel, String configuredBaseUrl) {
+        String apiVersion = resolveApiVersion(configuredModel, configuredBaseUrl);
+        return "/" + apiVersion + "/models/" + resolveModelName(configuredModel) + ":generateContent";
+    }
+
+    static String buildModelInfoPath(String configuredModel, String configuredBaseUrl) {
+        String apiVersion = resolveApiVersion(configuredModel, configuredBaseUrl);
+        return "/" + apiVersion + "/models/" + resolveModelName(configuredModel);
+    }
+
+    static String buildGenerateContentPath(String configuredModel) {
+        return buildGenerateContentPath(configuredModel, null);
     }
 
     private static String normalizeConfiguredModel(String configuredModel) {
@@ -59,10 +114,34 @@ final class GeminiModelResolver {
             normalized = normalized.substring("models/".length()).trim();
         }
 
-        return normalized.trim();
+        return normalized;
     }
 
-    static String buildGenerateContentPath(String configuredModel) {
-        return "/v1/models/" + resolveModelName(configuredModel) + ":generateContent";
+    private static String extractApiVersion(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.trim().toLowerCase();
+        if (normalized.isEmpty()) {
+            return "";
+        }
+        if (normalized.contains("/v1beta/") || normalized.startsWith("v1beta/") || normalized.endsWith("/v1beta")) {
+            return "v1beta";
+        }
+        if (normalized.contains("/v1/") || normalized.startsWith("v1/") || normalized.endsWith("/v1")) {
+            return "v1";
+        }
+        return "";
+    }
+
+    private static String stripVersionSuffix(String value, String versionSuffix) {
+        String normalized = value;
+        while (normalized.toLowerCase().endsWith(versionSuffix)) {
+            normalized = normalized.substring(0, normalized.length() - versionSuffix.length()).trim();
+            while (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1).trim();
+            }
+        }
+        return normalized;
     }
 }
