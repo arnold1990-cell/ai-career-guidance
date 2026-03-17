@@ -21,7 +21,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyFailsAtRequestTimeNotConstructionTime() {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
         ReflectionTestUtils.setField(service, "GEMINI_API_KEY", "   ");
 
         assertThatThrownBy(() -> service.getCareerAdvice(
@@ -36,7 +36,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyReturnsFallbackForUniversitySourceAnalysis() {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
         ReflectionTestUtils.setField(service, "GEMINI_API_KEY", "");
 
         StudentProfile profile = new StudentProfile();
@@ -72,7 +72,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void resolveModelReturnsHardcodedModel() {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
 
         String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveModel");
 
@@ -81,7 +81,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void resolveBaseUrlReturnsNormalizedHardcodedBaseUrl() {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
 
         String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveBaseUrl");
 
@@ -90,7 +90,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void healthCheckUsesNormalizedModelPath() {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
 
         GeminiService.GeminiHealthCheck health = service.checkHealth();
 
