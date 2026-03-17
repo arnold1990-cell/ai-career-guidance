@@ -30,15 +30,16 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GeminiService {
 
+    private static final String GEMINI_API_KEY = "AIzaSyCo5MrVWRexb_hyec_74O_xIpG3uRfh0A4";
+    private static final String GEMINI_MODEL = "gemini-2.5-flash";
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
+
     private static final int MAX_GEMINI_RETRIES = 2;
     private static final long[] RETRY_BACKOFF_MS = {300L, 800L};
     private static final MediaType JSON = MediaType.get("application/json");
@@ -47,20 +48,9 @@ public class GeminiService {
     private final OkHttpClient okHttpClient;
     private final Gson gson;
     private final ObjectMapper objectMapper;
-    private final Environment environment;
 
-    @Value("${gemini.api-key:}")
-    private String configuredApiKey;
-
-    @Value("${gemini.model:gemini-2.5-flash}")
-    private String model;
-
-    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
-    private String baseUrl;
-
-    public GeminiService(ObjectMapper objectMapper, Environment environment) {
+    public GeminiService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.environment = environment;
         this.gson = new Gson();
         this.okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(20))
@@ -75,10 +65,9 @@ public class GeminiService {
         String resolvedKey = resolveApiKey();
         String resolvedModel = resolveModel();
         String resolvedBaseUrl = resolveBaseUrl();
-        logEnvironmentPresence("startup");
 
         if (resolvedKey.isBlank()) {
-            log.warn("Gemini configuration warning: API key is missing. Set gemini.api-key, gemini.api.key, or GEMINI_API_KEY. model={}, baseUrl={}",
+            log.warn("Gemini configuration warning: API key is missing. model={}, baseUrl={}",
                     resolvedModel, resolvedBaseUrl);
             return;
         }
@@ -86,8 +75,6 @@ public class GeminiService {
         log.info("Gemini configuration loaded: apiKeyPresent=true, keyMask={}, model={}, baseUrl={}",
                 maskSecret(resolvedKey), resolvedModel, resolvedBaseUrl);
     }
-
-
 
     public GeminiHealthCheck checkHealth() {
         String resolvedApiKey = resolveApiKey();
@@ -143,6 +130,7 @@ public class GeminiService {
                 .map(UniversitySourcePageResult::sourceUrl).toList();
         List<String> failedUrls = safeFetchedPages.stream().filter(page -> !page.success())
                 .map(UniversitySourcePageResult::sourceUrl).toList();
+
         int sourceUrlCount = safeSourceUrls.size();
         int fetchedPageCount = safeFetchedPages.size();
         int contextLength = safeCombinedContext.length();
@@ -199,8 +187,6 @@ public class GeminiService {
         String endpointPath = GeminiModelResolver.buildGenerateContentPath(configuredModelInput, resolvedBaseUrl);
         String endpoint = resolvedBaseUrl + endpointPath;
         String resolvedApiKey = resolveApiKey();
-
-        logEnvironmentPresence("invokeGemini");
 
         JsonObject payload = new JsonObject();
         JsonArray contents = new JsonArray();
@@ -586,7 +572,6 @@ public class GeminiService {
         return response;
     }
 
-
     private UniversitySourcesAnalysisResponse enrichWithWarnings(UniversitySourcesAnalysisResponse response,
                                                                  List<String> failedUrls) {
         Set<String> warnings = new LinkedHashSet<>(defaultList(response.warnings()));
@@ -614,7 +599,6 @@ public class GeminiService {
                 response.rawModelUsed()
         );
     }
-
 
     private UniversitySourcesAnalysisResponse withRuntimeWarnings(UniversitySourcesAnalysisResponse response,
                                                                   List<String> runtimeWarnings) {
@@ -747,7 +731,7 @@ public class GeminiService {
     }
 
     private List<String> mergeKeyAndMinimumRequirements(List<String> keyRequirements,
-                                                         List<String> minimumRequirements) {
+                                                        List<String> minimumRequirements) {
         LinkedHashSet<String> merged = new LinkedHashSet<>(minimumRequirements);
         merged.addAll(keyRequirements);
         return new ArrayList<>(merged);
@@ -762,7 +746,7 @@ public class GeminiService {
     }
 
     private String stripBullet(String value) {
-        return value.replaceFirst("^[-*•]+\s*", "").trim();
+        return value.replaceFirst("^[-*•]+\\s*", "").trim();
     }
 
     private String toUniversityName(String url) {
@@ -877,33 +861,11 @@ public class GeminiService {
     }
 
     private String resolveApiKey() {
-        String fromConfig = configuredApiKey == null ? "" : configuredApiKey.trim();
-        if (!fromConfig.isBlank()) {
-            return fromConfig;
-        }
-        String dotNotation = environment.getProperty("gemini.api.key", "").trim();
-        if (!dotNotation.isBlank()) {
-            return dotNotation;
-        }
-        String kebabNotation = environment.getProperty("gemini.api-key", "").trim();
-        if (!kebabNotation.isBlank()) {
-            return kebabNotation;
-        }
-        return environment.getProperty("GEMINI_API_KEY", "").trim();
+        return GEMINI_API_KEY == null ? "" : GEMINI_API_KEY.trim();
     }
 
     private String resolveConfiguredModelInput() {
-        String configured = model == null ? "" : model.trim();
-        if (!configured.isBlank()) {
-            return configured;
-        }
-
-        String fromProperty = environment.getProperty("gemini.model", "").trim();
-        if (!fromProperty.isBlank()) {
-            return fromProperty;
-        }
-
-        return environment.getProperty("GEMINI_MODEL", "").trim();
+        return GEMINI_MODEL == null ? "" : GEMINI_MODEL.trim();
     }
 
     private String resolveModel() {
@@ -911,43 +873,8 @@ public class GeminiService {
     }
 
     private String resolveBaseUrl() {
-        String resolved = baseUrl == null ? "" : baseUrl.trim();
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("gemini.base-url", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("gemini.base.url", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("GEMINI_BASE_URL", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = GEMINI_BASE_URL;
-        }
-        String normalized = GeminiModelResolver.normalizeBaseUrl(resolved);
-        return normalized.isBlank() ? GEMINI_BASE_URL : normalized;
-    }
-
-    private void logEnvironmentPresence(String context) {
-        boolean envApiKeyPresent = !environment.getProperty("GEMINI_API_KEY", "").isBlank();
-        boolean envModelPresent = !environment.getProperty("GEMINI_MODEL", "").isBlank();
-        boolean envBaseUrlPresent = !environment.getProperty("GEMINI_BASE_URL", "").isBlank();
-        boolean propertyApiKeyPresent = !environment.getProperty("gemini.api-key", "").isBlank()
-                || !environment.getProperty("gemini.api.key", "").isBlank();
-        boolean propertyModelPresent = !environment.getProperty("gemini.model", "").isBlank();
-        boolean propertyBaseUrlPresent = !environment.getProperty("gemini.base-url", "").isBlank()
-                || !environment.getProperty("gemini.base.url", "").isBlank();
-
-        log.info("Gemini config diagnostics [{}]: envApiKeyPresent={}, envModelPresent={}, envBaseUrlPresent={}, propertyApiKeyPresent={}, propertyModelPresent={}, propertyBaseUrlPresent={}, resolvedModel={}, resolvedBaseUrl={}",
-                context,
-                envApiKeyPresent,
-                envModelPresent,
-                envBaseUrlPresent,
-                propertyApiKeyPresent,
-                propertyModelPresent,
-                propertyBaseUrlPresent,
-                resolveModel(),
-                resolveBaseUrl());
+        String normalized = GeminiModelResolver.normalizeBaseUrl(GEMINI_BASE_URL);
+        return normalized.isBlank() ? "https://generativelanguage.googleapis.com" : normalized;
     }
 
     private void sleepBeforeRetry(int attempt) {
@@ -1012,8 +939,6 @@ public class GeminiService {
                 ))
                 .toList();
     }
-
-
 
     public record GeminiHealthCheck(
             boolean apiKeyPresent,
