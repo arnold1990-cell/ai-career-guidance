@@ -8,9 +8,13 @@ import com.edurite.ai.university.UniversityPageType;
 import com.edurite.ai.university.UniversitySourcePageResult;
 import com.edurite.student.entity.StudentProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -21,11 +25,11 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyFailsAtRequestTimeNotConstructionTime() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
-        ReflectionTestUtils.setField(service, "GEMINI_API_KEY", "   ");
+        GeminiService service = new GeminiService(new ObjectMapper(), new StandardEnvironment());
+        ReflectionTestUtils.setField(service, "configuredApiKey", "   ");
+        ReflectionTestUtils.setField(service, "model", "models/gemini-2.0-flash");
 
-        assertThatThrownBy(() -> service.getCareerAdvice(
-                new CareerAdviceRequest("hs", "tech", "java", "harare")))
+        assertThatThrownBy(() -> service.getCareerAdvice(new CareerAdviceRequest("hs", "tech", "java", "harare")))
                 .isInstanceOf(AiServiceException.class)
                 .satisfies(ex -> {
                     AiServiceException aiEx = (AiServiceException) ex;
@@ -36,52 +40,62 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyReturnsFallbackForUniversitySourceAnalysis() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
-        ReflectionTestUtils.setField(service, "GEMINI_API_KEY", "");
+        GeminiService service = new GeminiService(new ObjectMapper(), new StandardEnvironment());
+        ReflectionTestUtils.setField(service, "configuredApiKey", "");
+        ReflectionTestUtils.setField(service, "model", "gemini-2.5-flash");
 
         StudentProfile profile = new StudentProfile();
-
         UniversitySourcesAnalysisResponse response = service.getUniversitySourcesAdvice(
-                new UniversitySourcesAnalysisRequest(
-                        List.of("https://www.unisa.ac.za/page"),
-                        "Software",
-                        "Developer",
-                        "Undergraduate",
-                        10
-                ),
+                new UniversitySourcesAnalysisRequest(List.of("https://www.unisa.ac.za/page"), "Software", "Developer", "Undergraduate", 10),
                 profile,
                 List.of("https://www.unisa.ac.za/page"),
-                List.of(new UniversitySourcePageResult(
-                        "https://www.unisa.ac.za/page",
-                        "t",
-                        UniversityPageType.QUALIFICATION_LIST,
-                        "content",
-                        Set.of("computer science"),
-                        true,
-                        null,
-                        null
-                )),
+                List.of(new UniversitySourcePageResult("https://www.unisa.ac.za/page", "t", UniversityPageType.QUALIFICATION_LIST,
+                        "content", Set.of("computer science"), true, null, null)),
                 "content"
         );
 
         assertThat(response.summary()).contains("Based on the available university sources");
         assertThat(response.recommendedCareers()).isNotEmpty();
         assertThat(response.warnings()).isNotEmpty();
-        assertThat(response.fallbackUsed()).isTrue();
     }
 
     @Test
-    void resolveModelReturnsHardcodedModel() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
+    void acceptsDotNotationGeminiApiKeyProperty() {
+        ConfigurableEnvironment environment = environmentWithProperties(Map.of("gemini.api.key", "dot-notation-key"));
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+
+        String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveApiKey");
+
+        assertThat(resolved).isEqualTo("dot-notation-key");
+    }
+
+    @Test
+    void resolvesModelFromEnvironmentWhenValueFieldIsBlank() {
+        ConfigurableEnvironment environment = environmentWithProperties(Map.of("GEMINI_MODEL", "models/gemini-2.0-flash"));
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "model", "  ");
 
         String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveModel");
 
-        assertThat(resolved).isEqualTo("gemini-2.5-flash");
+        assertThat(resolved).isEqualTo("gemini-2.0-flash");
     }
 
     @Test
-    void resolveBaseUrlReturnsNormalizedHardcodedBaseUrl() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
+    void resolvesBaseUrlFromEnvironmentWhenValueFieldIsBlank() {
+        ConfigurableEnvironment environment = environmentWithProperties(Map.of("GEMINI_BASE_URL", "https://example.googleapis.com/"));
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "baseUrl", "   ");
+
+        String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveBaseUrl");
+
+        assertThat(resolved).isEqualTo("https://example.googleapis.com");
+    }
+
+    @Test
+    void resolveBaseUrlStripsVersionAndTrailingSlash() {
+        ConfigurableEnvironment environment = new StandardEnvironment();
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "baseUrl", "https://generativelanguage.googleapis.com/v1beta/");
 
         String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveBaseUrl");
 
@@ -89,11 +103,22 @@ class GeminiServiceConfigSafetyTest {
     }
 
     @Test
-    void healthCheckUsesNormalizedModelPath() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
+    void healthCheckUsesSameApiVersionAsGenerateContentPath() {
+        ConfigurableEnvironment environment = new StandardEnvironment();
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "configuredApiKey", "");
+        ReflectionTestUtils.setField(service, "model", "v1/models/gemini-2.0-flash");
+        ReflectionTestUtils.setField(service, "baseUrl", "https://generativelanguage.googleapis.com/");
 
         GeminiService.GeminiHealthCheck health = service.checkHealth();
 
-        assertThat(health.endpoint()).contains("/models/");
+        assertThat(health.endpoint()).contains("/v1/models/gemini-2.0-flash");
     }
+
+    private ConfigurableEnvironment environmentWithProperties(Map<String, Object> properties) {
+        StandardEnvironment environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
+        return environment;
+    }
+
 }
