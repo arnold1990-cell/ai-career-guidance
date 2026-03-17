@@ -88,6 +88,51 @@ class GeminiServiceLivePathTest {
         assertThat(response.warningMessage()).contains("Live AI guidance is temporarily unavailable");
     }
 
+    @Test
+    void sourcePipelineWithSourcesStillUsesGeminiAsPrimary() throws IOException {
+        AtomicInteger callCounter = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/v1beta/models/gemini-2.5-flash:generateContent", exchange -> {
+            callCounter.incrementAndGet();
+            String body = """
+                    {
+                      \"candidates\": [{
+                        \"content\": {
+                          \"parts\": [{
+                            \"text\": \"{\\\"recommendedCareers\\\":[{\\\"name\\\":\\\"Electrical Engineer\\\",\\\"reason\\\":\\\"Strong fit\\\",\\\"requirements\\\":[\\\"Physics\\\"],\\\"relatedProgrammes\\\":[\\\"BSc Engineering\\\"]}],\\\"recommendedProgrammes\\\":[{\\\"name\\\":\\\"BSc Engineering\\\",\\\"university\\\":\\\"UJ\\\",\\\"admissionRequirements\\\":[\\\"Grade 12\\\"],\\\"notes\\\":\\\"Check admissions page\\\"}],\\\"recommendedUniversities\\\":[\\\"UJ\\\"],\\\"minimumRequirements\\\":[\\\"Grade 12 passes\\\"],\\\"keyRequirements\\\":[\\\"Mathematics\\\"],\\\"skillGaps\\\":[\\\"CAD\\\"],\\\"recommendedNextSteps\\\":[\\\"Review programme pages\\\"],\\\"warnings\\\":[],\\\"summary\\\":\\\"Source-grounded guidance\\\",\\\"suitabilityScore\\\":78}\"
+                          }]
+                        }
+                      }]
+                    }
+                    """;
+            writeResponse(exchange, 200, body);
+        });
+        server.start();
+
+        try {
+            GeminiService service = new GeminiService(new ObjectMapper(), new MockEnvironment());
+            ReflectionTestUtils.setField(service, "configuredApiKey", "test-key");
+            ReflectionTestUtils.setField(service, "model", "gemini-2.5-flash");
+            ReflectionTestUtils.setField(service, "baseUrl", "http://localhost:" + server.getAddress().getPort());
+
+            UniversitySourcesAnalysisResponse response = service.getUniversitySourcesAdvice(
+                    new UniversitySourcesAnalysisRequest(List.of("https://www.uj.ac.za/programmes"), "Engineering", "Engineer", "Undergraduate", 5),
+                    new StudentProfile(),
+                    List.of("https://www.uj.ac.za/programmes"),
+                    List.of(new UniversitySourcePageResult("https://www.uj.ac.za/programmes", "UJ Programmes", UniversityPageType.PROGRAMME_DETAIL,
+                            "Engineering programmes", Set.of("engineering"), true, null, null)),
+                    "Engineering source context"
+            );
+
+            assertThat(callCounter.get()).isEqualTo(1);
+            assertThat(response.aiLive()).isTrue();
+            assertThat(response.fallbackUsed()).isFalse();
+            assertThat(response.warningMessage()).isNull();
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private static void writeResponse(HttpExchange exchange, int status, String body) throws IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
