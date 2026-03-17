@@ -344,6 +344,8 @@ public class GeminiService {
                 - minimumRequirements MUST always mention Grade 12 passes, English, and Mathematics for mathematics-related pathways.
                 - Do not hallucinate APS scores, subject minimums, or due dates.
                 - Ground programmes and universities in the retrieved source content.
+                - Assume the source base spans many universities; prioritize diversity across the shortlisted evidence.
+                - Use only the shortlisted source metadata/context below, and do not invent university requirements not present there.
                 - If source metadata/context is empty, still provide recommendations using only profile and request focus.
                 - Mention limitation warnings when sources are generic list pages.
                 - Keep suitabilityScore between 0 and 100.

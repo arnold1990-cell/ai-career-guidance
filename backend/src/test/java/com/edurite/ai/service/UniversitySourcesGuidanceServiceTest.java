@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static com.edurite.ai.university.UniversityPageType.PROGRAMME_DETAIL;
 import static com.edurite.ai.university.UniversityPageType.QUALIFICATION_LIST;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -58,7 +59,7 @@ class UniversitySourcesGuidanceServiceTest {
         );
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(retrievalService.retrieveTopRelevantPages(eq(profile), eq(request), eq(12))).thenReturn(summaries);
+        when(retrievalService.retrieveTopRelevantPages(eq(profile), eq(request), anyInt())).thenReturn(summaries);
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), any(), any(), any()))
                 .thenReturn(new UniversitySourcesAnalysisResponse(true, false, null, List.of(), List.of(), List.of(), 0, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini"));
 
@@ -104,7 +105,7 @@ class UniversitySourcesGuidanceServiceTest {
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(retrievalService.retrieveTopRelevantPages(eq(profile), eq(request), eq(12))).thenReturn(List.of());
+        when(retrievalService.retrieveTopRelevantPages(eq(profile), eq(request), anyInt())).thenReturn(List.of());
         when(registryService.getDefaultSources()).thenReturn(List.of());
         when(registryService.deduplicate(List.of())).thenReturn(List.of());
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());

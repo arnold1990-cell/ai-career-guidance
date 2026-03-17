@@ -8,8 +8,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,7 +32,7 @@ class UniversityPageRetrievalServiceTest {
 
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software Engineer", "Undergraduate", 10);
 
-        when(repository.findByActiveTrueAndCrawlStatus(CrawlStatus.SUCCESS)).thenReturn(List.of(
+        when(repository.findByActiveTrueAndCrawlStatus(org.mockito.ArgumentMatchers.eq(CrawlStatus.SUCCESS), any(Pageable.class))).thenReturn(List.of(
                 page("University A", "Software Engineering", "PROGRAMME_DETAIL", "Undergraduate", "software engineering java"),
                 page("University B", "History", "QUALIFICATION_LIST", "Undergraduate", "history and arts"),
                 page("University C", "Computer Science", "PROGRAMME_DETAIL", "Undergraduate", "computer science software systems")
