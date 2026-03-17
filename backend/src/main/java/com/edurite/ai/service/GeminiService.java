@@ -31,7 +31,10 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.EnumerablePropertySource;
+import org.springframework.core.env.PropertySource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -875,15 +878,11 @@ public class GeminiService {
         if (!fromConfig.isBlank()) {
             return fromConfig;
         }
-        String dotNotation = environment.getProperty("gemini.api.key", "").trim();
+        String dotNotation = resolveProperty("gemini.api.key", "GEMINI_API_KEY", "gemini.api-key");
         if (!dotNotation.isBlank()) {
             return dotNotation;
         }
-        String kebabNotation = environment.getProperty("gemini.api-key", "").trim();
-        if (!kebabNotation.isBlank()) {
-            return kebabNotation;
-        }
-        return environment.getProperty("GEMINI_API_KEY", "").trim();
+        return "";
     }
 
     private String resolveConfiguredModelInput() {
@@ -892,12 +891,11 @@ public class GeminiService {
             return configured;
         }
 
-        String fromProperty = environment.getProperty("gemini.model", "").trim();
+        String fromProperty = resolveProperty("gemini.model", "GEMINI_MODEL");
         if (!fromProperty.isBlank()) {
             return fromProperty;
         }
-
-        return environment.getProperty("GEMINI_MODEL", "").trim();
+        return "";
     }
 
     private String resolveModel() {
@@ -907,19 +905,67 @@ public class GeminiService {
     private String resolveBaseUrl() {
         String resolved = baseUrl == null ? "" : baseUrl.trim();
         if (resolved.isBlank()) {
-            resolved = environment.getProperty("gemini.base-url", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("gemini.base.url", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("GEMINI_BASE_URL", "").trim();
+            resolved = resolveProperty("gemini.base-url", "gemini.base.url", "GEMINI_BASE_URL");
         }
         if (resolved.isBlank()) {
             resolved = GEMINI_BASE_URL;
         }
         String normalized = GeminiModelResolver.normalizeBaseUrl(resolved);
         return normalized.isBlank() ? GEMINI_BASE_URL : normalized;
+    }
+
+    private String resolveProperty(String... keys) {
+        for (String key : keys) {
+            String value = environment.getProperty(key);
+            if (value != null && !value.trim().isBlank()) {
+                return value.trim();
+            }
+        }
+
+        if (environment instanceof ConfigurableEnvironment configurableEnvironment) {
+            for (PropertySource<?> propertySource : configurableEnvironment.getPropertySources()) {
+                if (!(propertySource instanceof EnumerablePropertySource<?> enumerablePropertySource)) {
+                    continue;
+                }
+                for (String propertyName : enumerablePropertySource.getPropertyNames()) {
+                    if (!matchesAnyKey(propertyName, keys)) {
+                        continue;
+                    }
+                    Object rawValue = enumerablePropertySource.getProperty(propertyName);
+                    if (rawValue == null) {
+                        continue;
+                    }
+                    String normalized = rawValue.toString().trim();
+                    if (!normalized.isBlank()) {
+                        return normalized;
+                    }
+                }
+            }
+        }
+
+        for (String key : keys) {
+            String envValue = System.getenv(key);
+            if (envValue != null && !envValue.trim().isBlank()) {
+                return envValue.trim();
+            }
+        }
+
+        return "";
+    }
+
+    private boolean matchesAnyKey(String candidate, String... keys) {
+        for (String key : keys) {
+            if (candidate.equals(key)) {
+                return true;
+            }
+
+            String normalizedCandidate = candidate.toLowerCase().replace('-', '.').replace('_', '.');
+            String normalizedKey = key.toLowerCase().replace('-', '.').replace('_', '.');
+            if (normalizedCandidate.equals(normalizedKey)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private GeminiRequestConfig resolveRequestConfig(boolean logValues) {
