@@ -8,9 +8,13 @@ import com.edurite.ai.university.UniversityPageType;
 import com.edurite.ai.university.UniversitySourcePageResult;
 import com.edurite.student.entity.StudentProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -21,7 +25,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyFailsAtRequestTimeNotConstructionTime() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new org.springframework.mock.env.MockEnvironment());
+        GeminiService service = new GeminiService(new ObjectMapper(), new StandardEnvironment());
         ReflectionTestUtils.setField(service, "configuredApiKey", "   ");
         ReflectionTestUtils.setField(service, "model", "models/gemini-2.0-flash");
 
@@ -36,7 +40,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyReturnsFallbackForUniversitySourceAnalysis() {
-        GeminiService service = new GeminiService(new ObjectMapper(), new org.springframework.mock.env.MockEnvironment());
+        GeminiService service = new GeminiService(new ObjectMapper(), new StandardEnvironment());
         ReflectionTestUtils.setField(service, "configuredApiKey", "");
         ReflectionTestUtils.setField(service, "model", "gemini-2.5-flash");
 
@@ -57,8 +61,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void acceptsDotNotationGeminiApiKeyProperty() {
-        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment()
-                .withProperty("gemini.api.key", "dot-notation-key");
+        ConfigurableEnvironment environment = environmentWithProperties(Map.of("gemini.api.key", "dot-notation-key"));
         GeminiService service = new GeminiService(new ObjectMapper(), environment);
 
         String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveApiKey");
@@ -68,8 +71,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void resolvesModelFromEnvironmentWhenValueFieldIsBlank() {
-        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment()
-                .withProperty("GEMINI_MODEL", "models/gemini-2.0-flash");
+        ConfigurableEnvironment environment = environmentWithProperties(Map.of("GEMINI_MODEL", "models/gemini-2.0-flash"));
         GeminiService service = new GeminiService(new ObjectMapper(), environment);
         ReflectionTestUtils.setField(service, "model", "  ");
 
@@ -80,8 +82,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void resolvesBaseUrlFromEnvironmentWhenValueFieldIsBlank() {
-        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment()
-                .withProperty("GEMINI_BASE_URL", "https://example.googleapis.com/");
+        ConfigurableEnvironment environment = environmentWithProperties(Map.of("GEMINI_BASE_URL", "https://example.googleapis.com/"));
         GeminiService service = new GeminiService(new ObjectMapper(), environment);
         ReflectionTestUtils.setField(service, "baseUrl", "   ");
 
@@ -92,7 +93,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void resolveBaseUrlStripsVersionAndTrailingSlash() {
-        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment();
+        ConfigurableEnvironment environment = new StandardEnvironment();
         GeminiService service = new GeminiService(new ObjectMapper(), environment);
         ReflectionTestUtils.setField(service, "baseUrl", "https://generativelanguage.googleapis.com/v1beta/");
 
@@ -103,7 +104,7 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void healthCheckUsesSameApiVersionAsGenerateContentPath() {
-        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment();
+        ConfigurableEnvironment environment = new StandardEnvironment();
         GeminiService service = new GeminiService(new ObjectMapper(), environment);
         ReflectionTestUtils.setField(service, "configuredApiKey", "");
         ReflectionTestUtils.setField(service, "model", "v1/models/gemini-2.0-flash");
@@ -112,6 +113,12 @@ class GeminiServiceConfigSafetyTest {
         GeminiService.GeminiHealthCheck health = service.checkHealth();
 
         assertThat(health.endpoint()).contains("/v1/models/gemini-2.0-flash");
+    }
+
+    private ConfigurableEnvironment environmentWithProperties(Map<String, Object> properties) {
+        StandardEnvironment environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
+        return environment;
     }
 
 }
