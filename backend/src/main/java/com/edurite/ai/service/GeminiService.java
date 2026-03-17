@@ -12,6 +12,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -38,21 +40,27 @@ public class GeminiService {
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
     private static final int MAX_GEMINI_RETRIES = 2;
+    private static final long[] RETRY_BACKOFF_MS = {300L, 800L};
     private static final MediaType JSON = MediaType.get("application/json");
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
 
     private final OkHttpClient okHttpClient;
     private final Gson gson;
     private final ObjectMapper objectMapper;
+    private final Environment environment;
 
     @Value("${gemini.api-key:}")
-    private String apiKey;
+    private String configuredApiKey;
 
     @Value("${gemini.model:gemini-2.5-flash}")
     private String model;
 
-    public GeminiService(ObjectMapper objectMapper) {
+    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
+    private String baseUrl;
+
+    public GeminiService(ObjectMapper objectMapper, Environment environment) {
         this.objectMapper = objectMapper;
+        this.environment = environment;
         this.gson = new Gson();
         this.okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(20))
@@ -60,6 +68,51 @@ public class GeminiService {
                 .writeTimeout(Duration.ofSeconds(45))
                 .callTimeout(Duration.ofSeconds(60))
                 .build();
+    }
+
+    @PostConstruct
+    void logStartupConfiguration() {
+        String resolvedKey = resolveApiKey();
+        if (resolvedKey.isBlank()) {
+            log.warn("Gemini configuration warning: API key is missing. Set gemini.api-key, gemini.api.key, or GEMINI_API_KEY.");
+            return;
+        }
+
+        log.info("Gemini configuration loaded: apiKeyPresent=true, keyMask={}, model={}, baseUrl={}",
+                maskSecret(resolvedKey), GeminiModelResolver.resolveModelName(model), resolveBaseUrl());
+    }
+
+
+
+    public GeminiHealthCheck checkHealth() {
+        String resolvedApiKey = resolveApiKey();
+        String resolvedModel = GeminiModelResolver.resolveModelName(model);
+        String endpoint = resolveBaseUrl() + "/v1beta/models/" + resolvedModel;
+
+        if (resolvedApiKey.isBlank()) {
+            return new GeminiHealthCheck(false, false, resolvedModel, endpoint,
+                    "Gemini API key is missing.");
+        }
+
+        Request request = new Request.Builder()
+                .url(endpoint)
+                .addHeader("x-goog-api-key", resolvedApiKey)
+                .get()
+                .build();
+
+        try (Response response = okHttpClient.newCall(request).execute()) {
+            int statusCode = response.code();
+            if (statusCode >= 200 && statusCode < 300) {
+                return new GeminiHealthCheck(true, true, resolvedModel, endpoint, "Gemini endpoint reachable.");
+            }
+            String body = readSnippet(response.body());
+            return new GeminiHealthCheck(true, false, resolvedModel, endpoint,
+                    "Gemini endpoint check failed with status " + statusCode + ": " + trim(body));
+        } catch (Exception ex) {
+            log.warn("Gemini health check failed: model={}, endpoint={}, message={}", resolvedModel, endpoint, ex.getMessage(), ex);
+            return new GeminiHealthCheck(true, false, resolvedModel, endpoint,
+                    "Gemini endpoint check exception: " + ex.getMessage());
+        }
     }
 
     public CareerAdviceResponse getCareerAdvice(CareerAdviceRequest request) {
@@ -80,7 +133,7 @@ public class GeminiService {
         List<String> failedUrls = fetchedPages.stream().filter(p -> !p.success())
                 .map(UniversitySourcePageResult::sourceUrl).toList();
 
-        if (apiKey == null || apiKey.isBlank()) {
+        if (resolveApiKey().isBlank()) {
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
                     List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
@@ -91,14 +144,14 @@ public class GeminiService {
             UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, sourceUrls, successUrls, failedUrls);
             return enrichWithWarnings(parsed, failedUrls);
         } catch (Exception ex) {
-            log.warn("University sources analysis fell back after model error: {}", ex.getMessage());
+            log.warn("University sources analysis fell back after model error: {}", ex.getMessage(), ex);
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
                     List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
     }
 
     private void ensureApiKey() {
-        if (apiKey == null || apiKey.isBlank()) {
+        if (resolveApiKey().isBlank()) {
             log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
             throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Career AI is currently unavailable. Gemini API key is not configured.");
@@ -108,7 +161,8 @@ public class GeminiService {
     private String invokeGemini(String prompt) {
         String endpointPath = GeminiModelResolver.buildGenerateContentPath(model);
         String resolvedModel = GeminiModelResolver.resolveModelName(model);
-        String endpoint = GEMINI_BASE_URL + endpointPath;
+        String endpoint = resolveBaseUrl() + endpointPath;
+        String resolvedApiKey = resolveApiKey();
 
         JsonObject payload = new JsonObject();
         JsonArray contents = new JsonArray();
@@ -124,11 +178,11 @@ public class GeminiService {
         Request httpRequest = new Request.Builder()
                 .url(endpoint)
                 .addHeader("Content-Type", "application/json")
-                .addHeader("x-goog-api-key", apiKey.trim())
+                .addHeader("x-goog-api-key", resolvedApiKey)
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
-        log.info("Starting Gemini call: model={}, endpointPath={}", resolvedModel, endpointPath);
+        log.info("Starting Gemini call: model={}, endpointPath={}, apiKeyMask={}", resolvedModel, endpointPath, maskSecret(resolvedApiKey));
 
         for (int attempt = 0; attempt <= MAX_GEMINI_RETRIES; attempt++) {
             boolean retry = attempt < MAX_GEMINI_RETRIES;
@@ -151,6 +205,7 @@ public class GeminiService {
                         statusCode, resolvedModel, attempt > 0, trim(bodySnippet));
 
                 if (retry && retriableStatus) {
+                    sleepBeforeRetry(attempt);
                     continue;
                 }
 
@@ -161,8 +216,9 @@ public class GeminiService {
                         "Gemini request failed with status " + statusCode + ". " + trim(bodySnippet));
             } catch (IOException ex) {
                 log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, message={}",
-                        resolvedModel, attempt + 1, attempt > 0, ex.getMessage());
+                        resolvedModel, attempt + 1, attempt > 0, ex.getMessage(), ex);
                 if (retry) {
+                    sleepBeforeRetry(attempt);
                     continue;
                 }
                 throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
@@ -396,6 +452,9 @@ public class GeminiService {
         List<String> minimumRequirements = enforceMinimumRequirements(defaultList(parsed.minimumRequirements), parsed);
         List<String> keyRequirements = mergeKeyAndMinimumRequirements(defaultList(parsed.keyRequirements), minimumRequirements);
         return new UniversitySourcesAnalysisResponse(
+                true,
+                false,
+                null,
                 sourceUrls,
                 successUrls,
                 failedUrls,
@@ -496,6 +555,9 @@ public class GeminiService {
             warnings.add("Some sources failed to load and were skipped.");
         }
         return new UniversitySourcesAnalysisResponse(
+                response.aiLive(),
+                response.fallbackUsed(),
+                response.warningMessage(),
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
@@ -523,6 +585,9 @@ public class GeminiService {
     ) {
         int max = request.safeMaxRecommendations();
         return new UniversitySourcesAnalysisResponse(
+                false,
+                true,
+                "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",
                 sourceUrls,
                 successUrls,
                 failedUrls,
@@ -740,6 +805,50 @@ public class GeminiService {
         return responseBody == null ? "" : responseBody.string();
     }
 
+    private String resolveApiKey() {
+        String fromConfig = configuredApiKey == null ? "" : configuredApiKey.trim();
+        if (!fromConfig.isBlank()) {
+            return fromConfig;
+        }
+        String dotNotation = environment.getProperty("gemini.api.key", "").trim();
+        if (!dotNotation.isBlank()) {
+            return dotNotation;
+        }
+        String kebabNotation = environment.getProperty("gemini.api-key", "").trim();
+        if (!kebabNotation.isBlank()) {
+            return kebabNotation;
+        }
+        return environment.getProperty("GEMINI_API_KEY", "").trim();
+    }
+
+    private String resolveBaseUrl() {
+        String resolved = baseUrl == null ? "" : baseUrl.trim();
+        if (resolved.isBlank()) {
+            return GEMINI_BASE_URL;
+        }
+        return resolved.endsWith("/") ? resolved.substring(0, resolved.length() - 1) : resolved;
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        long backoff = RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)];
+        try {
+            Thread.sleep(backoff);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private String maskSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            return "<empty>";
+        }
+        String trimmed = secret.trim();
+        if (trimmed.length() <= 4) {
+            return "****";
+        }
+        return "***" + trimmed.substring(trimmed.length() - 4);
+    }
+
     private List<String> defaultList(List<String> value) {
         return value == null ? List.of() : value;
     }
@@ -781,6 +890,17 @@ public class GeminiService {
                         sanitizeSourceBoundValue(item.notes)
                 ))
                 .toList();
+    }
+
+
+
+    public record GeminiHealthCheck(
+            boolean apiKeyPresent,
+            boolean endpointReachable,
+            String model,
+            String endpoint,
+            String message
+    ) {
     }
 
     private static class UniversityModelResponse {

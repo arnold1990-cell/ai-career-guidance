@@ -3,6 +3,9 @@ package com.edurite.ai.dto;
 import java.util.List;
 
 public record UniversitySourcesAnalysisResponse(
+        Boolean aiLive,
+        Boolean fallbackUsed,
+        String warningMessage,
         List<String> sourceUrls,
         List<String> successfullyAnalysedUrls,
         List<String> failedUrls,

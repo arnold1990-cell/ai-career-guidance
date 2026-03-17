@@ -21,8 +21,8 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyFailsAtRequestTimeNotConstructionTime() {
-        GeminiService service = new GeminiService(new ObjectMapper());
-        ReflectionTestUtils.setField(service, "apiKey", "   ");
+        GeminiService service = new GeminiService(new ObjectMapper(), new org.springframework.mock.env.MockEnvironment());
+        ReflectionTestUtils.setField(service, "configuredApiKey", "   ");
         ReflectionTestUtils.setField(service, "model", "models/gemini-2.0-flash");
 
         assertThatThrownBy(() -> service.getCareerAdvice(new CareerAdviceRequest("hs", "tech", "java", "harare")))
@@ -36,8 +36,8 @@ class GeminiServiceConfigSafetyTest {
 
     @Test
     void missingApiKeyReturnsFallbackForUniversitySourceAnalysis() {
-        GeminiService service = new GeminiService(new ObjectMapper());
-        ReflectionTestUtils.setField(service, "apiKey", "");
+        GeminiService service = new GeminiService(new ObjectMapper(), new org.springframework.mock.env.MockEnvironment());
+        ReflectionTestUtils.setField(service, "configuredApiKey", "");
         ReflectionTestUtils.setField(service, "model", "gemini-2.5-flash");
 
         StudentProfile profile = new StudentProfile();
@@ -53,5 +53,16 @@ class GeminiServiceConfigSafetyTest {
         assertThat(response.summary()).contains("Based on the available university sources");
         assertThat(response.recommendedCareers()).isNotEmpty();
         assertThat(response.warnings()).isNotEmpty();
+    }
+
+    @Test
+    void acceptsDotNotationGeminiApiKeyProperty() {
+        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment()
+                .withProperty("gemini.api.key", "dot-notation-key");
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+
+        String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveApiKey");
+
+        assertThat(resolved).isEqualTo("dot-notation-key");
     }
 }

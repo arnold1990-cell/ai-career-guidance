@@ -13,7 +13,7 @@ class GeminiServiceUniversityParsingTest {
 
     @Test
     void parseUniversityAdviceFallsBackToSectionParsingAndAddsMinimumRequirements() throws JsonProcessingException {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new org.springframework.mock.env.MockEnvironment());
 
         String messyText = """
                 Recommended careers

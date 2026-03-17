@@ -84,6 +84,9 @@ export interface UniversityRecommendedProgramme {
 }
 
 export interface UniversitySourcesAnalysisResponse {
+  aiLive: boolean;
+  fallbackUsed: boolean;
+  warningMessage?: string | null;
   sourceUrls: string[];
   successfullyAnalysedUrls: string[];
   failedUrls: string[];
