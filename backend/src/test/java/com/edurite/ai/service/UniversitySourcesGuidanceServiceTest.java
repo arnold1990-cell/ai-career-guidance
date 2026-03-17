@@ -97,4 +97,25 @@ class UniversitySourcesGuidanceServiceTest {
 
         verify(pageFetcherService).fetchPages(dedupedUrls);
     }
+    @Test
+    void analyseStillCallsGeminiWhenSourcePipelineIsEmpty() {
+        Principal principal = () -> "student";
+        StudentProfile profile = new StudentProfile();
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
+
+        when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(retrievalService.retrieveTopRelevantPages(eq(profile), eq(request), eq(12))).thenReturn(List.of());
+        when(registryService.getDefaultSources()).thenReturn(List.of());
+        when(registryService.deduplicate(List.of())).thenReturn(List.of());
+        when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
+        when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq("")))
+                .thenReturn(new UniversitySourcesAnalysisResponse(true, false, null, List.of(), List.of(), List.of(), 0,
+                        "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini"));
+
+        service.analyse(principal, request);
+
+        verify(geminiService).getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq(""));
+    }
+
 }
