@@ -2,7 +2,7 @@ package com.edurite.ai.service;
 
 final class GeminiModelResolver {
 
-    private static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    private static final String DEFAULT_MODEL = "gemini-1.5-flash";
     private static final String DEFAULT_API_VERSION = "v1beta";
 
     private GeminiModelResolver() {
