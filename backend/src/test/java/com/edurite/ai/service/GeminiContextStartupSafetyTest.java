@@ -10,6 +10,7 @@ class GeminiContextStartupSafetyTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withBean(ObjectMapper.class)
+            .withBean(org.springframework.core.env.Environment.class, org.springframework.mock.env.MockEnvironment::new)
             .withBean(GeminiService.class)
             .withPropertyValues(
                     "spring.profiles.active=test",

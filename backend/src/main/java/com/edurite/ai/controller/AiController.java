@@ -83,6 +83,11 @@ public class AiController {
         return ResponseEntity.ok(sourceCoverageService.getCoverage());
     }
 
+    @GetMapping("/gemini-health")
+    public ResponseEntity<GeminiService.GeminiHealthCheck> geminiHealth() {
+        return ResponseEntity.ok(geminiService.checkHealth());
+    }
+
     private ResponseEntity<Map<String, Object>> errorResponse(HttpServletRequest httpRequest, AiServiceException ex) {
         log.warn("AI guidance request failed: status={}, message={}", ex.getStatus().value(), ex.getMessage());
         Map<String, Object> body = new LinkedHashMap<>();

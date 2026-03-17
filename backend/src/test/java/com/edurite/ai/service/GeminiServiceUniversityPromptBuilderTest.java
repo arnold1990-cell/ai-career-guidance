@@ -16,7 +16,7 @@ class GeminiServiceUniversityPromptBuilderTest {
 
     @Test
     void universityPromptIncludesMultipleSourcesMetadataAndMergedContext() {
-        GeminiService service = new GeminiService(new ObjectMapper());
+        GeminiService service = new GeminiService(new ObjectMapper(), new org.springframework.mock.env.MockEnvironment());
         StudentProfile profile = new StudentProfile();
         profile.setFirstName("Ada");
         profile.setInterests("software, data");
