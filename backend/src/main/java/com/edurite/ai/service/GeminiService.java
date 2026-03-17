@@ -146,7 +146,7 @@ public class GeminiService {
 
         if (resolveApiKey().isBlank()) {
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated using trusted EduRite data."));
         }
 
         try {
@@ -157,7 +157,7 @@ public class GeminiService {
         } catch (Exception ex) {
             log.warn("University sources analysis fell back after model error: {}", ex.getMessage(), ex);
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
-                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated using trusted EduRite data."));
         }
     }
 
@@ -601,7 +601,7 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 false,
                 true,
-                "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",
+                "Live AI guidance is temporarily unavailable. Suggestions were generated using trusted EduRite data.",
                 sourceUrls,
                 successUrls,
                 failedUrls,
