@@ -1,6 +1,8 @@
 package com.edurite.ai.university;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,6 +18,10 @@ public class UniversitySourceCoverageService {
     }
 
     public UniversitySourceCoverage getCoverage() {
+        Map<String, Long> pagesPerUniversity = new LinkedHashMap<>();
+        repository.countActiveSuccessfulPagesByUniversity()
+                .forEach(row -> pagesPerUniversity.put(row.getUniversityName(), row.getPageCount()));
+
         return new UniversitySourceCoverage(
                 registryService.configuredUniversityCount(),
                 registryService.getActiveUniversities().size(),
@@ -26,7 +32,8 @@ public class UniversitySourceCoverageService {
                         .map(CrawledUniversityPage::getLastCrawledAt)
                         .filter(java.util.Objects::nonNull)
                         .max(OffsetDateTime::compareTo)
-                        .orElse(null)
+                        .orElse(null),
+                pagesPerUniversity
         );
     }
 }

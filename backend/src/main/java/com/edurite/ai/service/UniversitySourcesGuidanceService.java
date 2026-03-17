@@ -12,13 +12,11 @@ import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.service.StudentService;
 import java.security.Principal;
 import java.util.List;
+import java.util.StringJoiner;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UniversitySourcesGuidanceService {
-
-    private static final int AUTO_RETRIEVAL_LIMIT = 12;
-
     private final UniversitySourceRegistryService registryService;
     private final MultiUniversityPageFetcherService pageFetcherService;
     private final UniversitySourcesAggregatorService aggregatorService;
@@ -44,9 +42,10 @@ public class UniversitySourcesGuidanceService {
 
     public UniversitySourcesAnalysisResponse analyse(Principal principal, UniversitySourcesAnalysisRequest request) {
         StudentProfile profile = studentService.getProfileEntity(principal);
+        int retrievalLimit = Math.max(6, Math.min(request.safeMaxRecommendations() + 4, 20));
 
         if (request.usesDefaultSources()) {
-            List<UniversityPageSummary> summaries = retrievalService.retrieveTopRelevantPages(profile, request, AUTO_RETRIEVAL_LIMIT);
+            List<UniversityPageSummary> summaries = retrievalService.retrieveTopRelevantPages(profile, request, retrievalLimit);
             if (!summaries.isEmpty()) {
                 List<UniversitySourcePageResult> retrievedPages = summaries.stream()
                         .map(summary -> new UniversitySourcePageResult(
@@ -60,15 +59,16 @@ public class UniversitySourcesGuidanceService {
                                 null
                         ))
                         .toList();
-                String combinedContext = summaries.stream()
-                        .map(summary -> "University: " + summary.universityName()
+                StringJoiner contextJoiner = new StringJoiner("\n\n");
+                contextJoiner.add("Context uses shortlisted pages across multiple universities in the EduRite registry.");
+                summaries.forEach(summary -> contextJoiner.add(
+                        "University: " + summary.universityName()
                                 + "\nTitle: " + summary.pageTitle()
                                 + "\nType: " + summary.pageType()
                                 + "\nQualification: " + summary.qualificationLevel()
                                 + "\nKeywords: " + String.join(", ", summary.keywords())
-                                + "\nExcerpt: " + summary.summaryExcerpt())
-                        .reduce("", (left, right) -> left + "\n\n" + right)
-                        .trim();
+                                + "\nExcerpt: " + summary.summaryExcerpt()));
+                String combinedContext = contextJoiner.toString();
                 List<String> urls = summaries.stream().map(UniversityPageSummary::sourceUrl).toList();
                 return geminiService.getUniversitySourcesAdvice(request, profile, urls, retrievedPages, combinedContext);
             }

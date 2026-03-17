@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,6 +15,7 @@ import static com.edurite.ai.university.UniversityPageType.PROGRAMME_DETAIL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,5 +55,32 @@ class UniversityCrawlOrchestratorTest {
         assertThat(summary.universitiesProcessed()).isEqualTo(50);
         assertThat(summary.pagesSaved()).isEqualTo(100);
         assertThat(summary.failures()).isEqualTo(50);
+    }
+
+    @Test
+    void crawlRefreshesTimestampsWhenContentHashIsUnchanged() {
+        UniversityRegistryProperties.UniversityRegistryEntry entry = new UniversityRegistryProperties.UniversityRegistryEntry();
+        entry.setUniversityName("University 1");
+        entry.setSeedUrls(List.of("https://www.university-1.ac.za/programmes"));
+
+        CrawledUniversityPage existing = new CrawledUniversityPage();
+        existing.setSourceUrl("https://www.university-1.ac.za/programmes");
+        existing.setCleanedContent("original content");
+        existing.setContentHash(DigestUtils.sha256Hex("original content"));
+
+        when(registryService.getActiveUniversities()).thenReturn(List.of(entry));
+        when(fetcherService.discoverCandidateUrls(any(), any(Integer.class))).thenReturn(List.of("https://www.university-1.ac.za/programmes"));
+        when(fetcherService.fetchPages(any())).thenReturn(List.of(
+                new UniversitySourcePageResult("https://www.university-1.ac.za/programmes", "Programmes", PROGRAMME_DETAIL,
+                        "original content", Set.of("software"), true, null, null)
+        ));
+        when(repository.findBySourceUrl(anyString())).thenReturn(Optional.of(existing));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UniversityCrawlSummary summary = orchestrator.crawlAllActiveUniversities();
+
+        assertThat(summary.pagesSaved()).isEqualTo(1);
+        assertThat(existing.getContentHash()).isEqualTo(DigestUtils.sha256Hex("original content"));
+        verify(repository).save(existing);
     }
 }
