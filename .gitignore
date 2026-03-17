@@ -16,8 +16,10 @@ __pycache__/
 venv/
 
 # Env
+
 .env
-.env.local
+.env.test
+.env.production
 
 # IDE
 .idea/

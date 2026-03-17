@@ -52,7 +52,7 @@ public class GeminiService {
     @Value("${gemini.api-key:}")
     private String configuredApiKey;
 
-    @Value("${gemini.model:gemini-2.5-flash}")
+    @Value("${gemini.model}")
     private String model;
 
     @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
