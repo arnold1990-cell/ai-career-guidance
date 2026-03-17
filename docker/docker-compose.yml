@@ -5,8 +5,8 @@ services:
     image: postgres:16
     environment:
       POSTGRES_DB: edurite
-      POSTGRES_USER: edurite
-      POSTGRES_PASSWORD: edurite
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Crt@Ailsa
     ports:
       - "5432:5432"
     volumes:
