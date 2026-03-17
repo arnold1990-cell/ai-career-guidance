@@ -24,5 +24,5 @@ security:
 
 
 gemini:
-  api-key: ""
+  api-key: AIzaSyCo5MrVWRexb_hyec_74O_xIpG3uRfh0A4
   model: gemini-2.5-flash

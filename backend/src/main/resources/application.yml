@@ -25,8 +25,8 @@ springdoc:
     path: /swagger-ui.html
 
 gemini:
-  api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  api-key: AIzaSyCo5MrVWRexb_hyec_74O_xIpG3uRfh0A4
+  model: gemini-2.5-flash
 
 edurite:
   university:
