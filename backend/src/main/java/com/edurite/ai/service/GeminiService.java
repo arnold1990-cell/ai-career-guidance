@@ -16,6 +16,7 @@ import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -172,7 +173,7 @@ public class GeminiService {
         try {
             String prompt = buildUniversityPrompt(request, profile, safeFetchedPages, safeCombinedContext);
             String modelText = invokeGemini(prompt, config);
-            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, safeSourceUrls, successUrls, failedUrls);
+            UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, safeSourceUrls, successUrls, failedUrls, safeCombinedContext);
             log.info("Fallback decision: Gemini succeeded, fallbackUsed=false");
             return withRuntimeWarnings(enrichWithWarnings(parsed, failedUrls), sourceLimitations);
         } catch (Exception ex) {
@@ -180,6 +181,49 @@ public class GeminiService {
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
                     List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
+    }
+
+    private String analysisModeLabel(List<String> successUrls) {
+        return successUrls.isEmpty() ? "AI Guidance (no external sources)" : "Live Gemini multi-source";
+    }
+
+    private String sourceTrustLabel(List<String> successUrls) {
+        return successUrls.isEmpty() ? "AI-generated (no sources)" : "Verified from University Sources";
+    }
+
+    private String confidenceLevel(List<String> sourceUrls, List<String> successUrls) {
+        if (successUrls.isEmpty()) {
+            return "LOW";
+        }
+        if (sourceUrls.isEmpty()) {
+            return "MEDIUM";
+        }
+        double ratio = (double) successUrls.size() / (double) sourceUrls.size();
+        return ratio >= 0.6 ? "HIGH" : "MEDIUM";
+    }
+
+    private boolean sourceBackedAnalysis(List<String> successUrls, String combinedContext) {
+        return !successUrls.isEmpty() && combinedContext != null && !combinedContext.isBlank();
+    }
+
+    private List<String> extractGroundedClaims(String combinedContext) {
+        if (combinedContext == null || combinedContext.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(combinedContext.split("\n"))
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .filter(line -> line.startsWith("Source URL:")
+                        || line.startsWith("Title:")
+                        || line.startsWith("Type:")
+                        || line.startsWith("University:")
+                        || line.toLowerCase().contains("admission")
+                        || line.toLowerCase().contains("requirements")
+                        || line.toLowerCase().contains("mathematics")
+                        || line.toLowerCase().contains("english")
+                        || line.toLowerCase().contains("qualification"))
+                .limit(40)
+                .toList();
     }
 
     private void ensureApiKey() {
@@ -311,7 +355,8 @@ public class GeminiService {
                       "name": "string",
                       "reason": "string",
                       "requirements": ["string"],
-                      "relatedProgrammes": ["string"]
+                      "relatedProgrammes": ["string"],
+                      "recommendationBasis": "SOURCE_VERIFIED | PROFILE_ONLY"
                     }
                   ],
                   "recommendedProgrammes": [
@@ -319,7 +364,8 @@ public class GeminiService {
                       "name": "string",
                       "university": "string",
                       "admissionRequirements": ["string"],
-                      "notes": "string"
+                      "notes": "string",
+                      "recommendationBasis": "SOURCE_VERIFIED | PROFILE_ONLY"
                     }
                   ],
                   "recommendedUniversities": ["string"],
@@ -342,10 +388,13 @@ public class GeminiService {
                 - Each recommended programme must include admissionRequirements and notes.
                 - Do not include application due dates or deadline fields anywhere.
                 - minimumRequirements MUST always mention Grade 12 passes, English, and Mathematics for mathematics-related pathways.
-                - Do not hallucinate APS scores, subject minimums, or due dates.
+                - NEVER invent APS scores. Only mention APS if an APS value appears explicitly in Combined academic context.
+                - If APS is not explicitly present in source context, write exactly: "Verify APS requirements from the official university website."
+                - NEVER invent due dates, subject minimums, or qualification rules not present in source context.
                 - Ground programmes and universities in the retrieved source content.
                 - If source metadata/context is empty, still provide recommendations using only profile and request focus.
                 - Mention limitation warnings when sources are generic list pages.
+                - For each recommended item, include recommendationBasis as either SOURCE_VERIFIED or PROFILE_ONLY.
                 - Keep suitabilityScore between 0 and 100.
                 - If model cannot provide clean JSON, still provide the seven sections as plain headings with bullet points.
 
@@ -371,6 +420,9 @@ public class GeminiService {
                 Combined academic context (truncated):
                 %s
 
+                Grounded source claims (must be used when recommendationBasis is SOURCE_VERIFIED):
+                %s
+
                 Optional internal seed careers:
                 Software Developer, Data Analyst, Systems Analyst, IT Support Specialist, Business Analyst,
                 QA Tester, Accountant, Economist, Electrical Engineer, Civil Engineer, Teacher.
@@ -390,7 +442,9 @@ public class GeminiService {
                 sanitizePromptValue(request.careerInterest()),
                 sanitizePromptValue(request.qualificationLevel()),
                 sanitizePromptValue(pageMetadata),
-                sanitizePromptValue(combinedContext)
+                sanitizePromptValue(combinedContext),
+                sanitizePromptValue(String.join("
+", extractGroundedClaims(combinedContext)))
         );
     }
 
@@ -462,10 +516,11 @@ public class GeminiService {
     private UniversitySourcesAnalysisResponse parseUniversityAdvice(String modelText,
                                                                     List<String> sourceUrls,
                                                                     List<String> successUrls,
-                                                                    List<String> failedUrls) throws JsonProcessingException {
+                                                                    List<String> failedUrls,
+                                                                    String combinedContext) throws JsonProcessingException {
         try {
             UniversityModelResponse parsed = objectMapper.readValue(extractLikelyJson(modelText), UniversityModelResponse.class);
-            return buildUniversityResponse(parsed, sourceUrls, successUrls, failedUrls);
+            return buildUniversityResponse(parsed, sourceUrls, successUrls, failedUrls, combinedContext);
         } catch (JsonProcessingException ex) {
             log.warn("University guidance JSON parse failed, attempting section-based parsing: reason={}, contentSnippet={}",
                     ex.getOriginalMessage(), trim(modelText));
@@ -474,14 +529,15 @@ public class GeminiService {
                 log.warn("University guidance section-based parsing failed: model output was unusable. snippet={}", trim(modelText));
                 throw ex;
             }
-            return buildUniversityResponse(sectionParsed, sourceUrls, successUrls, failedUrls);
+            return buildUniversityResponse(sectionParsed, sourceUrls, successUrls, failedUrls, combinedContext);
         }
     }
 
     private UniversitySourcesAnalysisResponse buildUniversityResponse(UniversityModelResponse parsed,
                                                                       List<String> sourceUrls,
                                                                       List<String> successUrls,
-                                                                      List<String> failedUrls) {
+                                                                      List<String> failedUrls,
+                                                                      String combinedContext) {
         List<String> minimumRequirements = enforceMinimumRequirements(defaultList(parsed.minimumRequirements), parsed);
         List<String> keyRequirements = mergeKeyAndMinimumRequirements(defaultList(parsed.keyRequirements), minimumRequirements);
         return new UniversitySourcesAnalysisResponse(
@@ -492,6 +548,10 @@ public class GeminiService {
                 successUrls,
                 failedUrls,
                 successUrls.size(),
+                analysisModeLabel(successUrls),
+                sourceTrustLabel(successUrls),
+                confidenceLevel(sourceUrls, successUrls),
+                sourceBackedAnalysis(successUrls, combinedContext),
                 sanitizePromptValue(parsed.summary),
                 defaultCareerList(parsed.recommendedCareers),
                 defaultProgrammeList(parsed.recommendedProgrammes),
@@ -555,6 +615,7 @@ public class GeminiService {
                     payload.reason = "Derived from section-based fallback parsing.";
                     payload.requirements = List.of("Verify subject requirements with the university");
                     payload.relatedProgrammes = List.of();
+                    payload.recommendationBasis = "PROFILE_ONLY";
                     return payload;
                 }).toList();
         response.recommendedProgrammes = sections.getOrDefault("Recommended programmes", List.of()).stream()
@@ -565,6 +626,7 @@ public class GeminiService {
                     payload.university = "University Source";
                     payload.admissionRequirements = List.of("Not found in fetched sources");
                     payload.notes = "Verify exact programme requirements from official university programme pages.";
+                    payload.recommendationBasis = "PROFILE_ONLY";
                     return payload;
                 }).toList();
         response.recommendedUniversities = sections.getOrDefault("Recommended universities", List.of());
@@ -595,6 +657,10 @@ public class GeminiService {
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
                 response.totalSourcesUsed(),
+                response.analysisModeLabel(),
+                response.sourceTrustLabel(),
+                response.confidenceLevel(),
+                response.sourceBackedAnalysis(),
                 response.summary(),
                 response.recommendedCareers(),
                 response.recommendedProgrammes(),
@@ -627,6 +693,10 @@ public class GeminiService {
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
                 response.totalSourcesUsed(),
+                response.analysisModeLabel(),
+                response.sourceTrustLabel(),
+                response.confidenceLevel(),
+                response.sourceBackedAnalysis(),
                 response.summary(),
                 response.recommendedCareers(),
                 response.recommendedProgrammes(),
@@ -657,37 +727,46 @@ public class GeminiService {
                 successUrls,
                 failedUrls,
                 successUrls.size(),
+                analysisModeLabel(successUrls),
+                sourceTrustLabel(successUrls),
+                confidenceLevel(sourceUrls, successUrls),
+                sourceBackedAnalysis(successUrls, ""),
                 "Based on the available university sources and your profile, here are practical options to explore next.",
                 List.of(
                                 new UniversitySourcesAnalysisResponse.RecommendedCareer(
                                         "Software Developer",
                                         "Strong fit for students interested in technology and problem solving.",
                                         List.of("Programming fundamentals", "Mathematics and logical reasoning"),
-                                        List.of("BSc Computer Science", "Diploma in IT")
+                                        List.of("BSc Computer Science", "Diploma in IT"),
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedCareer(
                                         "Data Analyst",
                                         "Good pathway for students who enjoy working with numbers and insights.",
                                         List.of("Statistics basics", "Spreadsheet and data literacy"),
-                                        List.of("BCom Information Systems", "BSc Computer Science")
+                                        List.of("BCom Information Systems", "BSc Computer Science"),
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedCareer(
                                         "IT Support Specialist",
                                         "Suitable for students interested in practical technology support roles.",
                                         List.of("Basic networking knowledge", "Troubleshooting and communication skills"),
-                                        List.of("Diploma in IT")
+                                        List.of("Diploma in IT"),
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedCareer(
                                         "Business Analyst",
                                         "Recommended when combining business interest with digital systems.",
                                         List.of("Business process understanding", "Communication and documentation"),
-                                        List.of("BCom Information Systems")
+                                        List.of("BCom Information Systems"),
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedCareer(
                                         "Systems Analyst",
                                         "Useful for students interested in improving how systems work.",
                                         List.of("Systems thinking", "Problem analysis"),
-                                        List.of("BSc Computer Science", "BCom Information Systems")
+                                        List.of("BSc Computer Science", "BCom Information Systems"),
+                                        "PROFILE_ONLY"
                                 ))
                         .stream().limit(max).toList(),
                 List.of(
@@ -695,25 +774,29 @@ public class GeminiService {
                                         "BSc Computer Science",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Programme requirements should be verified on official faculty pages."
+                                        "Programme requirements should be verified on official faculty pages.",
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                                         "BCom Information Systems",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Admission criteria were not explicitly available in fetched content."
+                                        "Admission criteria were not explicitly available in fetched content.",
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                                         "Diploma in IT",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Check programme-specific pages for exact subject and score minimums."
+                                        "Check programme-specific pages for exact subject and score minimums.",
+                                        "PROFILE_ONLY"
                                 ),
                                 new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                                         "BSc Engineering",
                                         "University Source",
                                         List.of("Not found in fetched sources"),
-                                        "Use official admissions pages to confirm current requirements."
+                                        "Use official admissions pages to confirm current requirements.",
+                                        "PROFILE_ONLY"
                                 ))
                         .stream().limit(max).toList(),
                 sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
@@ -1001,6 +1084,14 @@ public class GeminiService {
         return value;
     }
 
+    private String normalizeRecommendationBasis(String value) {
+        if (value == null || value.isBlank()) {
+            return "PROFILE_ONLY";
+        }
+        String normalized = value.trim().toUpperCase();
+        return normalized.equals("SOURCE_VERIFIED") ? "SOURCE_VERIFIED" : "PROFILE_ONLY";
+    }
+
     private List<UniversitySourcesAnalysisResponse.RecommendedCareer> defaultCareerList(
             List<UniversityModelResponse.RecommendedCareerPayload> value) {
         if (value == null) {
@@ -1012,7 +1103,8 @@ public class GeminiService {
                         item.name,
                         sanitizeSourceBoundValue(item.reason),
                         defaultListOrNotFound(item.requirements),
-                        defaultList(item.relatedProgrammes)
+                        defaultList(item.relatedProgrammes),
+                        normalizeRecommendationBasis(item.recommendationBasis)
                 ))
                 .toList();
     }
@@ -1028,7 +1120,8 @@ public class GeminiService {
                         item.name,
                         sanitizeSourceBoundValue(item.university),
                         defaultListOrNotFound(item.admissionRequirements),
-                        sanitizeSourceBoundValue(item.notes)
+                        sanitizeSourceBoundValue(item.notes),
+                        normalizeRecommendationBasis(item.recommendationBasis)
                 ))
                 .toList();
     }
@@ -1061,6 +1154,7 @@ public class GeminiService {
             public String reason;
             public List<String> requirements;
             public List<String> relatedProgrammes;
+            public String recommendationBasis;
         }
 
         private static class RecommendedProgrammePayload {
@@ -1068,6 +1162,7 @@ public class GeminiService {
             public String university;
             public List<String> admissionRequirements;
             public String notes;
+            public String recommendationBasis;
         }
     }
 

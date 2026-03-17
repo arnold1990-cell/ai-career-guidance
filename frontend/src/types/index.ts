@@ -74,6 +74,7 @@ export interface UniversityRecommendedCareer {
   reason: string;
   requirements: string[];
   relatedProgrammes: string[];
+  recommendationBasis: 'SOURCE_VERIFIED' | 'PROFILE_ONLY' | string;
 }
 
 export interface UniversityRecommendedProgramme {
@@ -81,6 +82,7 @@ export interface UniversityRecommendedProgramme {
   university: string;
   admissionRequirements: string[];
   notes: string;
+  recommendationBasis: 'SOURCE_VERIFIED' | 'PROFILE_ONLY' | string;
 }
 
 export interface UniversitySourcesAnalysisResponse {
@@ -91,6 +93,10 @@ export interface UniversitySourcesAnalysisResponse {
   successfullyAnalysedUrls: string[];
   failedUrls: string[];
   totalSourcesUsed: number;
+  analysisModeLabel: string;
+  sourceTrustLabel: string;
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  sourceBackedAnalysis: boolean;
   summary: string;
   recommendedCareers: UniversityRecommendedCareer[];
   recommendedProgrammes: UniversityRecommendedProgramme[];

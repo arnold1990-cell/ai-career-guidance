@@ -138,6 +138,13 @@ export const StudentCareerRecommendationsPage = () => {
   const skillGaps = aiAdvice.data?.skillGaps ?? [];
   const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
   const warnings = aiAdvice.data?.warnings ?? [];
+  const sourcesUsed = aiAdvice.data?.totalSourcesUsed ?? 0;
+  const requestedSources = aiAdvice.data?.sourceUrls?.length ?? 0;
+  const confidenceLevel = aiAdvice.data?.confidenceLevel ?? 'LOW';
+  const modeLabel = isDemoMode
+    ? 'demo (seeded)'
+    : (aiAdvice.data?.analysisModeLabel ?? (sourcesUsed > 0 ? 'Live Gemini multi-source' : 'AI Guidance (no external sources)'));
+  const trustLabel = aiAdvice.data?.sourceTrustLabel ?? (sourcesUsed > 0 ? 'Verified from University Sources' : 'AI-generated (no sources)');
 
   const renderSimpleList = (items: string[], emptyText: string) => {
     if (items.length === 0) {
@@ -153,6 +160,7 @@ export const StudentCareerRecommendationsPage = () => {
     return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((career) => <article key={career.name} className="rounded border p-3 space-y-2 bg-white">
       <h4 className="font-semibold">{career.name}</h4>
       <p className="text-sm text-slate-600">{career.reason}</p>
+      <p className="text-xs text-slate-500">Why this recommendation? {career.recommendationBasis === "SOURCE_VERIFIED" ? "Verified university-source match to your profile" : "Profile-based AI reasoning (no verified source for this item)"}</p>
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500">Requirements</p>
         <ul className="list-disc ml-5 text-sm">{career.requirements.map((requirement) => <li key={`${career.name}-${requirement}`}>{requirement}</li>)}</ul>
@@ -171,6 +179,7 @@ export const StudentCareerRecommendationsPage = () => {
     return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((programme) => <article key={`${programme.name}-${programme.university}`} className="rounded border p-3 space-y-2 bg-white">
       <h4 className="font-semibold">{programme.name}</h4>
       <p className="text-sm text-slate-600">{programme.university}</p>
+      <p className="text-xs text-slate-500">Why this recommendation? {programme.recommendationBasis === "SOURCE_VERIFIED" ? "Verified university-source match to your profile" : "Profile-based AI reasoning (no verified source for this item)"}</p>
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500">Admission requirements</p>
         <ul className="list-disc ml-5 text-sm">{programme.admissionRequirements.map((requirement) => <li key={`${programme.name}-${requirement}`}>{requirement}</li>)}</ul>
@@ -182,11 +191,14 @@ export const StudentCareerRecommendationsPage = () => {
   };
 
   return <Section title="AI Guidance">
-    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : 'live Gemini multi-source'}</p>
-    {!isDemoMode && <div className="grid gap-3 md:grid-cols-3">
-      <Card label="Sources used" value={aiAdvice.data?.totalSourcesUsed ?? 0} />
-      <Card label="Requested sources" value={aiAdvice.data?.sourceUrls?.length ?? 0} />
+    <p className="text-sm text-slate-500">Mode: {modeLabel}</p>
+    {!isDemoMode && <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <Card label="Sources used" value={sourcesUsed} />
+      <Card label="Requested sources" value={requestedSources} />
       <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
+      <Card label="Source trust" value={trustLabel} />
+      <Card label="Confidence" value={confidenceLevel} />
+      <Card label="Analysis basis" value={aiAdvice.data?.sourceBackedAnalysis ? 'Source-backed' : 'Profile-only'} />
     </div>}
 
     <div className="space-y-2">

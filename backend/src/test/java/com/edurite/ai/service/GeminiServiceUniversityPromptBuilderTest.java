@@ -51,5 +51,6 @@ class GeminiServiceUniversityPromptBuilderTest {
         assertThat(prompt).contains("MERGED-CONTEXT-BLOCK");
         assertThat(prompt).contains("\"minimumRequirements\"");
         assertThat(prompt).contains("Do not include application due dates");
+        assertThat(prompt).contains("Verify APS requirements from the official university website.");
     }
 }

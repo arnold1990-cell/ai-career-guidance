@@ -11,13 +11,17 @@ import com.edurite.ai.university.UniversitySourcesAggregatorService;
 import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.service.StudentService;
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UniversitySourcesGuidanceService {
 
     private static final int AUTO_RETRIEVAL_LIMIT = 12;
+    private static final int DISCOVERY_PER_UNIVERSITY_LIMIT = 5;
 
     private final UniversitySourceRegistryService registryService;
     private final MultiUniversityPageFetcherService pageFetcherService;
@@ -75,7 +79,7 @@ public class UniversitySourcesGuidanceService {
         }
 
         List<String> urls = (request.urls() == null || request.urls().isEmpty())
-                ? registryService.getDefaultSources()
+                ? buildRelevantOfficialUrls(request)
                 : request.urls();
         urls = registryService.deduplicate(urls).stream().limit(30).toList();
 
@@ -83,6 +87,40 @@ public class UniversitySourcesGuidanceService {
         String combinedContext = aggregatorService.buildCombinedContext(fetchedPages, profile, request);
 
         return geminiService.getUniversitySourcesAdvice(request, profile, urls, fetchedPages, combinedContext);
+    }
+
+
+    /**
+     * Builds a focused official-university source list by combining registry seed URLs
+     * with discovered internal programme/admissions pages from allowlisted domains.
+     */
+    private List<String> buildRelevantOfficialUrls(UniversitySourcesAnalysisRequest request) {
+        LinkedHashSet<String> discovered = new LinkedHashSet<>(registryService.getDefaultSources());
+        String focus = ((request.targetProgram() == null ? "" : request.targetProgram()) + " "
+                + (request.careerInterest() == null ? "" : request.careerInterest())).toLowerCase(Locale.ROOT);
+
+        registryService.getActiveUniversities().stream().limit(8).forEach(university -> {
+            List<String> candidates = pageFetcherService.discoverCandidateUrls(university, DISCOVERY_PER_UNIVERSITY_LIMIT);
+            if (focus.isBlank()) {
+                discovered.addAll(candidates);
+                return;
+            }
+            List<String> focused = new ArrayList<>();
+            for (String candidate : candidates) {
+                String lower = candidate.toLowerCase(Locale.ROOT);
+                if (lower.contains("programme") || lower.contains("program") || lower.contains("admission") || lower.contains("qualification")) {
+                    focused.add(candidate);
+                }
+                for (String token : focus.split("\s+")) {
+                    if (token.length() >= 4 && lower.contains(token)) {
+                        focused.add(candidate);
+                        break;
+                    }
+                }
+            }
+            discovered.addAll(focused.isEmpty() ? candidates : focused);
+        });
+        return discovered.stream().toList();
     }
 
     public List<String> getDefaultSources() {
