@@ -65,4 +65,29 @@ class GeminiServiceConfigSafetyTest {
 
         assertThat(resolved).isEqualTo("dot-notation-key");
     }
+
+    @Test
+    void resolvesModelFromEnvironmentWhenValueFieldIsBlank() {
+        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment()
+                .withProperty("GEMINI_MODEL", "models/gemini-2.0-flash");
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "model", "  ");
+
+        String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveModel");
+
+        assertThat(resolved).isEqualTo("gemini-2.0-flash");
+    }
+
+    @Test
+    void resolvesBaseUrlFromEnvironmentWhenValueFieldIsBlank() {
+        org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment()
+                .withProperty("GEMINI_BASE_URL", "https://example.googleapis.com/");
+        GeminiService service = new GeminiService(new ObjectMapper(), environment);
+        ReflectionTestUtils.setField(service, "baseUrl", "   ");
+
+        String resolved = (String) ReflectionTestUtils.invokeMethod(service, "resolveBaseUrl");
+
+        assertThat(resolved).isEqualTo("https://example.googleapis.com");
+    }
+
 }

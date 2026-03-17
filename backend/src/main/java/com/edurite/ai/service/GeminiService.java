@@ -73,20 +73,25 @@ public class GeminiService {
     @PostConstruct
     void logStartupConfiguration() {
         String resolvedKey = resolveApiKey();
+        String resolvedModel = resolveModel();
+        String resolvedBaseUrl = resolveBaseUrl();
+        logEnvironmentPresence("startup");
+
         if (resolvedKey.isBlank()) {
-            log.warn("Gemini configuration warning: API key is missing. Set gemini.api-key, gemini.api.key, or GEMINI_API_KEY.");
+            log.warn("Gemini configuration warning: API key is missing. Set gemini.api-key, gemini.api.key, or GEMINI_API_KEY. model={}, baseUrl={}",
+                    resolvedModel, resolvedBaseUrl);
             return;
         }
 
         log.info("Gemini configuration loaded: apiKeyPresent=true, keyMask={}, model={}, baseUrl={}",
-                maskSecret(resolvedKey), GeminiModelResolver.resolveModelName(model), resolveBaseUrl());
+                maskSecret(resolvedKey), resolvedModel, resolvedBaseUrl);
     }
 
 
 
     public GeminiHealthCheck checkHealth() {
         String resolvedApiKey = resolveApiKey();
-        String resolvedModel = GeminiModelResolver.resolveModelName(model);
+        String resolvedModel = resolveModel();
         String endpoint = resolveBaseUrl() + "/v1beta/models/" + resolvedModel;
 
         if (resolvedApiKey.isBlank()) {
@@ -132,6 +137,12 @@ public class GeminiService {
                 .map(UniversitySourcePageResult::sourceUrl).toList();
         List<String> failedUrls = fetchedPages.stream().filter(p -> !p.success())
                 .map(UniversitySourcePageResult::sourceUrl).toList();
+        int sourceUrlCount = sourceUrls == null ? 0 : sourceUrls.size();
+        int fetchedPageCount = fetchedPages == null ? 0 : fetchedPages.size();
+        int contextLength = combinedContext == null ? 0 : combinedContext.length();
+
+        log.info("University guidance context: sourceUrls={}, fetchedPages={}, successfulPages={}, failedPages={}, combinedContextLength={}",
+                sourceUrlCount, fetchedPageCount, successUrls.size(), failedUrls.size(), contextLength);
 
         if (resolveApiKey().isBlank()) {
             return fallbackUniversityResponse(request, sourceUrls, successUrls, failedUrls,
@@ -159,10 +170,12 @@ public class GeminiService {
     }
 
     private String invokeGemini(String prompt) {
-        String endpointPath = GeminiModelResolver.buildGenerateContentPath(model);
-        String resolvedModel = GeminiModelResolver.resolveModelName(model);
+        String resolvedModel = resolveModel();
+        String endpointPath = GeminiModelResolver.buildGenerateContentPath(resolvedModel);
         String endpoint = resolveBaseUrl() + endpointPath;
         String resolvedApiKey = resolveApiKey();
+
+        logEnvironmentPresence("invokeGemini");
 
         JsonObject payload = new JsonObject();
         JsonArray contents = new JsonArray();
@@ -182,7 +195,8 @@ public class GeminiService {
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
-        log.info("Starting Gemini call: model={}, endpointPath={}, apiKeyMask={}", resolvedModel, endpointPath, maskSecret(resolvedApiKey));
+        log.info("Starting Gemini call: model={}, endpointPath={}, endpoint={}, apiKeyMask={}",
+                resolvedModel, endpointPath, endpoint, maskSecret(resolvedApiKey));
 
         for (int attempt = 0; attempt <= MAX_GEMINI_RETRIES; attempt++) {
             boolean retry = attempt < MAX_GEMINI_RETRIES;
@@ -469,7 +483,7 @@ public class GeminiService {
                 defaultList(parsed.recommendedNextSteps),
                 defaultList(parsed.warnings),
                 normalizeScore(parsed.suitabilityScore),
-                GeminiModelResolver.resolveModelName(model)
+                resolveModel()
         );
     }
 
@@ -658,7 +672,7 @@ public class GeminiService {
                 List.of("Open programme detail pages", "Compare your subjects with entry requirements", "Upload your transcript and CV"),
                 warnings,
                 70,
-                GeminiModelResolver.resolveModelName(model)
+                resolveModel()
         );
     }
 
@@ -821,12 +835,58 @@ public class GeminiService {
         return environment.getProperty("GEMINI_API_KEY", "").trim();
     }
 
+    private String resolveModel() {
+        String configured = model == null ? "" : model.trim();
+        if (!configured.isBlank()) {
+            return GeminiModelResolver.resolveModelName(configured);
+        }
+
+        String fromProperty = environment.getProperty("gemini.model", "").trim();
+        if (!fromProperty.isBlank()) {
+            return GeminiModelResolver.resolveModelName(fromProperty);
+        }
+
+        String fromEnv = environment.getProperty("GEMINI_MODEL", "").trim();
+        return GeminiModelResolver.resolveModelName(fromEnv);
+    }
+
     private String resolveBaseUrl() {
         String resolved = baseUrl == null ? "" : baseUrl.trim();
+        if (resolved.isBlank()) {
+            resolved = environment.getProperty("gemini.base-url", "").trim();
+        }
+        if (resolved.isBlank()) {
+            resolved = environment.getProperty("gemini.base.url", "").trim();
+        }
+        if (resolved.isBlank()) {
+            resolved = environment.getProperty("GEMINI_BASE_URL", "").trim();
+        }
         if (resolved.isBlank()) {
             return GEMINI_BASE_URL;
         }
         return resolved.endsWith("/") ? resolved.substring(0, resolved.length() - 1) : resolved;
+    }
+
+    private void logEnvironmentPresence(String context) {
+        boolean envApiKeyPresent = !environment.getProperty("GEMINI_API_KEY", "").isBlank();
+        boolean envModelPresent = !environment.getProperty("GEMINI_MODEL", "").isBlank();
+        boolean envBaseUrlPresent = !environment.getProperty("GEMINI_BASE_URL", "").isBlank();
+        boolean propertyApiKeyPresent = !environment.getProperty("gemini.api-key", "").isBlank()
+                || !environment.getProperty("gemini.api.key", "").isBlank();
+        boolean propertyModelPresent = !environment.getProperty("gemini.model", "").isBlank();
+        boolean propertyBaseUrlPresent = !environment.getProperty("gemini.base-url", "").isBlank()
+                || !environment.getProperty("gemini.base.url", "").isBlank();
+
+        log.info("Gemini config diagnostics [{}]: envApiKeyPresent={}, envModelPresent={}, envBaseUrlPresent={}, propertyApiKeyPresent={}, propertyModelPresent={}, propertyBaseUrlPresent={}, resolvedModel={}, resolvedBaseUrl={}",
+                context,
+                envApiKeyPresent,
+                envModelPresent,
+                envBaseUrlPresent,
+                propertyApiKeyPresent,
+                propertyModelPresent,
+                propertyBaseUrlPresent,
+                resolveModel(),
+                resolveBaseUrl());
     }
 
     private void sleepBeforeRetry(int attempt) {
