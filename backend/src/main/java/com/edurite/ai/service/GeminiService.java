@@ -52,11 +52,9 @@ public class GeminiService {
     @Value("${gemini.api-key:}")
     private String configuredApiKey;
 
-    @Value("${gemini.model:gemini-2.5-flash}")
+    @Value("${gemini.model:gemini-1.5-flash}")
     private String model;
 
-    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
-    private String baseUrl;
 
     public GeminiService(ObjectMapper objectMapper, Environment environment) {
         this.objectMapper = objectMapper;
@@ -102,7 +100,6 @@ public class GeminiService {
 
         Request request = new Request.Builder()
                 .url(endpoint)
-                .addHeader("x-goog-api-key", resolvedApiKey)
                 .get()
                 .build();
 
@@ -162,9 +159,9 @@ public class GeminiService {
                 sourceUrlCount, fetchedPageCount, successUrls.size(), failedUrls.size(), contextLength);
 
         GeminiRequestConfig config = resolveRequestConfig(true);
-        if (config.apiKey().isBlank() || config.model().isBlank() || config.baseUrl().isBlank()) {
-            log.warn("Fallback path used before Gemini attempt: apiKeyPresent={}, modelPresent={}, baseUrlPresent={}",
-                    !config.apiKey().isBlank(), !config.model().isBlank(), !config.baseUrl().isBlank());
+        if (config.apiKey().isBlank() || config.model().isBlank()) {
+            log.warn("Fallback path used before Gemini attempt: apiKeyPresent={}, modelPresent={}",
+                    !config.apiKey().isBlank(), !config.model().isBlank());
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
                     List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
@@ -207,7 +204,6 @@ public class GeminiService {
         Request httpRequest = new Request.Builder()
                 .url(config.generateEndpoint())
                 .addHeader("Content-Type", "application/json")
-                .addHeader("x-goog-api-key", config.apiKey())
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
@@ -455,7 +451,8 @@ public class GeminiService {
             return new CareerAdviceResponse(sanitized);
         } catch (JsonProcessingException ex) {
             log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
-            return fallbackCareerAdvice(modelText);
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                    "Gemini returned invalid career-advice JSON.");
         }
     }
 
@@ -905,21 +902,7 @@ public class GeminiService {
     }
 
     private String resolveBaseUrl() {
-        String resolved = baseUrl == null ? "" : baseUrl.trim();
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("gemini.base-url", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("gemini.base.url", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = environment.getProperty("GEMINI_BASE_URL", "").trim();
-        }
-        if (resolved.isBlank()) {
-            resolved = GEMINI_BASE_URL;
-        }
-        String normalized = GeminiModelResolver.normalizeBaseUrl(resolved);
-        return normalized.isBlank() ? GEMINI_BASE_URL : normalized;
+        return GEMINI_BASE_URL;
     }
 
     private GeminiRequestConfig resolveRequestConfig(boolean logValues) {
@@ -932,10 +915,9 @@ public class GeminiService {
         GeminiRequestConfig config = new GeminiRequestConfig(
                 resolvedApiKey,
                 resolvedModel,
-                resolvedBaseUrl,
                 endpointPath,
-                resolvedBaseUrl + endpointPath,
-                resolvedBaseUrl + modelInfoPath
+                resolvedBaseUrl + endpointPath + "?key=" + resolvedApiKey,
+                resolvedBaseUrl + modelInfoPath + "?key=" + resolvedApiKey
         );
         if (logValues) {
             log.info("Gemini request config: apiKeyPresent={}, keyMask={}, model={}, baseUrl={}, endpoint={}",
@@ -951,21 +933,15 @@ public class GeminiService {
     private void logEnvironmentPresence(String context) {
         boolean envApiKeyPresent = !environment.getProperty("GEMINI_API_KEY", "").isBlank();
         boolean envModelPresent = !environment.getProperty("GEMINI_MODEL", "").isBlank();
-        boolean envBaseUrlPresent = !environment.getProperty("GEMINI_BASE_URL", "").isBlank();
         boolean propertyApiKeyPresent = !environment.getProperty("gemini.api-key", "").isBlank()
                 || !environment.getProperty("gemini.api.key", "").isBlank();
         boolean propertyModelPresent = !environment.getProperty("gemini.model", "").isBlank();
-        boolean propertyBaseUrlPresent = !environment.getProperty("gemini.base-url", "").isBlank()
-                || !environment.getProperty("gemini.base.url", "").isBlank();
-
-        log.info("Gemini config diagnostics [{}]: envApiKeyPresent={}, envModelPresent={}, envBaseUrlPresent={}, propertyApiKeyPresent={}, propertyModelPresent={}, propertyBaseUrlPresent={}, resolvedModel={}, resolvedBaseUrl={}",
+        log.info("Gemini config diagnostics [{}]: envApiKeyPresent={}, envModelPresent={}, propertyApiKeyPresent={}, propertyModelPresent={}, resolvedModel={}, resolvedBaseUrl={}",
                 context,
                 envApiKeyPresent,
                 envModelPresent,
-                envBaseUrlPresent,
                 propertyApiKeyPresent,
                 propertyModelPresent,
-                propertyBaseUrlPresent,
                 resolveModel(),
                 resolveBaseUrl());
     }
@@ -1074,7 +1050,6 @@ public class GeminiService {
     private record GeminiRequestConfig(
             String apiKey,
             String model,
-            String baseUrl,
             String endpointPath,
             String generateEndpoint,
             String modelInfoEndpoint

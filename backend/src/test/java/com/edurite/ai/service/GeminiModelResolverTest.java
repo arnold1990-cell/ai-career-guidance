@@ -30,25 +30,25 @@ class GeminiModelResolverTest {
                 .isEqualTo("gemini-2.0-flash");
         assertThat(GeminiModelResolver.resolveModelName("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=test"))
                 .isEqualTo("gemini-2.0-flash");
-        assertThat(GeminiModelResolver.resolveModelName("gemini-2.5-flash"))
-                .isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("models/gemini-2.5-flash"))
-                .isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("v1/models/gemini-2.5-flash"))
-                .isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("v1beta/models/gemini-2.5-flash"))
-                .isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"))
-                .isEqualTo("gemini-2.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("gemini-1.5-flash"))
+                .isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("models/gemini-1.5-flash"))
+                .isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("v1/models/gemini-1.5-flash"))
+                .isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("v1beta/models/gemini-1.5-flash"))
+                .isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"))
+                .isEqualTo("gemini-1.5-flash");
     }
 
     @Test
     void resolveModelNameFallsBackToDefaultForNullOrBlank() {
-        assertThat(GeminiModelResolver.resolveModelName(null)).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("")).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("   ")).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("models/   ")).isEqualTo("gemini-2.5-flash");
-        assertThat(GeminiModelResolver.resolveModelName("/models/   ")).isEqualTo("gemini-2.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName(null)).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("")).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("   ")).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("models/   ")).isEqualTo("gemini-1.5-flash");
+        assertThat(GeminiModelResolver.resolveModelName("/models/   ")).isEqualTo("gemini-1.5-flash");
     }
 
     @Test
@@ -65,9 +65,9 @@ class GeminiModelResolverTest {
     void normalizeBaseUrlRemovesVersionAndModelSegments() {
         assertThat(GeminiModelResolver.normalizeBaseUrl("https://generativelanguage.googleapis.com/v1beta/"))
                 .isEqualTo("https://generativelanguage.googleapis.com");
-        assertThat(GeminiModelResolver.normalizeBaseUrl("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"))
+        assertThat(GeminiModelResolver.normalizeBaseUrl("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"))
                 .isEqualTo("https://generativelanguage.googleapis.com");
-        assertThat(GeminiModelResolver.normalizeBaseUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash"))
+        assertThat(GeminiModelResolver.normalizeBaseUrl("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash"))
                 .isEqualTo("https://generativelanguage.googleapis.com");
     }
 
