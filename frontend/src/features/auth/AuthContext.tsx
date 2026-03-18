@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
-  login: (payload: { email: string; password: string }) => Promise<User>;
+  login: (payload: { email: string; password: string }, options?: { rememberMe?: boolean }) => Promise<User>;
   logout: () => Promise<void>;
   registerStudent: (payload: StudentRegisterPayload) => Promise<User>;
   registerCompany: (payload: CompanyRegisterPayload) => Promise<User>;
@@ -45,9 +45,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsHydrated(true);
   }, []);
 
-  const setSession = (payload: { accessToken: string; refreshToken?: string; user: User }) => {
-    authStore.setTokens(payload.accessToken, payload.refreshToken);
-    authStore.setUser(payload.user);
+  const setSession = (payload: { accessToken: string; refreshToken?: string; user: User }, options?: { rememberMe?: boolean }) => {
+    const rememberMe = options?.rememberMe ?? true;
+    authStore.setTokens(payload.accessToken, payload.refreshToken, rememberMe);
+    authStore.setUser(payload.user, rememberMe);
     setUser(payload.user);
     return payload.user;
   };
@@ -57,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user,
       isHydrated,
       isAuthenticated: Boolean(authStore.getAccessToken() && user),
-      login: async (payload) => setSession(await authService.login(payload)),
+      login: async (payload, options) => setSession(await authService.login(payload), options),
       registerStudent: async (payload) => setSession(await authService.registerStudent(payload)),
       registerCompany: async (payload) => setSession(await authService.registerCompany(payload)),
       logout: async () => {

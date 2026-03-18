@@ -331,6 +331,22 @@ class AuthFlowIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+
+    @Test
+    void adminCannotAccessCompanyEndpointsAndCompanyCannotAccessAdminEndpoints() throws Exception {
+        registerCompany("cross.role.company@example.com", "CROSS-ROLE-001");
+        String companyToken = loginAndGetAccessToken("cross.role.company@example.com", "StrongPass@123");
+        String adminToken = loginAndGetAccessToken("admin@test.local", "AdminPass@123");
+
+        mockMvc.perform(get("/api/v1/admin/users")
+                        .header("Authorization", "Bearer " + companyToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/companies/me")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void studentDataEndpointsRejectMissingAuth() throws Exception {
         mockMvc.perform(get("/api/v1/student/dashboard")).andExpect(status().isUnauthorized());
