@@ -187,14 +187,6 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
         throw new Error('Signed in successfully, but no supported role was returned for this account.');
       }
 
-      if (!loggedInUser.roles.includes(`ROLE_${role}`)) {
-        navigate(buildAuthPath(primaryRole as AuthRole, 'login'), {
-          replace: true,
-          state: { roleMismatch: `This account is registered as ${primaryRole.toLowerCase()}. We've redirected you to the correct workspace.` },
-        });
-        return;
-      }
-
       if (primaryRole === 'STUDENT') {
         const me = await studentService.getMe();
         navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', { replace: true });
