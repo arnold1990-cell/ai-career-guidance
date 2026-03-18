@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class AuthDataSeeder {
 
 // @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
+    @Order(0)
     ApplicationRunner authSeedRunner(
             RoleRepository roleRepository,
             UserRepository userRepository,
