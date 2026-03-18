@@ -1,12 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { getDashboardPathForRole } from '@/features/auth/roleUtils';
 import type { Role } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
-
-const roleHome: Record<Role, string> = {
-  STUDENT: '/student/dashboard',
-  COMPANY: '/company/dashboard',
-  ADMIN: '/admin/dashboard',
-};
 
 export const RequireRole = ({ role }: { role: Role }) => {
   const { isAuthenticated, hasRole, getPrimaryRole } = useAuth();
@@ -20,5 +15,5 @@ export const RequireRole = ({ role }: { role: Role }) => {
   }
 
   const primaryRole = getPrimaryRole();
-  return <Navigate to={primaryRole ? roleHome[primaryRole] : '/auth/login'} replace />;
+  return <Navigate to={primaryRole ? getDashboardPathForRole(primaryRole) : '/auth/login'} replace />;
 };

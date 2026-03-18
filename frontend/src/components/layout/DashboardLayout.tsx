@@ -1,6 +1,7 @@
 import { Bell, LogOut, Menu } from 'lucide-react';
 import { Link, Outlet } from 'react-router-dom';
 import { useState } from 'react';
+import { resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { useAuth } from '@/hooks/useAuth';
 import type { Role } from '@/types';
 import eduriteSidebarLogo from '@/assets/Edurite-dashboard.jpeg';
@@ -22,7 +23,7 @@ export const DashboardLayout = () => {
   const [open, setOpen] = useState(false);
   if (!user) return null;
 
-  const primaryRole = user.roles[0]?.replace('ROLE_', '') as Role | undefined;
+  const primaryRole = resolvePrimaryRole(user);
   if (!primaryRole) return null;
 
   return (

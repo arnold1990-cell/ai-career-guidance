@@ -1,5 +1,6 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
 import { authStore } from '@/features/auth/authStore';
+import { getNormalizedUserRoles, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { authService } from '@/services/authService';
 import type { CompanyRegisterPayload, Role, StudentRegisterPayload, User } from '@/types';
 
@@ -19,15 +20,9 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const normalizeStoredUser = (user: User | null): User | null => {
   if (!user) return null;
-  const roles = user.roles?.filter(Boolean) ?? [];
+  const roles = getNormalizedUserRoles(user);
   if (!roles.length) return null;
   return { ...user, roles };
-};
-
-const resolvePrimaryRole = (user: User | null): Role | null => {
-  const primaryRole = user?.roles?.[0]?.replace('ROLE_', '');
-  if (!primaryRole || !['STUDENT', 'COMPANY', 'ADMIN'].includes(primaryRole)) return null;
-  return primaryRole as Role;
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -69,7 +64,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
         }
       },
-      hasRole: (role) => Boolean(user?.roles?.includes(`ROLE_${role}`)),
+      hasRole: (role) => getNormalizedUserRoles(user).includes(`ROLE_${role}`),
       getPrimaryRole: () => resolvePrimaryRole(user),
     }),
     [isHydrated, user],
