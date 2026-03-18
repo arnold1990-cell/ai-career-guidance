@@ -2,32 +2,47 @@ const ACCESS_TOKEN_KEY = 'edurite_access_token';
 const REFRESH_TOKEN_KEY = 'edurite_refresh_token';
 const USER_KEY = 'edurite_user';
 
+const storages = [localStorage, sessionStorage];
+
+const getFromStorage = (key: string) => storages.map((storage) => storage.getItem(key)).find((value) => value !== null) ?? null;
+
 export const authStore = {
-  getAccessToken: () => localStorage.getItem(ACCESS_TOKEN_KEY),
-  getRefreshToken: () => localStorage.getItem(REFRESH_TOKEN_KEY),
+  getAccessToken: () => getFromStorage(ACCESS_TOKEN_KEY),
+  getRefreshToken: () => getFromStorage(REFRESH_TOKEN_KEY),
   getUser: () => {
-    const user = localStorage.getItem(USER_KEY);
+    const user = getFromStorage(USER_KEY);
     if (!user) return null;
 
     try {
       return JSON.parse(user);
     } catch {
-      localStorage.removeItem(USER_KEY);
+      storages.forEach((storage) => storage.removeItem(USER_KEY));
       return null;
     }
   },
-  setTokens: (accessToken: string, refreshToken?: string) => {
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  setTokens: (accessToken: string, refreshToken?: string, rememberMe = true) => {
+    const primaryStorage = rememberMe ? localStorage : sessionStorage;
+    const secondaryStorage = rememberMe ? sessionStorage : localStorage;
+    primaryStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    secondaryStorage.removeItem(ACCESS_TOKEN_KEY);
     if (refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      primaryStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      secondaryStorage.removeItem(REFRESH_TOKEN_KEY);
     } else {
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      storages.forEach((storage) => storage.removeItem(REFRESH_TOKEN_KEY));
     }
   },
-  setUser: (user: unknown) => localStorage.setItem(USER_KEY, JSON.stringify(user)),
+  setUser: (user: unknown, rememberMe = true) => {
+    const primaryStorage = rememberMe ? localStorage : sessionStorage;
+    const secondaryStorage = rememberMe ? sessionStorage : localStorage;
+    primaryStorage.setItem(USER_KEY, JSON.stringify(user));
+    secondaryStorage.removeItem(USER_KEY);
+  },
   clear: () => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    storages.forEach((storage) => {
+      storage.removeItem(ACCESS_TOKEN_KEY);
+      storage.removeItem(REFRESH_TOKEN_KEY);
+      storage.removeItem(USER_KEY);
+    });
   },
 };
