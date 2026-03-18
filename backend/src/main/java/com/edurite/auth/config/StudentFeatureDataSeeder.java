@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 // @Configuration marks a class that defines Spring beans and setup.
@@ -32,6 +33,7 @@ public class StudentFeatureDataSeeder {
 
 // @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
+    @Order(1)
     ApplicationRunner studentFeatureSeedRunner(
             UserRepository userRepository,
             RoleRepository roleRepository,
@@ -44,8 +46,8 @@ public class StudentFeatureDataSeeder {
             PasswordEncoder passwordEncoder
     ) {
         return args -> {
-            Role studentRole = roleRepository.findByName("ROLE_STUDENT").orElseThrow();
-            Role companyRole = roleRepository.findByName("ROLE_COMPANY").orElseThrow();
+            Role studentRole = roleRepository.findByName("ROLE_STUDENT").orElseGet(() -> createRole(roleRepository, "ROLE_STUDENT"));
+            Role companyRole = roleRepository.findByName("ROLE_COMPANY").orElseGet(() -> createRole(roleRepository, "ROLE_COMPANY"));
 
             User studentUser = userRepository.findByEmail("student@edurite.local").orElseGet(() -> {
                 User user = new User();
@@ -134,5 +136,11 @@ public class StudentFeatureDataSeeder {
                 notificationService.createInApp(studentUser.getId(), "DEADLINE_REMINDER", "Deadline reminder", "Complete your application before Friday.");
             }
         };
+    }
+
+    private Role createRole(RoleRepository roleRepository, String roleName) {
+        Role role = new Role();
+        role.setName(roleName);
+        return roleRepository.save(role);
     }
 }
