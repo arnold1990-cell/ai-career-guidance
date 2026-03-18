@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -95,11 +96,22 @@ public class AiController {
     public ResponseEntity<?> analyseUniversitySources(@Valid @RequestBody UniversitySourcesAnalysisRequest request,
                                                       Principal principal,
                                                       HttpServletRequest httpRequest) {
+        log.info("University analysis request received: path={}, usesDefaultSources={}, requestedUrls={}, targetProgramPresent={}, careerInterestPresent={}, qualificationLevel={}",
+                httpRequest.getRequestURI(),
+                request.usesDefaultSources(),
+                request.urls() == null ? 0 : request.urls().size(),
+                request.targetProgram() != null && !request.targetProgram().isBlank(),
+                request.careerInterest() != null && !request.careerInterest().isBlank(),
+                safeValue(request.qualificationLevel()));
         try {
             UniversitySourcesAnalysisResponse response = universitySourcesGuidanceService.analyse(principal, request);
             return ResponseEntity.ok(response);
         } catch (AiServiceException ex) {
             return errorResponse(httpRequest, ex);
+        } catch (RuntimeException ex) {
+            log.error("University analysis request crashed before a controlled response was returned: path={}, message={}",
+                    httpRequest.getRequestURI(), ex.getMessage(), ex);
+            return unexpectedErrorResponse(httpRequest);
         }
     }
 
@@ -116,6 +128,16 @@ public class AiController {
     @GetMapping("/gemini-health")
     public ResponseEntity<GeminiService.GeminiHealthCheck> geminiHealth() {
         return ResponseEntity.ok(geminiService.checkHealth());
+    }
+
+    private ResponseEntity<Map<String, Object>> unexpectedErrorResponse(HttpServletRequest httpRequest) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        body.put("error", HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
+        body.put("message", "University source analysis could not be completed. Please try again shortly.");
+        body.put("path", httpRequest.getRequestURI());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(HttpServletRequest httpRequest, AiServiceException ex) {
