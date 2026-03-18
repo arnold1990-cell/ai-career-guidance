@@ -74,6 +74,14 @@ export interface UniversityRecommendedCareer {
   reason: string;
   requirements: string[];
   relatedProgrammes: string[];
+  recommendationReason?: string | null;
+  confidenceLevel?: string | null;
+  verifiedFacts?: string[];
+  inferredInsights?: string[];
+  missingData?: string[];
+  sourceStatus?: string | null;
+  rankingCategory?: string | null;
+  nextBestActions?: string[];
 }
 
 export interface UniversityRecommendedProgramme {
@@ -81,6 +89,30 @@ export interface UniversityRecommendedProgramme {
   university: string;
   admissionRequirements: string[];
   notes: string;
+  recommendationReason?: string | null;
+  confidenceLevel?: string | null;
+  verifiedFacts?: string[];
+  inferredInsights?: string[];
+  missingData?: string[];
+  sourceStatus?: string | null;
+  rankingCategory?: string | null;
+  nextBestActions?: string[];
+}
+
+export interface UniversitySourceDiagnostic {
+  sourceUrl: string;
+  fetchStatus: string;
+  failureReason?: string | null;
+  university?: string | null;
+  usableProgrammeData?: boolean;
+}
+
+export interface UniversitySourceCoverage {
+  requestedSourcesCount: number;
+  successfulSourcesCount: number;
+  failedSourcesCount: number;
+  partialSourcesCount: number;
+  universitiesWithUsableProgrammeData: string[];
 }
 
 export interface UniversitySourcesAnalysisResponse {
@@ -102,6 +134,11 @@ export interface UniversitySourcesAnalysisResponse {
   warnings: string[];
   suitabilityScore: number;
   rawModelUsed: string;
+  suitabilityScoreReason?: string | null;
+  suitabilitySignalsUsed?: string[];
+  suitabilityScoreLimitations?: string[];
+  sourceDiagnostics?: UniversitySourceDiagnostic[];
+  sourceCoverage?: UniversitySourceCoverage | null;
 }
 export interface Notification { id: string; title: string; message: string; read: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }

@@ -33,7 +33,8 @@ public class UniversityRegistryProperties {
 
         private List<String> candidatePaths = new ArrayList<>(List.of(
                 "/programmes", "/programs", "/study", "/studies", "/courses", "/course-finder",
-                "/undergraduate", "/postgraduate", "/faculties", "/admissions", "/academic-programmes"
+                "/undergraduate", "/postgraduate", "/faculties", "/admissions", "/academic-programmes",
+                "/qualifications", "/prospectus", "/fees", "/financial-aid", "/funding", "/apply"
         ));
 
         private int maxDiscoveredCandidatesPerUniversity = 60;
