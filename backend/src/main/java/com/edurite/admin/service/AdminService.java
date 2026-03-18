@@ -20,7 +20,6 @@ import com.edurite.user.entity.User;
 import com.edurite.user.entity.UserStatus;
 import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -369,11 +368,7 @@ public class AdminService {
 
     private void writeAudit(Principal principal, String action, String entityType, UUID entityId, Object details) {
         AuditLog log = new AuditLog();
-        try {
-            log.setDetails(details == null ? null : objectMapper.writeValueAsString(details));
-        } catch (JsonProcessingException ex) {
-            log.setDetails("{}");
-        }
+        log.setDetails(details == null ? null : objectMapper.valueToTree(details));
         log.setActorId(principal == null ? null : currentUserService.requireUser(principal).getId());
         log.setAction(action);
         log.setEntityType(entityType);
