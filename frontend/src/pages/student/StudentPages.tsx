@@ -138,6 +138,9 @@ export const StudentCareerRecommendationsPage = () => {
   const skillGaps = aiAdvice.data?.skillGaps ?? [];
   const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
   const warnings = aiAdvice.data?.warnings ?? [];
+  const backendMode = aiAdvice.data?.fallbackUsed ? 'Fallback recommendations' : aiAdvice.data?.aiLive ? 'Live Gemini multi-source' : 'Unavailable';
+  const requestedSources = aiAdvice.data?.sourceUrls?.length ?? 0;
+  const analysedSources = aiAdvice.data?.totalSourcesUsed ?? 0;
 
   const renderSimpleList = (items: string[], emptyText: string) => {
     if (items.length === 0) {
@@ -182,12 +185,20 @@ export const StudentCareerRecommendationsPage = () => {
   };
 
   return <Section title="AI Guidance">
-    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : 'live Gemini multi-source'}</p>
-    {!isDemoMode && <div className="grid gap-3 md:grid-cols-3">
-      <Card label="Sources used" value={aiAdvice.data?.totalSourcesUsed ?? 0} />
-      <Card label="Requested sources" value={aiAdvice.data?.sourceUrls?.length ?? 0} />
-      <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
-    </div>}
+    <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : backendMode}</p>
+    {!isDemoMode && <>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card label="Sources used" value={analysedSources} />
+        <Card label="Requested sources" value={requestedSources} />
+        <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
+      </div>
+      {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <span className="font-semibold">Warning:</span> {aiAdvice.data.warningMessage}
+      </div>}
+      {analysedSources === 0 && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+        No public university sources were analysed for this response. Please verify every recommendation on official university pages.
+      </div>}
+    </>}
 
     <div className="space-y-2">
       <h3 className="font-semibold">Recommended careers</h3>

@@ -19,6 +19,7 @@ import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.UnsupportedMimeTypeException;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,6 +29,7 @@ public class MultiUniversityPageFetcherService {
     private static final String ACCEPT_LANGUAGE = "en-ZA,en;q=0.9";
     private static final int MAX_CHARS_PER_PAGE = 8_000;
     private static final int MAX_LINKS_PER_SEED = 30;
+    private static final int MAX_HEADINGS = 8;
     private static final Duration INITIAL_BACKOFF = Duration.ofMillis(200);
 
     private static final Map<String, Integer> LINK_RELEVANCE_TERMS = Map.ofEntries(
@@ -37,6 +39,7 @@ public class MultiUniversityPageFetcherService {
             Map.entry("study", 3),
             Map.entry("faculty", 3),
             Map.entry("admission", 3),
+            Map.entry("requirements", 3),
             Map.entry("undergraduate", 2),
             Map.entry("postgraduate", 2),
             Map.entry("qualification", 2),
@@ -73,19 +76,9 @@ public class MultiUniversityPageFetcherService {
             }
             discovered.add(normalizedSeed);
             addCommonPaths(discovered, university, normalizedSeed);
-            if (discovered.size() >= cappedMaxUrls) {
-                break;
-            }
-
             if (crawl().getMaxCrawlDepth() > 0) {
                 visited.add(normalizedSeed);
-                List<String> rankedLinks = extractRankedInternalLinks(university, normalizedSeed, cappedMaxUrls, visited);
-                for (String rankedLink : rankedLinks) {
-                    discovered.add(rankedLink);
-                    if (discovered.size() >= cappedMaxUrls) {
-                        break;
-                    }
-                }
+                discovered.addAll(extractRankedInternalLinks(university, normalizedSeed, cappedMaxUrls, visited));
             }
             if (discovered.size() >= cappedMaxUrls) {
                 break;
@@ -98,7 +91,7 @@ public class MultiUniversityPageFetcherService {
     public List<UniversitySourcePageResult> fetchPages(List<String> urls) {
         List<UniversitySourcePageResult> results = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        int maxFetches = Math.min(crawl().getMaxFetchedPagesPerUniversity(), urls.size());
+        int maxFetches = Math.max(1, Math.min(crawl().getMaxFetchedPagesPerUniversity(), urls.size()));
 
         for (String rawUrl : urls) {
             String url = urlNormalizer.normalize(rawUrl);
@@ -109,7 +102,7 @@ public class MultiUniversityPageFetcherService {
                 break;
             }
             if (!registryService.isAllowedUrl(url)) {
-                results.add(new UniversitySourcePageResult(url, "", UniversityPageType.UNKNOWN, "", Set.of(), false,
+                results.add(new UniversitySourcePageResult(url, "", UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false,
                         "URL domain is not allowlisted", UniversityCrawlFailureType.ACCESS_DENIED));
                 continue;
             }
@@ -124,30 +117,68 @@ public class MultiUniversityPageFetcherService {
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 Document document = connect(url);
-                document.select("script,style,noscript,header,footer,nav").remove();
-                String title = document.title();
-                String text = truncate(document.text(), MAX_CHARS_PER_PAGE);
-                if (text.isBlank()) {
-                    return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, "", Set.of(), false,
-                            "Fetched page is empty after cleanup", UniversityCrawlFailureType.EMPTY_CONTENT);
+                String title = truncate(document.title(), 200);
+                if (looksLikeLoginPage(document)) {
+                    return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false,
+                            "Rejected login-style page", UniversityCrawlFailureType.ACCESS_DENIED);
                 }
-                UniversityPageType pageType = classifier.classify(title, text);
-                Set<String> keywords = classifier.extractKeywords(title, text);
-                return new UniversitySourcePageResult(url, title, pageType, text, keywords, true, null, null);
+                String visibleText = extractVisibleBodyText(document);
+                List<String> headings = extractHeadings(document);
+                if (visibleText.isBlank()) {
+                    return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, "", Set.of(), headings, false,
+                            "No meaningful visible body text was extracted", UniversityCrawlFailureType.EMPTY_CONTENT);
+                }
+                if (visibleText.length() < 250) {
+                    return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, visibleText, Set.of(), headings, false,
+                            "Visible body text was too thin for reliable grounding", UniversityCrawlFailureType.EMPTY_CONTENT);
+                }
+                UniversityPageType pageType = classifier.classify(url, title, visibleText);
+                if (classifier.shouldSkipPage(url, title, visibleText)) {
+                    return new UniversitySourcePageResult(url, title, pageType, visibleText, classifier.extractKeywords(title, visibleText), headings, false,
+                            "Page was deprioritised because it does not look like a useful official programme or admissions page",
+                            UniversityCrawlFailureType.FETCH_ERROR);
+                }
+                return new UniversitySourcePageResult(url, title, pageType, visibleText, classifier.extractKeywords(title, visibleText), headings, true, null, null);
             } catch (IOException ex) {
                 lastError = ex;
-                if (!isRetryable(ex) || attempt == maxRetries) {
+                if (!isRetryable(ex) || attempt >= maxRetries) {
                     break;
                 }
                 sleep(backoffMillis(attempt));
             }
         }
+        String reason = lastError == null ? "Unknown fetch failure" : lastError.getMessage();
+        return new UniversitySourcePageResult(url, "", UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false, reason, classifyFailure(lastError));
+    }
 
-        UniversityCrawlFailureType failureType = classifyFailure(lastError);
-        String reason = lastError == null
-                ? "Failed to fetch page"
-                : "Failed to fetch page: " + lastError.getClass().getSimpleName();
-        return new UniversitySourcePageResult(url, "", UniversityPageType.UNKNOWN, "", Set.of(), false, reason, failureType);
+    private String extractVisibleBodyText(Document document) {
+        Document clone = document.clone();
+        clone.select("script,style,noscript,svg,canvas,iframe,header,footer,nav,form,.cookie,.breadcrumbs,.menu,.modal,.search,.newsletter,.social,.share,.advert,.ad").remove();
+        Element body = clone.body();
+        if (body == null) {
+            return "";
+        }
+        String text = body.text();
+        return truncate(text, MAX_CHARS_PER_PAGE);
+    }
+
+    private List<String> extractHeadings(Document document) {
+        List<String> headings = new ArrayList<>();
+        for (Element heading : document.select("h1, h2, h3")) {
+            String text = truncate(heading.text(), 180);
+            if (!text.isBlank() && headings.stream().noneMatch(text::equalsIgnoreCase)) {
+                headings.add(text);
+            }
+            if (headings.size() >= MAX_HEADINGS) {
+                break;
+            }
+        }
+        return headings;
+    }
+
+    private boolean looksLikeLoginPage(Document document) {
+        String text = (document.title() + " " + document.text()).toLowerCase(Locale.ROOT);
+        return text.contains("sign in") || text.contains("log in") || text.contains("login") || text.contains("password");
     }
 
     private List<String> extractRankedInternalLinks(UniversityRegistryProperties.UniversityRegistryEntry university,
@@ -250,7 +281,7 @@ public class MultiUniversityPageFetcherService {
         }
         if (ex instanceof HttpStatusException statusException) {
             int statusCode = statusException.getStatusCode();
-            return statusCode >= 500 || statusCode == 429;
+            return statusCode >= 500 || statusCode == 429 || statusCode == 408;
         }
         return true;
     }
