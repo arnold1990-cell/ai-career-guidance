@@ -74,6 +74,18 @@ public class UniversityPageClassifier {
     }
 
 
+
+    public UniversityPageType classify(String url, String title, String text) {
+        return classify(title + "\n" + safe(url), text);
+    }
+
+    public boolean shouldSkipPage(String url, String title, String text) {
+        String content = normalize(url) + " " + normalize(title) + " " + normalize(text);
+        boolean hasHighValue = containsAny(content, HIGH_VALUE_HINTS);
+        boolean looksDeprioritized = containsAny(content, DEPRIORITIZED_HINTS);
+        return looksDeprioritized && !hasHighValue;
+    }
+
     public boolean shouldDeprioritizeLink(String url, String anchorText) {
         String content = normalize(url) + " " + normalize(anchorText);
         boolean hasHighValue = containsAny(content, HIGH_VALUE_HINTS);
@@ -107,5 +119,9 @@ public class UniversityPageClassifier {
 
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 }
