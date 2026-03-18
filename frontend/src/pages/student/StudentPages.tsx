@@ -13,7 +13,7 @@ import { settingsService } from '@/services/settingsService';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback/States';
-import type { UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
+import type { ApiError, UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => <section className="card p-5 space-y-4"><h1 className="text-xl font-semibold">{title}</h1>{children}</section>;
 const Card = ({ label, value }: { label: string; value: string | number }) => <div className="rounded border p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-2xl font-semibold">{value}</p></div>;
@@ -84,6 +84,17 @@ export const StudentExperiencePage = StudentProfilePage;
 
 export const StudentCareerRecommendationsPage = () => {
   const profile = useAppQuery({ queryKey: ['me'], queryFn: studentService.getMe });
+
+  const currentProfile = profile.data;
+  const qualificationLevel = currentProfile?.qualificationLevel?.trim() ?? '';
+  const careerInterest = (currentProfile?.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
+  const targetProgram = currentProfile?.careerGoals?.trim() || careerInterest;
+  const profileReadinessMessage = !currentProfile
+    ? 'Student profile is required before requesting AI guidance.'
+    : !qualificationLevel || !careerInterest
+      ? 'Please complete your profile (qualification level and interests) before generating AI guidance.'
+      : null;
+
   const defaultSources = useAppQuery({
     queryKey: ['default-university-sources'],
     enabled: !aiGuidanceService.demoModeEnabled,
@@ -91,30 +102,15 @@ export const StudentCareerRecommendationsPage = () => {
   });
 
   const aiAdvice = useAppQuery({
-    queryKey: ['ai-guidance-university-sources', profile.data?.id, profile.data?.profileCompleteness],
-    enabled: Boolean(profile.data) && !aiGuidanceService.demoModeEnabled,
-    queryFn: async () => {
-      const currentProfile = profile.data;
-      if (!currentProfile) {
-        throw new Error('Student profile is required before requesting AI guidance.');
-      }
-
-      const qualificationLevel = currentProfile.qualificationLevel?.trim() ?? '';
-      const careerInterest = (currentProfile.interests ?? []).map((item) => item.trim()).filter(Boolean).join(', ');
-      const targetProgram = currentProfile.careerGoals?.trim() || careerInterest;
-
-      if (!qualificationLevel || !careerInterest) {
-        throw new Error('Please complete your profile (qualification level and interests) before generating AI guidance.');
-      }
-
-      return aiGuidanceService.analyseUniversitySources({
-        urls: [], // Empty list triggers backend default-source mode.
-        targetProgram,
-        careerInterest,
-        qualificationLevel,
-        maxRecommendations: 10,
-      });
-    },
+    queryKey: ['ai-guidance-university-sources', currentProfile?.id, currentProfile?.profileCompleteness, qualificationLevel, careerInterest, targetProgram],
+    enabled: Boolean(currentProfile) && !aiGuidanceService.demoModeEnabled && !profileReadinessMessage,
+    queryFn: async () => aiGuidanceService.analyseUniversitySources({
+      urls: [], // Empty list triggers backend default-source mode.
+      targetProgram,
+      careerInterest,
+      qualificationLevel,
+      maxRecommendations: 10,
+    }),
     retry: false,
   });
 
@@ -128,7 +124,10 @@ export const StudentCareerRecommendationsPage = () => {
   if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
 
   const isDemoMode = aiGuidanceService.demoModeEnabled;
-  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={'Unable to generate AI guidance right now. Please try again shortly.'} />;
+  if (!isDemoMode && profileReadinessMessage) return <ErrorState message={profileReadinessMessage} />;
+
+  const aiAdviceErrorMessage = (aiAdvice.error as ApiError | null)?.message;
+  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={aiAdviceErrorMessage || 'Unable to generate AI guidance right now. Please try again shortly.'} />;
 
   const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
   const careers = aiAdvice.data?.recommendedCareers ?? [];
