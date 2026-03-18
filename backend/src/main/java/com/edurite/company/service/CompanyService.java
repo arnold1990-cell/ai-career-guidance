@@ -148,7 +148,7 @@ public class CompanyService {
     public CompanyBursaryDto createBursary(Principal principal, CompanyBursaryUpsertRequest request) {
         CompanyProfile company = requireApprovedCompany(principal);
         Bursary bursary = toBursary(new Bursary(), company.getId(), request);
-        bursary.setStatus("PENDING_APPROVAL");
+        bursary.setStatus("ACTIVE");
         return toBursaryDto(bursaryRepository.save(bursary));
     }
 
@@ -157,9 +157,6 @@ public class CompanyService {
         Bursary bursary = bursaryRepository.findById(bursaryId).orElseThrow(() -> new ResourceConflictException("Bursary not found"));
         ensureOwned(company, bursary);
         bursary = toBursary(bursary, company.getId(), request);
-        if (Set.of("ACTIVE", "REJECTED", "CLOSED", "ARCHIVED").contains(bursary.getStatus())) {
-            bursary.setStatus("PENDING_APPROVAL");
-        }
         return toBursaryDto(bursaryRepository.save(bursary));
     }
 
