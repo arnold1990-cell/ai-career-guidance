@@ -128,17 +128,18 @@ public class MultiUniversityPageFetcherService {
                     return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, "", Set.of(), headings, false,
                             "No meaningful visible body text was extracted", UniversityCrawlFailureType.EMPTY_CONTENT);
                 }
-                if (visibleText.length() < 250) {
+                UniversityPageType pageType = classifier.classify(url, title, visibleText);
+                Set<String> keywords = classifier.extractKeywords(title, visibleText);
+                if (visibleText.length() < 250 && !isThinButUsefulPage(url, title, visibleText, headings, pageType, keywords)) {
                     return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, visibleText, Set.of(), headings, false,
                             "Visible body text was too thin for reliable grounding", UniversityCrawlFailureType.EMPTY_CONTENT);
                 }
-                UniversityPageType pageType = classifier.classify(url, title, visibleText);
                 if (classifier.shouldSkipPage(url, title, visibleText)) {
-                    return new UniversitySourcePageResult(url, title, pageType, visibleText, classifier.extractKeywords(title, visibleText), headings, false,
+                    return new UniversitySourcePageResult(url, title, pageType, visibleText, keywords, headings, false,
                             "Page was deprioritised because it does not look like a useful official programme or admissions page",
                             UniversityCrawlFailureType.FETCH_ERROR);
                 }
-                return new UniversitySourcePageResult(url, title, pageType, visibleText, classifier.extractKeywords(title, visibleText), headings, true, null, null);
+                return new UniversitySourcePageResult(url, title, pageType, visibleText, keywords, headings, true, null, null);
             } catch (IOException ex) {
                 lastError = ex;
                 if (!isRetryable(ex) || attempt >= maxRetries) {
@@ -263,6 +264,27 @@ public class MultiUniversityPageFetcherService {
             }
         }
         return score;
+    }
+
+    private boolean isThinButUsefulPage(String url,
+                                        String title,
+                                        String visibleText,
+                                        List<String> headings,
+                                        UniversityPageType pageType,
+                                        Set<String> keywords) {
+        if (pageType != UniversityPageType.UNKNOWN) {
+            return true;
+        }
+        if (!keywords.isEmpty()) {
+            return true;
+        }
+        String headingContext = String.join(" ", headings);
+        String combined = (title + " " + headingContext + " " + visibleText + " " + url).toLowerCase(Locale.ROOT);
+        return combined.contains("programme")
+                || combined.contains("program")
+                || combined.contains("degree")
+                || combined.contains("admission")
+                || combined.contains("qualification");
     }
 
     private Document connect(String url) throws IOException {
