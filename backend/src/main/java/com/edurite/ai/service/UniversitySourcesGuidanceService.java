@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 public class UniversitySourcesGuidanceService {
 
     private static final Logger log = LoggerFactory.getLogger(UniversitySourcesGuidanceService.class);
-    private static final int AUTO_DISCOVERY_LIMIT = 18;
 
     private final UniversitySourceRegistryService registryService;
     private final PublicUniversitySourceDiscoveryService discoveryService;
@@ -27,6 +26,7 @@ public class UniversitySourcesGuidanceService {
     private final UniversitySourcesAggregatorService aggregatorService;
     private final StudentService studentService;
     private final GeminiService geminiService;
+    private final UniversityGuidanceResultEnricher resultEnricher;
 
     public UniversitySourcesGuidanceService(
             UniversitySourceRegistryService registryService,
@@ -34,7 +34,8 @@ public class UniversitySourcesGuidanceService {
             MultiUniversityPageFetcherService pageFetcherService,
             UniversitySourcesAggregatorService aggregatorService,
             StudentService studentService,
-            GeminiService geminiService
+            GeminiService geminiService,
+            UniversityGuidanceResultEnricher resultEnricher
     ) {
         this.registryService = registryService;
         this.discoveryService = discoveryService;
@@ -42,20 +43,31 @@ public class UniversitySourcesGuidanceService {
         this.aggregatorService = aggregatorService;
         this.studentService = studentService;
         this.geminiService = geminiService;
+        this.resultEnricher = resultEnricher;
     }
 
     public UniversitySourcesAnalysisResponse analyse(Principal principal, UniversitySourcesAnalysisRequest request) {
         StudentProfile profile = studentService.getProfileEntity(principal);
 
+        int targetSourceLimit = request.usesDefaultSources()
+                ? Math.min(Math.max(registryService.configuredUniversityCount() * 2, 24), 120)
+                : Math.min(Math.max(registryService.configuredUniversityCount() * 2, 40), 150);
+
         List<String> urls = request.usesDefaultSources()
-                ? discoveryService.discoverSources(profile, request, AUTO_DISCOVERY_LIMIT)
-                : registryService.deduplicate(request.urls()).stream().limit(30).toList();
+                ? discoveryService.discoverSources(profile, request, targetSourceLimit)
+                : registryService.deduplicate(request.urls()).stream().limit(targetSourceLimit).toList();
 
         log.info("University source discovery completed: requestedByDefaultSources={}, discoveredUrlCount={}", request.usesDefaultSources(), urls.size());
 
         List<UniversitySourcePageResult> fetchedPages = pageFetcherService.fetchPages(urls);
         String combinedContext = aggregatorService.buildCombinedContext(fetchedPages, profile, request);
-        return geminiService.getUniversitySourcesAdvice(request, profile, urls, fetchedPages, combinedContext);
+        return resultEnricher.enrich(
+                geminiService.getUniversitySourcesAdvice(request, profile, urls, fetchedPages, combinedContext),
+                request,
+                profile,
+                urls,
+                fetchedPages
+        );
     }
 
     public List<String> getDefaultSources() {

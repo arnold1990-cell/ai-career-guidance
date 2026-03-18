@@ -23,7 +23,6 @@ public class PublicUniversitySourceDiscoveryService {
 
     private static final String SEARCH_ENDPOINT = "https://html.duckduckgo.com/html/?q=";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; EduRiteDiscovery/1.0; +https://edurite.ai/bot)";
-    private static final int MAX_UNIVERSITIES = 6;
     private static final int MAX_SEARCH_RESULTS_PER_QUERY = 8;
 
     private final UniversitySourceRegistryService registryService;
@@ -60,7 +59,7 @@ public class PublicUniversitySourceDiscoveryService {
                                                                                            UniversitySourcesAnalysisRequest request) {
         return registryService.getActiveUniversities().stream()
                 .sorted(Comparator.comparingInt((UniversityRegistryProperties.UniversityRegistryEntry entry) -> relevanceScore(entry, profile, request)).reversed())
-                .limit(MAX_UNIVERSITIES)
+                .limit(Math.min(Math.max(1, request.safeMaxRecommendations() * 4), registryService.configuredUniversityCount()))
                 .toList();
     }
 

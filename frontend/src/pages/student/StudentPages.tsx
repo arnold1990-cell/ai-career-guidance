@@ -138,6 +138,8 @@ export const StudentCareerRecommendationsPage = () => {
   const skillGaps = aiAdvice.data?.skillGaps ?? [];
   const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
   const warnings = aiAdvice.data?.warnings ?? [];
+  const sourceDiagnostics = aiAdvice.data?.sourceDiagnostics ?? [];
+  const sourceCoverage = aiAdvice.data?.sourceCoverage;
   const backendMode = aiAdvice.data?.fallbackUsed ? 'Fallback recommendations' : aiAdvice.data?.aiLive ? 'Live Gemini multi-source' : 'Unavailable';
   const requestedSources = aiAdvice.data?.sourceUrls?.length ?? 0;
   const analysedSources = aiAdvice.data?.totalSourcesUsed ?? 0;
@@ -156,6 +158,8 @@ export const StudentCareerRecommendationsPage = () => {
     return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((career) => <article key={career.name} className="rounded border p-3 space-y-2 bg-white">
       <h4 className="font-semibold">{career.name}</h4>
       <p className="text-sm text-slate-600">{career.reason}</p>
+      {career.rankingCategory && <p className="text-xs font-medium text-emerald-700">{career.rankingCategory}</p>}
+      {career.recommendationReason && <p className="text-sm text-slate-700"><span className="font-medium">Why this was recommended:</span> {career.recommendationReason}</p>}
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500">Requirements</p>
         <ul className="list-disc ml-5 text-sm">{career.requirements.map((requirement) => <li key={`${career.name}-${requirement}`}>{requirement}</li>)}</ul>
@@ -164,6 +168,8 @@ export const StudentCareerRecommendationsPage = () => {
         <p className="text-xs uppercase tracking-wide text-slate-500">Related programmes</p>
         <ul className="list-disc ml-5 text-sm">{career.relatedProgrammes.map((programme) => <li key={`${career.name}-${programme}`}>{programme}</li>)}</ul>
       </div>
+      {career.verifiedFacts?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Verified facts</p><ul className="list-disc ml-5 text-sm">{career.verifiedFacts.map((fact) => <li key={`${career.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
+      {career.nextBestActions?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Next best actions</p><ul className="list-disc ml-5 text-sm">{career.nextBestActions.map((action) => <li key={`${career.name}-${action}`}>{action}</li>)}</ul></div> : null}
     </article>)}</div>;
   };
 
@@ -174,6 +180,8 @@ export const StudentCareerRecommendationsPage = () => {
     return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((programme) => <article key={`${programme.name}-${programme.university}`} className="rounded border p-3 space-y-2 bg-white">
       <h4 className="font-semibold">{programme.name}</h4>
       <p className="text-sm text-slate-600">{programme.university}</p>
+      <div className="flex gap-2 text-xs">{programme.rankingCategory && <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">{programme.rankingCategory}</span>}{programme.confidenceLevel && <span className="rounded bg-slate-100 px-2 py-1 text-slate-700">Confidence: {programme.confidenceLevel}</span>}{programme.sourceStatus && <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">Source: {programme.sourceStatus}</span>}</div>
+      {programme.recommendationReason && <p className="text-sm text-slate-700"><span className="font-medium">Why this was recommended:</span> {programme.recommendationReason}</p>}
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500">Admission requirements</p>
         <ul className="list-disc ml-5 text-sm">{programme.admissionRequirements.map((requirement) => <li key={`${programme.name}-${requirement}`}>{requirement}</li>)}</ul>
@@ -181,6 +189,9 @@ export const StudentCareerRecommendationsPage = () => {
       <div className="text-sm">
         <p><span className="font-medium">Notes:</span> {programme.notes}</p>
       </div>
+      {programme.verifiedFacts?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Verified facts</p><ul className="list-disc ml-5 text-sm">{programme.verifiedFacts.map((fact) => <li key={`${programme.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
+      {programme.missingData?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Missing information</p><ul className="list-disc ml-5 text-sm">{programme.missingData.map((fact) => <li key={`${programme.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
+      {programme.nextBestActions?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Next best actions</p><ul className="list-disc ml-5 text-sm">{programme.nextBestActions.map((action) => <li key={`${programme.name}-${action}`}>{action}</li>)}</ul></div> : null}
     </article>)}</div>;
   };
 
@@ -189,7 +200,7 @@ export const StudentCareerRecommendationsPage = () => {
     {!isDemoMode && <>
       <div className="grid gap-3 md:grid-cols-3">
         <Card label="Sources used" value={analysedSources} />
-        <Card label="Requested sources" value={requestedSources} />
+        <Card label="Requested sources" value={sourceCoverage?.requestedSourcesCount ?? requestedSources} />
         <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
       </div>
       {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
@@ -197,6 +208,16 @@ export const StudentCareerRecommendationsPage = () => {
       </div>}
       {analysedSources === 0 && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
         No public university sources were analysed for this response. Please verify every recommendation on official university pages.
+      </div>}
+      {aiAdvice.data?.suitabilityScoreReason && <div className="rounded border p-3 bg-slate-50 text-sm">
+        <p><span className="font-semibold">Suitability explanation:</span> {aiAdvice.data.suitabilityScoreReason}</p>
+        {!!aiAdvice.data.suitabilitySignalsUsed?.length && <p className="mt-2"><span className="font-semibold">Signals used:</span> {aiAdvice.data.suitabilitySignalsUsed.join(', ')}</p>}
+        {!!aiAdvice.data.suitabilityScoreLimitations?.length && <p className="mt-2"><span className="font-semibold">What lowered the score:</span> {aiAdvice.data.suitabilityScoreLimitations.join(', ')}</p>}
+      </div>}
+      {sourceCoverage && <div className="rounded border p-3 bg-white text-sm">
+        <h3 className="font-semibold mb-1">Source coverage</h3>
+        <p>Successful: {sourceCoverage.successfulSourcesCount} · Failed: {sourceCoverage.failedSourcesCount} · Partial: {sourceCoverage.partialSourcesCount}</p>
+        {!!sourceCoverage.universitiesWithUsableProgrammeData?.length && <p className="mt-1">Universities with usable programme data: {sourceCoverage.universitiesWithUsableProgrammeData.join(', ')}</p>}
       </div>}
     </>}
 
@@ -234,6 +255,11 @@ export const StudentCareerRecommendationsPage = () => {
       {warnings.length > 0 && <div className="space-y-2">
         <h3 className="font-semibold">Warnings</h3>
         {renderSimpleList(warnings, 'No warnings.')}
+      </div>}
+
+      {sourceDiagnostics.length > 0 && <div className="space-y-2">
+        <h3 className="font-semibold">Source fetch status</h3>
+        <div className="grid gap-2 md:grid-cols-2">{sourceDiagnostics.map((item) => <div key={item.sourceUrl} className="rounded border p-3 text-sm"><p className="font-medium">{item.university ?? 'University Source'}</p><p className="break-all text-slate-500">{item.sourceUrl}</p><p className="mt-1"><span className="font-medium">Status:</span> {item.fetchStatus}</p>{item.failureReason && <p><span className="font-medium">Reason:</span> {item.failureReason}</p>}</div>)}</div>
       </div>}
 
       {aiAdvice.data?.summary && <div className="rounded border p-3 bg-slate-50">
