@@ -99,7 +99,7 @@ public class AdminService {
     @Transactional
     public Map<String, Object> updateUserStatus(UUID userId, boolean active, Principal principal) {
         User user = userRepository.findById(userId).orElseThrow(() -> new ResourceConflictException("User not found"));
-        user.setStatus(active ? UserStatus.ACTIVE : UserStatus.INACTIVE);
+        user.setStatus(active ? UserStatus.ACTIVE : UserStatus.SUSPENDED);
         User saved = userRepository.save(user);
         writeAudit(principal, "ADMIN_USER_STATUS_UPDATED", "USER", saved.getId(), Map.of("active", active));
         return toUserMap(saved);
