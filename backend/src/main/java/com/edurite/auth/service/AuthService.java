@@ -244,6 +244,9 @@ public class AuthService {
     private AuthResponse toAuthResponse(User user) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
+        String companyName = companyProfileRepository.findByUserId(user.getId())
+                .map(CompanyProfile::getCompanyName)
+                .orElse(null);
         return new AuthResponse(
                 accessToken,
                 refreshToken,
@@ -253,6 +256,7 @@ public class AuthService {
                         user.getId(),
                         user.getEmail(),
                         "%s %s".formatted(user.getFirstName(), user.getLastName()).trim(),
+                        companyName,
                         user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet())
                 )
         );
