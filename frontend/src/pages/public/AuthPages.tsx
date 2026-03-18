@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { getDashboardPathForRole, getDashboardPathForUser, resolvePrimaryRole } from '@/features/auth/roleUtils';
+import { getDashboardPathForRole, getDashboardPathForUser, isAuthorizedPathForRole, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import { studentService } from '@/services/studentService';
@@ -55,7 +55,7 @@ const roleContent: Record<AuthRole, {
   },
 };
 
-const getRoleDashboard = (user: User): string => getDashboardPathForUser(user);
+const getRoleDashboard = (user: User): string => getDashboardPathForUser(user) ?? '/auth/login';
 
 const resolveRoleFromPath = (pathname: string): AuthRole => {
   if (pathname.includes('/company/')) return 'COMPANY';
@@ -182,23 +182,27 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
 
     try {
       const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe });
+      const primaryRole = resolvePrimaryRole(loggedInUser);
+      if (!primaryRole) {
+        throw new Error('Signed in successfully, but no supported role was returned for this account.');
+      }
+
       if (!loggedInUser.roles.includes(`ROLE_${role}`)) {
-        const resolvedRole = resolvePrimaryRole(loggedInUser) ?? 'STUDENT';
-        navigate(buildAuthPath(resolvedRole as AuthRole, 'login'), {
+        navigate(buildAuthPath(primaryRole as AuthRole, 'login'), {
           replace: true,
-          state: { roleMismatch: `This account is registered as ${resolvedRole.toLowerCase()}. We've redirected you to the correct workspace.` },
+          state: { roleMismatch: `This account is registered as ${primaryRole.toLowerCase()}. We've redirected you to the correct workspace.` },
         });
         return;
       }
 
-      const primaryRole = resolvePrimaryRole(loggedInUser);
       if (primaryRole === 'STUDENT') {
         const me = await studentService.getMe();
         navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', { replace: true });
         return;
       }
 
-      navigate(from && from !== '/auth/login' ? from : getDashboardPathForRole(primaryRole), { replace: true });
+      const dashboardPath = getDashboardPathForRole(primaryRole);
+      navigate(isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login', { replace: true });
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Unable to sign you in.');
     } finally {
