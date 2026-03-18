@@ -15,5 +15,5 @@ export const RequireRole = ({ role }: { role: Role }) => {
   }
 
   const primaryRole = getPrimaryRole();
-  return <Navigate to={primaryRole ? getDashboardPathForRole(primaryRole) : '/auth/login'} replace />;
+  return <Navigate to={getDashboardPathForRole(primaryRole) ?? '/auth/login'} replace />;
 };
