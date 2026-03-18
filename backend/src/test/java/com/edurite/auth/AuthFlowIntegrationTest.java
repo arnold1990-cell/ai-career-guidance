@@ -2,6 +2,7 @@ package com.edurite.auth;
 
 import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.repository.StudentProfileRepository;
+import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.user.entity.User;
 import com.edurite.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,6 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,6 +63,9 @@ class AuthFlowIntegrationTest {
 
     @Autowired
     StudentProfileRepository studentProfileRepository;
+
+    @Autowired
+    CompanyProfileRepository companyProfileRepository;
 
 
     @Test
@@ -201,6 +206,123 @@ class AuthFlowIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.user.companyName").value("Contoso"));
+    }
+
+    @Test
+    void newlyRegisteredCompanyIsPendingCanViewPortalProfileButCannotPostBursaryUntilApproved() throws Exception {
+        String email = "pending.company@example.com";
+        registerCompany(email, "PENDING-COMPANY-001");
+        String companyToken = loginAndGetAccessToken(email, "StrongPass@123");
+
+        mockMvc.perform(get("/api/v1/companies/me")
+                        .header("Authorization", "Bearer " + companyToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.companyName").value("Secure Co"));
+
+        mockMvc.perform(post("/api/v1/companies/bursaries")
+                        .header("Authorization", "Bearer " + companyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bursaryName":"Pending Access Bursary",
+                                  "description":"Awaiting approval test bursary",
+                                  "fieldOfStudy":"Engineering",
+                                  "academicLevel":"Undergraduate",
+                                  "applicationStartDate":"2026-04-01",
+                                  "applicationEndDate":"2026-06-30",
+                                  "fundingAmount":15000,
+                                  "benefits":"Tuition",
+                                  "requiredSubjects":["Maths"],
+                                  "minimumGrade":"70%",
+                                  "demographics":["Women in STEM"],
+                                  "location":"Johannesburg",
+                                  "eligibilityFilters":["South African citizens"]
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Company is awaiting admin approval"));
+    }
+
+    @Test
+    void adminCanApproveCompanyAndApprovedCompanyCanManageBursaries() throws Exception {
+        String email = "approved.company@example.com";
+        registerCompany(email, "APPROVAL-COMPANY-001");
+        String companyToken = loginAndGetAccessToken(email, "StrongPass@123");
+        String adminToken = loginAndGetAccessToken("admin@test.local", "AdminPass@123");
+        User companyUser = userRepository.findByEmail(email).orElseThrow();
+        var companyProfile = companyProfileRepository.findByUserId(companyUser.getId()).orElseThrow();
+
+        mockMvc.perform(patch("/api/v1/admin/companies/" + companyProfile.getId() + "/approve")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"notes":"Verified registration documents"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.reviewNotes").value("Verified registration documents"));
+
+        mockMvc.perform(post("/api/v1/companies/bursaries")
+                        .header("Authorization", "Bearer " + companyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bursaryName":"Approved Access Bursary",
+                                  "description":"Approved company bursary",
+                                  "fieldOfStudy":"Computer Science",
+                                  "academicLevel":"Postgraduate",
+                                  "applicationStartDate":"2026-04-01",
+                                  "applicationEndDate":"2026-07-31",
+                                  "fundingAmount":25000,
+                                  "benefits":"Tuition and stipend",
+                                  "requiredSubjects":["Algorithms","Statistics"],
+                                  "minimumGrade":"75%",
+                                  "demographics":["Underrepresented groups"],
+                                  "location":"Cape Town",
+                                  "eligibilityFilters":["AI-ready profile","South Africa"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bursaryName").value("Approved Access Bursary"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void companyForgotPasswordResetFlowAllowsLoginWithNewPassword() throws Exception {
+        String email = "reset.company@example.com";
+        registerCompany(email, "RESET-COMPANY-001");
+
+        String forgotResponse = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode forgotJson = objectMapper.readTree(forgotResponse);
+        String message = forgotJson.get("message").asText();
+        String token = message.substring(message.lastIndexOf(':') + 1).trim();
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"%s","newPassword":"UpdatedPass@123","confirmPassword":"UpdatedPass@123"}
+                                """.formatted(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password reset complete"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"UpdatedPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.roles[0]").value("ROLE_COMPANY"));
     }
 

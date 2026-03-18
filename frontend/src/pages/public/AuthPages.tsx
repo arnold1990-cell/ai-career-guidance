@@ -80,6 +80,9 @@ const buildAuthPath = (role: AuthRole, mode: AuthMode) => {
   return '/auth/register/student';
 };
 
+const getForgotPasswordPath = (role: AuthRole) => (role === 'COMPANY' ? '/company/forgot-password' : '/auth/forgot-password');
+const getResetPasswordLoginPath = (role: AuthRole) => (role === 'COMPANY' ? '/company/login' : '/auth/login');
+
 const AuthShell = ({ children, role, mode }: { children: React.ReactNode; role: AuthRole; mode: AuthMode }) => {
   const config = roleContent[role];
 
@@ -247,7 +250,7 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
           />
           Remember me
         </label>
-        <Link className="font-semibold text-primary-600 hover:text-primary-500" to="/auth/forgot-password">
+        <Link className="font-semibold text-primary-600 hover:text-primary-500" to={getForgotPasswordPath(role)}>
           Forgot password?
         </Link>
       </div>
@@ -410,6 +413,9 @@ export const RegisterCompanyPage = () => {
       <RoleTabs role="COMPANY" mode="register" />
       <div className="mt-6">
         <AuthHeader role="COMPANY" mode="register" />
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          New company accounts are created with <span className="font-semibold">pending</span> access. Admin approval is required before bursary posting and talent search are unlocked.
+        </div>
         <form className="mt-8 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit(async (data) => {
           await authService.registerCompany(data);
           navigate('/company/login', { replace: true });
@@ -475,6 +481,7 @@ export const ResetPasswordPage = () => {
         <label className="text-sm font-medium text-slate-700">Confirm password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('confirmPassword', { required: true })} /></label>
         <Button type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">Reset password</Button>
         {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
+        {message ? <Link className="block text-center text-sm font-semibold text-primary-600 hover:text-primary-500" to={getResetPasswordLoginPath(role)}>Return to sign in</Link> : null}
       </form>
     </AuthShell>
   );
