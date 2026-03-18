@@ -34,11 +34,13 @@ public class BursaryAggregationService {
 
         Map<String, BursaryResultDto> deduped = new LinkedHashMap<>();
         for (BursaryResultDto item : merged) {
-            deduped.putIfAbsent(dedupeKey(item), item);
+            deduped.merge(dedupeKey(item), item, this::preferGroundedRecord);
         }
 
         List<BursaryResultDto> ordered = deduped.values().stream()
-                .sorted(Comparator.comparingInt(BursaryResultDto::relevanceScore).reversed())
+                .sorted(Comparator.comparing(BursaryResultDto::officialSource).reversed()
+                        .thenComparing(BursaryResultDto::incomplete)
+                        .thenComparing(Comparator.comparingInt(BursaryResultDto::relevanceScore).reversed()))
                 .toList();
 
         int from = Math.min(request.page() * request.size(), ordered.size());
@@ -46,8 +48,18 @@ public class BursaryAggregationService {
         return new BursarySearchResponse(ordered.subList(from, to), request.page(), request.size(), ordered.size());
     }
 
+    private BursaryResultDto preferGroundedRecord(BursaryResultDto left, BursaryResultDto right) {
+        if (left.officialSource() != right.officialSource()) {
+            return left.officialSource() ? left : right;
+        }
+        if (left.incomplete() != right.incomplete()) {
+            return left.incomplete() ? right : left;
+        }
+        return left.relevanceScore() >= right.relevanceScore() ? left : right;
+    }
+
     private String dedupeKey(BursaryResultDto item) {
-        return normalize(item.title()) + "|" + normalize(item.provider()) + "|" + item.deadline() + "|" + normalize(item.applicationLink());
+        return normalize(item.title()) + "|" + normalize(item.provider()) + "|" + normalize(item.applicationLink());
     }
 
     private String normalize(String input) {

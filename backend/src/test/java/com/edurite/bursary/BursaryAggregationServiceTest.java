@@ -21,9 +21,9 @@ class BursaryAggregationServiceTest {
         BursaryAggregationService service = new BursaryAggregationService(provider, web);
 
         BursarySearchRequest request = new BursarySearchRequest("science", "Degree", "Gauteng", "citizen", 0, 5);
-        BursaryResultDto p1 = new BursaryResultDto("1", "Science Fund", "NSF", "desc", "Degree", "Gauteng", "citizen", LocalDate.now(), "https://a", "OFFICIAL_PROVIDER", 90);
-        BursaryResultDto wDup = new BursaryResultDto("2", "Science Fund", "NSF", "desc", "Degree", "Gauteng", "citizen", LocalDate.now(), "https://a", "INTERNET_FALLBACK", 65);
-        BursaryResultDto w2 = new BursaryResultDto("3", "Tech Grant", "Web", "desc", "Degree", "Gauteng", "citizen", LocalDate.now().plusDays(2), "https://b", "INTERNET_FALLBACK", 70);
+        BursaryResultDto p1 = new BursaryResultDto("1", "Science Fund", "NSF", "desc", "Degree", "Gauteng", "citizen", LocalDate.now(), "https://a", "OFFICIAL_PROVIDER", 90, List.of("https://a"), true, false, null);
+        BursaryResultDto wDup = new BursaryResultDto("2", "Science Fund", "NSF", "desc", "Degree", "Gauteng", "citizen", null, "https://a", "TRUSTED_PUBLIC_FALLBACK", 65, List.of("https://a"), false, true, "Unverified");
+        BursaryResultDto w2 = new BursaryResultDto("3", "Tech Grant", "Web", "desc", "Degree", "Gauteng", "citizen", null, "https://b", "TRUSTED_PUBLIC_FALLBACK", 70, List.of("https://b"), false, true, "Unverified");
 
         when(provider.fetch(request)).thenReturn(List.of(p1));
         when(web.fetch(request)).thenReturn(List.of(wDup, w2));
@@ -33,5 +33,6 @@ class BursaryAggregationServiceTest {
         assertThat(response.items()).hasSize(2);
         assertThat(response.items().get(0).title()).isEqualTo("Science Fund");
         assertThat(response.items().get(0).sourceType()).isEqualTo("OFFICIAL_PROVIDER");
+        assertThat(response.items().get(1).incomplete()).isTrue();
     }
 }

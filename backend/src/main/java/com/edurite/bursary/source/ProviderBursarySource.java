@@ -32,7 +32,7 @@ public class ProviderBursarySource implements BursarySource {
     }
 
     private BursaryResultDto toDto(Bursary bursary) {
-        String source = bursary.getCompanyId() != null ? "COMPANY_PROVIDER" : sourceType();
+        String source = bursary.getCompanyId() == null ? sourceType() : "COMPANY_PROVIDER";
         return new BursaryResultDto(
                 bursary.getId().toString(),
                 bursary.getTitle(),
@@ -44,7 +44,11 @@ public class ProviderBursarySource implements BursarySource {
                 bursary.getApplicationEndDate(),
                 "",
                 source,
-                relevanceScore(bursary)
+                relevanceScore(bursary),
+                List.of(),
+                true,
+                false,
+                bursary.getApplicationEndDate() == null ? "Deadline not stored in EduRite provider data." : null
         );
     }
 

@@ -44,7 +44,7 @@ import org.springframework.stereotype.Service;
 public class GeminiService {
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
-    private static final int MAX_GEMINI_RETRIES = 2;
+    private static final int DEFAULT_MAX_GEMINI_RETRIES = 2;
     private static final long[] RETRY_BACKOFF_MS = {300L, 800L};
     private static final MediaType JSON = MediaType.get("application/json");
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
@@ -53,6 +53,7 @@ public class GeminiService {
     private final Gson gson;
     private final ObjectMapper objectMapper;
     private final Environment environment;
+    private final int maxGeminiRetries;
 
     @Value("${gemini.api-key:}")
     private String configuredApiKey;
@@ -67,11 +68,12 @@ public class GeminiService {
         this.objectMapper = objectMapper;
         this.environment = environment;
         this.gson = new Gson();
+        this.maxGeminiRetries = environment.getProperty("gemini.max-retries", Integer.class, DEFAULT_MAX_GEMINI_RETRIES);
         this.okHttpClient = new OkHttpClient.Builder()
-                .connectTimeout(Duration.ofSeconds(20))
-                .readTimeout(Duration.ofSeconds(45))
-                .writeTimeout(Duration.ofSeconds(45))
-                .callTimeout(Duration.ofSeconds(60))
+                .connectTimeout(Duration.ofSeconds(environment.getProperty("gemini.connect-timeout-seconds", Integer.class, 20)))
+                .readTimeout(Duration.ofSeconds(environment.getProperty("gemini.read-timeout-seconds", Integer.class, 45)))
+                .writeTimeout(Duration.ofSeconds(environment.getProperty("gemini.write-timeout-seconds", Integer.class, 45)))
+                .callTimeout(Duration.ofSeconds(environment.getProperty("gemini.call-timeout-seconds", Integer.class, 60)))
                 .build();
     }
 
@@ -221,8 +223,8 @@ public class GeminiService {
         log.info("Starting Gemini call: model={}, endpointPath={}, endpoint={}, apiKeyMask={}",
                 config.model(), config.endpointPath(), config.generateEndpoint(), maskSecret(config.apiKey()));
 
-        for (int attempt = 0; attempt <= MAX_GEMINI_RETRIES; attempt++) {
-            boolean retry = attempt < MAX_GEMINI_RETRIES;
+        for (int attempt = 0; attempt <= maxGeminiRetries; attempt++) {
+            boolean retry = attempt < maxGeminiRetries;
             try (Response response = okHttpClient.newCall(httpRequest).execute()) {
                 int statusCode = response.code();
                 String bodySnippet = readSnippet(response.body());
@@ -336,6 +338,17 @@ public class GeminiService {
                   "skillGaps": ["string"],
                   "recommendedNextSteps": ["string"],
                   "warnings": ["string"],
+                  "inferredGuidance": ["string"],
+                  "bursarySuggestions": [
+                    {
+                      "name": "string",
+                      "provider": "string",
+                      "eligibility": ["string"],
+                      "notes": "string",
+                      "sourceUrls": ["string"],
+                      "officialSource": true
+                    }
+                  ],
                   "summary": "string",
                   "suitabilityScore": 0
                 }
@@ -343,19 +356,20 @@ public class GeminiService {
                 Rules:
                 - Return student-friendly, practical guidance.
                 - Output valid JSON only (no markdown, no code fences, no prose outside JSON).
-                - Keep section order exactly: recommendedCareers, recommendedProgrammes, recommendedUniversities, skillGaps, recommendedNextSteps, warnings, summary.
+                - Keep sourced facts separate from inferredGuidance.
                 - Recommend at least %d careers if enough evidence exists.
                 - Recommend at least %d university programmes if enough evidence exists.
                 - Each recommended career must include specific requirements and relatedProgrammes.
                 - Each recommended programme must include admissionRequirements and notes.
                 - Do not include application due dates or deadline fields anywhere.
                 - minimumRequirements MUST always mention Grade 12 passes, English, and Mathematics for mathematics-related pathways.
-                - Do not hallucinate APS scores, subject minimums, or due dates.
-                - Ground programmes and universities in the retrieved source content.
-                - If source metadata/context is empty, still provide recommendations using only profile and request focus.
-                - Mention limitation warnings when sources are generic list pages.
+                - Do not hallucinate APS scores, subject minimums, bursary criteria, or due dates.
+                - Use only the retrieved source content and the student profile as evidence.
+                - If a fact is not explicitly supported by the retrieved content, return "Not found in fetched sources" for that field.
+                - If source metadata/context is empty, keep recommendations conservative and explain the limitation in warnings.
+                - Prefer official university/provider pages over secondary pages when choosing bursarySuggestions and programme facts.
                 - Keep suitabilityScore between 0 and 100.
-                - If model cannot provide clean JSON, still provide the seven sections as plain headings with bullet points.
+                - If model cannot provide clean JSON, still provide section headings with bullet points.
 
                 Student profile:
                 firstName: %s
@@ -495,14 +509,20 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 true,
                 false,
+                "live Gemini",
+                resolveGroundingStatus(successUrls, failedUrls, sourceUrls),
+                calculateEvidenceCoverage(sourceUrls, successUrls),
                 null,
+                sourceUrls,
                 sourceUrls,
                 successUrls,
                 failedUrls,
                 successUrls.size(),
                 sanitizePromptValue(parsed.summary),
+                defaultList(parsed.inferredGuidance),
                 defaultCareerList(parsed.recommendedCareers),
                 defaultProgrammeList(parsed.recommendedProgrammes),
+                defaultBursaryList(parsed.bursarySuggestions),
                 defaultList(parsed.recommendedUniversities),
                 minimumRequirements,
                 keyRequirements,
@@ -584,6 +604,8 @@ public class GeminiService {
         response.summary = String.join(" ", sections.getOrDefault("Summary", List.of()));
         response.minimumRequirements = List.of();
         response.keyRequirements = List.of();
+        response.inferredGuidance = List.of("Verify all unsupported facts against official university or bursary pages.");
+        response.bursarySuggestions = List.of();
         response.suitabilityScore = 60;
         return response;
     }
@@ -598,14 +620,20 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
                 response.fallbackUsed(),
+                response.mode(),
+                response.groundingStatus(),
+                response.evidenceCoverage(),
                 response.warningMessage(),
+                response.requestedSources(),
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
                 response.totalSourcesUsed(),
                 response.summary(),
+                response.inferredGuidance(),
                 response.recommendedCareers(),
                 response.recommendedProgrammes(),
+                response.bursarySuggestions(),
                 response.recommendedUniversities(),
                 response.minimumRequirements(),
                 response.keyRequirements(),
@@ -630,14 +658,20 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 true,
                 false,
+                response.mode(),
+                response.groundingStatus(),
+                response.evidenceCoverage(),
                 runtimeWarnings.get(0),
+                response.requestedSources(),
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
                 response.totalSourcesUsed(),
                 response.summary(),
+                response.inferredGuidance(),
                 response.recommendedCareers(),
                 response.recommendedProgrammes(),
+                response.bursarySuggestions(),
                 response.recommendedUniversities(),
                 response.minimumRequirements(),
                 response.keyRequirements(),
@@ -673,12 +707,17 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 false,
                 true,
+                "fallback recommendations",
+                resolveGroundingStatus(successUrls, failedUrls, sourceUrls),
+                calculateEvidenceCoverage(sourceUrls, successUrls),
                 "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",
+                sourceUrls,
                 sourceUrls,
                 successUrls,
                 failedUrls,
                 successUrls.size(),
                 "Based on the available university sources and your profile, here are practical options to explore next.",
+                List.of("These recommendations are inferred from your profile and trusted EduRite fallback data."),
                 List.of(
                                 new UniversitySourcesAnalysisResponse.RecommendedCareer(
                                         "Software Developer",
@@ -737,6 +776,16 @@ public class GeminiService {
                                         "Use official admissions pages to confirm current requirements."
                                 ))
                         .stream().limit(max).toList(),
+                List.of(
+                        new UniversitySourcesAnalysisResponse.RecommendedBursary(
+                                "Not found in fetched sources",
+                                "Not found in fetched sources",
+                                List.of("Not found in fetched sources"),
+                                "No verified bursary provider page was fetched for this request.",
+                                List.of(),
+                                false
+                        )
+                ),
                 sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
                 defaultMinimumRequirements(),
                 List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for quantitative pathways", "English proficiency is required for most programmes"),
@@ -1112,6 +1161,44 @@ public class GeminiService {
     ) {
     }
 
+    private String resolveGroundingStatus(List<String> successUrls, List<String> failedUrls, List<String> sourceUrls) {
+        if (sourceUrls == null || sourceUrls.isEmpty()) {
+            return "NO_LIVE_SOURCES";
+        }
+        if (successUrls != null && !successUrls.isEmpty() && (failedUrls == null || failedUrls.isEmpty())) {
+            return "FULLY_GROUNDED";
+        }
+        if (successUrls != null && !successUrls.isEmpty()) {
+            return "PARTIALLY_GROUNDED";
+        }
+        return "INSUFFICIENT_EVIDENCE";
+    }
+
+    private int calculateEvidenceCoverage(List<String> sourceUrls, List<String> successUrls) {
+        if (sourceUrls == null || sourceUrls.isEmpty()) {
+            return 0;
+        }
+        return (int) Math.round((successUrls == null ? 0D : (100.0 * successUrls.size() / sourceUrls.size())));
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedBursary> defaultBursaryList(
+            List<UniversityModelResponse.RecommendedBursaryPayload> value) {
+        if (value == null) {
+            return List.of();
+        }
+        return value.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedBursary(
+                        item.name,
+                        sanitizeSourceBoundValue(item.provider),
+                        defaultListOrNotFound(item.eligibility),
+                        sanitizeSourceBoundValue(item.notes),
+                        defaultList(item.sourceUrls),
+                        item.officialSource
+                ))
+                .toList();
+    }
+
     private static class UniversityModelResponse {
         public String summary;
         public List<RecommendedCareerPayload> recommendedCareers;
@@ -1122,6 +1209,8 @@ public class GeminiService {
         public List<String> skillGaps;
         public List<String> recommendedNextSteps;
         public List<String> warnings;
+        public List<String> inferredGuidance;
+        public List<RecommendedBursaryPayload> bursarySuggestions;
         public Integer suitabilityScore;
 
         private static class RecommendedCareerPayload {
@@ -1136,6 +1225,15 @@ public class GeminiService {
             public String university;
             public List<String> admissionRequirements;
             public String notes;
+        }
+
+        private static class RecommendedBursaryPayload {
+            public String name;
+            public String provider;
+            public List<String> eligibility;
+            public String notes;
+            public List<String> sourceUrls;
+            public boolean officialSource;
         }
     }
 

@@ -57,6 +57,9 @@ class GeminiServiceConfigSafetyTest {
         assertThat(response.summary()).contains("Based on the available university sources");
         assertThat(response.recommendedCareers()).isNotEmpty();
         assertThat(response.warnings()).isNotEmpty();
+        assertThat(response.mode()).isEqualTo("fallback recommendations");
+        assertThat(response.groundingStatus()).isEqualTo("FULLY_GROUNDED");
+        assertThat(response.bursarySuggestions()).isNotEmpty();
     }
 
     @Test
@@ -121,4 +124,24 @@ class GeminiServiceConfigSafetyTest {
         return environment;
     }
 
+
+    @Test
+    void missingSourceFieldsAreNormalizedToNotFound() throws Exception {
+        GeminiService service = new GeminiService(new ObjectMapper(), new StandardEnvironment());
+
+        String payload = "{\"recommendedCareers\":[{\"name\":\"Software Developer\",\"reason\":\"Strong fit\",\"requirements\":[],\"relatedProgrammes\":[]}],\"recommendedProgrammes\":[{\"name\":\"BSc Computer Science\",\"university\":\"\",\"admissionRequirements\":[],\"notes\":\"\"}],\"recommendedUniversities\":[\"UNISA\"],\"minimumRequirements\":[],\"keyRequirements\":[],\"skillGaps\":[],\"recommendedNextSteps\":[],\"warnings\":[],\"inferredGuidance\":[\"Profile-aligned next step\"],\"bursarySuggestions\":[],\"summary\":\"Summary\",\"suitabilityScore\":75}";
+
+        UniversitySourcesAnalysisResponse response = (UniversitySourcesAnalysisResponse) ReflectionTestUtils.invokeMethod(
+                service,
+                "parseUniversityAdvice",
+                payload,
+                List.of("https://www.unisa.ac.za/programmes"),
+                List.of("https://www.unisa.ac.za/programmes"),
+                List.of()
+        );
+
+        assertThat(response.recommendedProgrammes().get(0).admissionRequirements()).containsExactly("Not found in fetched sources");
+        assertThat(response.recommendedProgrammes().get(0).notes()).isEqualTo("Not found in fetched sources");
+        assertThat(response.recommendedProgrammes().get(0).university()).isEqualTo("Not found in fetched sources");
+    }
 }

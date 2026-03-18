@@ -44,9 +44,14 @@ public class BursaryRecommendationService {
                         item.deadline(),
                         item.applicationLink(),
                         item.sourceType(),
-                        calculateRelevance(item, profile)
+                        calculateRelevance(item, profile),
+                        item.sourceUrls(),
+                        item.officialSource(),
+                        item.incomplete(),
+                        item.dataFreshnessNote()
                 ))
-                .sorted(Comparator.comparingInt(BursaryResultDto::relevanceScore).reversed())
+                .sorted(Comparator.comparing(BursaryResultDto::officialSource).reversed()
+                        .thenComparing(Comparator.comparingInt(BursaryResultDto::relevanceScore).reversed()))
                 .toList();
     }
 

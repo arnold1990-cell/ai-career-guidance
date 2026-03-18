@@ -1,6 +1,7 @@
 package com.edurite.bursary.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record BursaryResultDto(
         String externalId,
@@ -13,5 +14,9 @@ public record BursaryResultDto(
         LocalDate deadline,
         String applicationLink,
         String sourceType,
-        int relevanceScore
+        int relevanceScore,
+        List<String> sourceUrls,
+        boolean officialSource,
+        boolean incomplete,
+        String dataFreshnessNote
 ) {}
