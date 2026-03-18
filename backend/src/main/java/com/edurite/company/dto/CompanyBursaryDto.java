@@ -19,6 +19,10 @@ public record CompanyBursaryDto(
         String demographics,
         String location,
         String eligibility,
-        String status
+        String status,
+        long applicantCount,
+        long views,
+        double applicationCompletionRate,
+        long profileViews
 ) {
 }
