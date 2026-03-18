@@ -14,4 +14,17 @@ public record UniversitySourcePageResult(
         String failureReason,
         UniversityCrawlFailureType failureType
 ) {
+
+    public UniversitySourcePageResult(
+            String sourceUrl,
+            String pageTitle,
+            UniversityPageType pageType,
+            String cleanedText,
+            Set<String> extractedKeywords,
+            boolean success,
+            String failureReason,
+            UniversityCrawlFailureType failureType
+    ) {
+        this(sourceUrl, pageTitle, pageType, cleanedText, extractedKeywords, List.of(), success, failureReason, failureType);
+    }
 }
