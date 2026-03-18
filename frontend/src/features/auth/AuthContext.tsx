@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useEffect, useMemo, useState } from 'react';
 import { authStore } from '@/features/auth/authStore';
 import { authService } from '@/services/authService';
 import type { CompanyRegisterPayload, Role, StudentRegisterPayload, User } from '@/types';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
@@ -15,7 +15,7 @@ interface AuthContextType {
   getPrimaryRole: () => Role | null;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const normalizeStoredUser = (user: User | null): User | null => {
   if (!user) return null;
@@ -24,7 +24,7 @@ const normalizeStoredUser = (user: User | null): User | null => {
   return { ...user, roles };
 };
 
-const getPrimaryRole = (user: User | null): Role | null => {
+const resolvePrimaryRole = (user: User | null): Role | null => {
   const primaryRole = user?.roles?.[0]?.replace('ROLE_', '');
   if (!primaryRole || !['STUDENT', 'COMPANY', 'ADMIN'].includes(primaryRole)) return null;
   return primaryRole as Role;
@@ -70,16 +70,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       },
       hasRole: (role) => Boolean(user?.roles?.includes(`ROLE_${role}`)),
-      getPrimaryRole: () => getPrimaryRole(user),
+      getPrimaryRole: () => resolvePrimaryRole(user),
     }),
     [isHydrated, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used inside AuthProvider');
-  return context;
 };
