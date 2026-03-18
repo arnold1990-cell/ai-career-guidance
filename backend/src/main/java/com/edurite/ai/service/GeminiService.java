@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import jakarta.annotation.PostConstruct;
@@ -17,10 +18,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -30,105 +30,71 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.EnumerablePropertySource;
-import org.springframework.core.env.PropertySource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GeminiService {
 
-    private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
-    private static final int MAX_GEMINI_RETRIES = 2;
-    private static final long[] RETRY_BACKOFF_MS = {300L, 800L};
-    private static final MediaType JSON = MediaType.get("application/json");
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
+    private static final MediaType JSON = MediaType.get("application/json");
+    private static final int MAX_GEMINI_RETRIES = 3;
+    private static final long[] RETRY_BACKOFF_MS = {400L, 1_000L, 2_000L};
+    private static final int MAX_LOG_BODY = 1_500;
+    private static final String API_KEY = "REPLACE_WITH_REAL_GEMINI_API_KEY";
+    private static final String BASE_URL = "https://generativelanguage.googleapis.com";
+    private static final String MODEL = "gemini-2.5-flash";
 
     private final OkHttpClient okHttpClient;
-    private final Gson gson;
+    private final Gson gson = new Gson();
     private final ObjectMapper objectMapper;
-    private final Environment environment;
 
-    @Value("${gemini.api-key:}")
-    private String configuredApiKey;
-
-    @Value("${gemini.model:gemini-2.5-flash}")
-    private String model;
-
-    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
-    private String baseUrl;
-
-    public GeminiService(ObjectMapper objectMapper, Environment environment) {
+    public GeminiService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.environment = environment;
-        this.gson = new Gson();
         this.okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(20))
                 .readTimeout(Duration.ofSeconds(45))
                 .writeTimeout(Duration.ofSeconds(45))
-                .callTimeout(Duration.ofSeconds(60))
+                .callTimeout(Duration.ofSeconds(70))
                 .build();
+    }
+
+    public GeminiService(ObjectMapper objectMapper, Object ignored) {
+        this(objectMapper);
     }
 
     @PostConstruct
     void logStartupConfiguration() {
-        String resolvedKey = resolveApiKey();
-        String resolvedModel = resolveModel();
-        String resolvedBaseUrl = resolveBaseUrl();
-        logEnvironmentPresence("startup");
-
-        if (resolvedKey.isBlank()) {
-            log.warn("Gemini configuration warning: API key is missing. Set gemini.api-key, gemini.api.key, or GEMINI_API_KEY. model={}, baseUrl={}",
-                    resolvedModel, resolvedBaseUrl);
-            return;
-        }
-
-        log.info("Gemini configuration loaded: apiKeyPresent=true, keyMask={}, model={}, baseUrl={}",
-                maskSecret(resolvedKey), resolvedModel, resolvedBaseUrl);
+        log.info("Gemini configuration loaded from hardcoded constants: apiKeyPresent={}, keyMask={}, model={}, baseUrl={}",
+                !API_KEY.isBlank(), maskSecret(API_KEY), MODEL, BASE_URL);
     }
 
-
-
     public GeminiHealthCheck checkHealth() {
-        GeminiRequestConfig config = resolveRequestConfig(false);
-        String resolvedApiKey = config.apiKey();
-        String resolvedModel = config.model();
-        String endpoint = config.modelInfoEndpoint();
-
-        if (resolvedApiKey.isBlank()) {
-            return new GeminiHealthCheck(false, false, resolvedModel, endpoint,
-                    "Gemini API key is missing.");
+        if (API_KEY.isBlank() || API_KEY.startsWith("REPLACE_WITH_REAL")) {
+            return new GeminiHealthCheck(false, false, MODEL, generateEndpoint(),
+                    "Gemini API key is hardcoded but still set to the placeholder value.");
         }
 
         Request request = new Request.Builder()
-                .url(endpoint)
-                .addHeader("x-goog-api-key", resolvedApiKey)
+                .url(modelInfoEndpoint())
+                .addHeader("x-goog-api-key", API_KEY)
                 .get()
                 .build();
-
         try (Response response = okHttpClient.newCall(request).execute()) {
-            int statusCode = response.code();
-            if (statusCode >= 200 && statusCode < 300) {
-                return new GeminiHealthCheck(true, true, resolvedModel, endpoint, "Gemini endpoint reachable.");
+            if (response.isSuccessful()) {
+                return new GeminiHealthCheck(true, true, MODEL, modelInfoEndpoint(), "Gemini endpoint reachable.");
             }
-            String body = readSnippet(response.body());
-            log.info("Gemini health check response: status={}, endpoint={}", statusCode, endpoint);
-            return new GeminiHealthCheck(true, false, resolvedModel, endpoint,
-                    "Gemini endpoint check failed with status " + statusCode + ": " + trim(body));
+            return new GeminiHealthCheck(true, false, MODEL, modelInfoEndpoint(),
+                    "Gemini endpoint check failed with status " + response.code() + ": " + trim(readSnippet(response.body())));
         } catch (Exception ex) {
-            log.warn("Gemini health check failed: model={}, endpoint={}, message={}", resolvedModel, endpoint, ex.getMessage(), ex);
-            return new GeminiHealthCheck(true, false, resolvedModel, endpoint,
+            return new GeminiHealthCheck(true, false, MODEL, modelInfoEndpoint(),
                     "Gemini endpoint check exception: " + ex.getMessage());
         }
     }
 
     public CareerAdviceResponse getCareerAdvice(CareerAdviceRequest request) {
-        ensureApiKey();
-        String modelText = invokeGemini(buildPrompt(request), resolveRequestConfig(true));
-        return parseCareerAdvice(modelText);
+        ensureConfigured();
+        return parseCareerAdvice(invokeGemini(buildPrompt(request), "career-advice", List.of(), List.of(), ""));
     }
 
     public UniversitySourcesAnalysisResponse getUniversitySourcesAdvice(
@@ -141,61 +107,35 @@ public class GeminiService {
         List<String> safeSourceUrls = sourceUrls == null ? List.of() : sourceUrls;
         List<UniversitySourcePageResult> safeFetchedPages = fetchedPages == null ? List.of() : fetchedPages;
         String safeCombinedContext = combinedContext == null ? "" : combinedContext.trim();
+        List<String> successUrls = safeFetchedPages.stream().filter(UniversitySourcePageResult::success).map(UniversitySourcePageResult::sourceUrl).toList();
+        List<String> failedUrls = safeFetchedPages.stream().filter(page -> !page.success()).map(UniversitySourcePageResult::sourceUrl).toList();
+        List<String> runtimeWarnings = buildSourceWarnings(safeSourceUrls, safeFetchedPages, safeCombinedContext);
 
-        List<String> successUrls = safeFetchedPages.stream().filter(UniversitySourcePageResult::success)
-                .map(UniversitySourcePageResult::sourceUrl).toList();
-        List<String> failedUrls = safeFetchedPages.stream().filter(page -> !page.success())
-                .map(UniversitySourcePageResult::sourceUrl).toList();
-        int sourceUrlCount = safeSourceUrls.size();
-        int fetchedPageCount = safeFetchedPages.size();
-        int contextLength = safeCombinedContext.length();
-
-        List<String> sourceLimitations = new ArrayList<>();
-        if (sourceUrlCount == 0) {
-            sourceLimitations.add("No external university sources were available for this request; guidance was generated from profile context.");
-        }
-        if (fetchedPageCount == 0) {
-            sourceLimitations.add("No university pages were fetched; guidance was generated from profile context.");
-        }
-        if (contextLength == 0) {
-            sourceLimitations.add("No combined source context was available; guidance was generated from profile context.");
-        }
-
-        log.info("University guidance context: sourceUrls={}, fetchedPages={}, successfulPages={}, failedPages={}, combinedContextLength={}",
-                sourceUrlCount, fetchedPageCount, successUrls.size(), failedUrls.size(), contextLength);
-
-        GeminiRequestConfig config = resolveRequestConfig(true);
-        if (config.apiKey().isBlank() || config.model().isBlank() || config.baseUrl().isBlank()) {
-            log.warn("Fallback path used before Gemini attempt: apiKeyPresent={}, modelPresent={}, baseUrlPresent={}",
-                    !config.apiKey().isBlank(), !config.model().isBlank(), !config.baseUrl().isBlank());
-            return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
-                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
-        }
+        log.info("University guidance request mode=live-attempt model={} endpoint={} requestedUrls={} fetchedPages={} successfulPages={} failedPages={} combinedContextLength={}",
+                MODEL, generateEndpoint(), safeSourceUrls.size(), safeFetchedPages.size(), successUrls.size(), failedUrls.size(), safeCombinedContext.length());
 
         try {
+            ensureConfigured();
             String prompt = buildUniversityPrompt(request, profile, safeFetchedPages, safeCombinedContext);
-            String modelText = invokeGemini(prompt, config);
+            String modelText = invokeGemini(prompt, "university-guidance", safeSourceUrls, safeFetchedPages, safeCombinedContext);
             UniversitySourcesAnalysisResponse parsed = parseUniversityAdvice(modelText, safeSourceUrls, successUrls, failedUrls);
-            log.info("Fallback decision: Gemini succeeded, fallbackUsed=false");
-            return withRuntimeWarnings(enrichWithWarnings(parsed, failedUrls), sourceLimitations);
+            return addWarnings(parsed, runtimeWarnings, failedUrls, null);
         } catch (Exception ex) {
-            log.warn("Fallback decision: Gemini failed after live attempt, fallbackUsed=true, reason={}", ex.getMessage(), ex);
+            log.warn("University guidance fallback activated: type={} message={}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
-                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                    addFallbackReason(runtimeWarnings, ex.getMessage()));
         }
     }
 
-    private void ensureApiKey() {
-        if (resolveApiKey().isBlank()) {
-            log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
+    private void ensureConfigured() {
+        if (API_KEY.isBlank() || API_KEY.startsWith("REPLACE_WITH_REAL")) {
             throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Career AI is currently unavailable. Gemini API key is not configured.");
+                    "Gemini API is not available because the hardcoded API key is missing or still uses the placeholder value.");
         }
     }
 
-    private String invokeGemini(String prompt, GeminiRequestConfig config) {
-        logEnvironmentPresence("invokeGemini");
-
+    private String invokeGemini(String prompt, String mode, List<String> requestedUrls,
+                                List<UniversitySourcePageResult> fetchedPages, String combinedContext) {
         JsonObject payload = new JsonObject();
         JsonArray contents = new JsonArray();
         JsonObject content = new JsonObject();
@@ -207,60 +147,46 @@ public class GeminiService {
         contents.add(content);
         payload.add("contents", contents);
 
-        Request httpRequest = new Request.Builder()
-                .url(config.generateEndpoint())
+        Request request = new Request.Builder()
+                .url(generateEndpoint())
                 .addHeader("Content-Type", "application/json")
-                .addHeader("x-goog-api-key", config.apiKey())
+                .addHeader("x-goog-api-key", API_KEY)
                 .post(RequestBody.create(gson.toJson(payload), JSON))
                 .build();
 
-        log.info("Starting Gemini call: model={}, endpointPath={}, endpoint={}, apiKeyMask={}",
-                config.model(), config.endpointPath(), config.generateEndpoint(), maskSecret(config.apiKey()));
+        log.info("Gemini call request mode={} model={} endpoint={} requestedUrls={} fetchedPages={} combinedContextLength={}",
+                mode, MODEL, generateEndpoint(), requestedUrls.size(), fetchedPages.size(), combinedContext.length());
 
         for (int attempt = 0; attempt <= MAX_GEMINI_RETRIES; attempt++) {
-            boolean retry = attempt < MAX_GEMINI_RETRIES;
-            try (Response response = okHttpClient.newCall(httpRequest).execute()) {
+            boolean retryAllowed = attempt < MAX_GEMINI_RETRIES;
+            try (Response response = okHttpClient.newCall(request).execute()) {
                 int statusCode = response.code();
-                String bodySnippet = readSnippet(response.body());
-                log.info("Gemini HTTP response received: status={}, model={}, attempt={}, retried={}",
-                        statusCode, config.model(), attempt + 1, attempt > 0);
+                String responseBody = readSnippet(response.body());
+                log.info("Gemini raw response attempt={} status={} body={}", attempt + 1, statusCode, trim(responseBody));
 
                 if (response.isSuccessful()) {
-                    if (bodySnippet.isBlank()) {
-                        throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                                "Gemini returned an empty response body.");
-                    }
-                    return extractModelText(bodySnippet);
+                    return extractModelText(responseBody);
                 }
 
-                boolean retriableStatus = statusCode == 408 || statusCode == 429 || statusCode >= 500;
-                log.warn("Gemini call failed: status={}, model={}, retried={}, snippet={}",
-                        statusCode, config.model(), attempt > 0, trim(bodySnippet));
-
-                if (retry && retriableStatus) {
+                boolean shouldRetry = statusCode == 408 || statusCode == 429 || statusCode >= 500;
+                if (retryAllowed && shouldRetry) {
                     sleepBeforeRetry(attempt);
                     continue;
                 }
 
-                HttpStatus status = statusCode == 401 || statusCode == 403 || statusCode == 400
-                        ? HttpStatus.BAD_GATEWAY
-                        : HttpStatus.SERVICE_UNAVAILABLE;
-                throw new AiServiceException(status,
-                        "Gemini request failed with status " + statusCode + ". " + trim(bodySnippet));
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
+                        "Gemini request failed with status " + statusCode + ". " + trim(responseBody));
             } catch (IOException ex) {
-                log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, message={}",
-                        config.model(), attempt + 1, attempt > 0, ex.getMessage(), ex);
-                if (retry) {
+                log.warn("Gemini IO failure attempt={} mode={} message={}", attempt + 1, mode, ex.getMessage(), ex);
+                if (retryAllowed) {
                     sleepBeforeRetry(attempt);
                     continue;
                 }
-                throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
-                        "Gemini request timed out or failed.");
+                throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT, "Gemini request failed after retries.");
             }
         }
 
-        throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
-                "Gemini request failed after retries.");
+        throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE, "Gemini request failed after retries.");
     }
 
     private String buildPrompt(CareerAdviceRequest request) {
@@ -278,10 +204,9 @@ public class GeminiService {
                   ]
                 }
                 Rules:
-                - Output valid JSON only (no markdown, no prose, no code fences).
-                - Recommend 3-5 careers.
-                - matchScore must be integer from 0 to 100.
-                - reason and improvements should be concise and actionable.
+                - Output valid JSON only.
+                - Recommend 3 to 5 careers.
+                - Keep reasons concise.
 
                 Student profile:
                 qualificationLevel: %s
@@ -300,31 +225,22 @@ public class GeminiService {
                                          com.edurite.student.entity.StudentProfile profile,
                                          List<UniversitySourcePageResult> fetchedPages,
                                          String combinedContext) {
-        String pageMetadata = fetchedPages.stream()
-                .map(page -> "%s | %s | %s | keywords=%s".formatted(
-                        page.sourceUrl(), page.success() ? "success" : "failed", page.pageType(), page.extractedKeywords()))
-                .reduce("", (a, b) -> a + "\n" + b);
+        String sourceBlocks = fetchedPages.stream()
+                .map(page -> "URL: " + page.sourceUrl()
+                        + "\nSuccess: " + page.success()
+                        + "\nPage type: " + page.pageType()
+                        + "\nHeadings: " + String.join(" | ", page.extractedHeadings())
+                        + "\nVisible body text:\n" + sanitizePromptValue(page.cleanedText()))
+                .reduce("", (left, right) -> left + "\n\n" + right)
+                .trim();
 
         return """
-                You are EduRite's academic and career guidance assistant.
-                Return ONLY valid JSON with this schema:
+                You are EduRite's university guidance assistant.
+                Use ONLY the student profile and analysed public university page content below.
+                Return ONLY valid JSON with this exact schema:
                 {
-                  "recommendedCareers": [
-                    {
-                      "name": "string",
-                      "reason": "string",
-                      "requirements": ["string"],
-                      "relatedProgrammes": ["string"]
-                    }
-                  ],
-                  "recommendedProgrammes": [
-                    {
-                      "name": "string",
-                      "university": "string",
-                      "admissionRequirements": ["string"],
-                      "notes": "string"
-                    }
-                  ],
+                  "recommendedCareers": [{"name":"string","reason":"string","requirements":["string"],"relatedProgrammes":["string"]}],
+                  "recommendedProgrammes": [{"name":"string","university":"string","admissionRequirements":["string"],"notes":"string"}],
                   "recommendedUniversities": ["string"],
                   "minimumRequirements": ["string"],
                   "keyRequirements": ["string"],
@@ -335,22 +251,18 @@ public class GeminiService {
                   "suitabilityScore": 0
                 }
 
-                Rules:
-                - Return student-friendly, practical guidance.
-                - Output valid JSON only (no markdown, no code fences, no prose outside JSON).
-                - Keep section order exactly: recommendedCareers, recommendedProgrammes, recommendedUniversities, skillGaps, recommendedNextSteps, warnings, summary.
-                - Recommend at least %d careers if enough evidence exists.
-                - Recommend at least %d university programmes if enough evidence exists.
-                - Each recommended career must include specific requirements and relatedProgrammes.
-                - Each recommended programme must include admissionRequirements and notes.
-                - Do not include application due dates or deadline fields anywhere.
-                - minimumRequirements MUST always mention Grade 12 passes, English, and Mathematics for mathematics-related pathways.
-                - Do not hallucinate APS scores, subject minimums, or due dates.
-                - Ground programmes and universities in the retrieved source content.
-                - If source metadata/context is empty, still provide recommendations using only profile and request focus.
-                - Mention limitation warnings when sources are generic list pages.
-                - Keep suitabilityScore between 0 and 100.
-                - If model cannot provide clean JSON, still provide the seven sections as plain headings with bullet points.
+                Hard rules:
+                - Use supplied evidence only.
+                - Do not use prior knowledge over supplied evidence.
+                - Do not infer missing requirements.
+                - Do not fabricate programme details.
+                - Do not invent APS scores, closing dates, subject minimums, or deadlines.
+                - When evidence is missing, say exactly: "Not found in analysed page content".
+                - If a detail needs verification, say: "Verify on the official university programme page".
+                - Every recommendation must be grounded in analysed page content.
+                - Keep the wording student-friendly.
+                - warning strings must mention limited evidence when relevant.
+                - suitabilityScore must be an integer from 0 to 100.
 
                 Student profile:
                 firstName: %s
@@ -360,26 +272,18 @@ public class GeminiService {
                 skills: %s
                 experience: %s
                 location: %s
-                cvUploaded: %s
-                transcriptUploaded: %s
 
                 Request focus:
                 targetProgram: %s
                 careerInterest: %s
-                qualificationLevel: %s
+                requestedQualificationLevel: %s
 
-                Source metadata:
+                Analysed sources:
                 %s
 
-                Combined academic context (truncated):
+                Combined visible page body context:
                 %s
-
-                Optional internal seed careers:
-                Software Developer, Data Analyst, Systems Analyst, IT Support Specialist, Business Analyst,
-                QA Tester, Accountant, Economist, Electrical Engineer, Civil Engineer, Teacher.
                 """.formatted(
-                request.safeMaxRecommendations(),
-                request.safeMaxRecommendations(),
                 sanitizePromptValue(profile.getFirstName()),
                 sanitizePromptValue(profile.getLastName()),
                 sanitizePromptValue(profile.getQualificationLevel()),
@@ -387,12 +291,10 @@ public class GeminiService {
                 sanitizePromptValue(profile.getSkills()),
                 sanitizePromptValue(profile.getExperience()),
                 sanitizePromptValue(profile.getLocation()),
-                profile.getCvFileUrl() != null,
-                profile.getTranscriptFileUrl() != null,
                 sanitizePromptValue(request.targetProgram()),
                 sanitizePromptValue(request.careerInterest()),
                 sanitizePromptValue(request.qualificationLevel()),
-                sanitizePromptValue(pageMetadata),
+                sanitizePromptValue(sourceBlocks),
                 sanitizePromptValue(combinedContext)
         );
     }
@@ -402,62 +304,43 @@ public class GeminiService {
             JsonObject root = JsonParser.parseString(geminiBody).getAsJsonObject();
             JsonArray candidates = root.has("candidates") ? root.getAsJsonArray("candidates") : null;
             if (candidates == null || candidates.isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no candidates.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no candidates.");
             }
-
             List<String> textParts = new ArrayList<>();
-            for (int i = 0; i < candidates.size(); i++) {
-                JsonObject candidate = candidates.get(i).getAsJsonObject();
+            for (JsonElement candidateElement : candidates) {
+                JsonObject candidate = candidateElement.getAsJsonObject();
                 JsonObject content = candidate.has("content") ? candidate.getAsJsonObject("content") : null;
                 JsonArray parts = content != null && content.has("parts") ? content.getAsJsonArray("parts") : null;
                 if (parts == null) {
                     continue;
                 }
-                for (int j = 0; j < parts.size(); j++) {
-                    JsonObject part = parts.get(j).getAsJsonObject();
+                for (JsonElement partElement : parts) {
+                    JsonObject part = partElement.getAsJsonObject();
                     if (part.has("text")) {
-                        String value = part.get("text").getAsString();
+                        String value = part.get("text").getAsString().trim();
                         if (!value.isBlank()) {
-                            textParts.add(value.trim());
+                            textParts.add(value);
                         }
                     }
                 }
             }
-
             if (textParts.isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no text parts.");
+                throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned no text parts.");
             }
-
             return stripCodeFences(String.join("\n", textParts));
-        } catch (IllegalStateException ex) {
-            log.error("Gemini payload parsing failed before extracting model text.", ex);
-            throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                    "Gemini returned malformed JSON payload.");
+        } catch (Exception ex) {
+            throw new AiServiceException(HttpStatus.BAD_GATEWAY, "Gemini returned malformed payload.");
         }
     }
 
     private CareerAdviceResponse parseCareerAdvice(String modelText) {
         try {
             CareerAdviceResponse response = objectMapper.readValue(extractLikelyJson(modelText), CareerAdviceResponse.class);
-            if (response.recommendedCareers() == null || response.recommendedCareers().isEmpty()) {
-                throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no career recommendations.");
-            }
-
-            List<CareerAdviceResponse.RecommendedCareer> sanitized = response.recommendedCareers().stream()
-                    .map(item -> new CareerAdviceResponse.RecommendedCareer(
-                            item.name(),
-                            normalizeScore(item.matchScore()),
-                            item.reason(),
-                            item.improvements() == null ? List.of() : item.improvements()
-                    ))
-                    .toList();
-            log.info("Gemini JSON parsed successfully: recommendations={}", sanitized.size());
-            return new CareerAdviceResponse(sanitized);
-        } catch (JsonProcessingException ex) {
-            log.warn("Gemini JSON parse failure: contentSnippet={}", trim(modelText));
+            List<CareerAdviceResponse.RecommendedCareer> careers = response.recommendedCareers() == null ? List.of() : response.recommendedCareers();
+            return new CareerAdviceResponse(careers.stream().map(item -> new CareerAdviceResponse.RecommendedCareer(
+                    item.name(), normalizeScore(item.matchScore()), item.reason(), item.improvements() == null ? List.of() : item.improvements()
+            )).toList());
+        } catch (Exception ex) {
             return fallbackCareerAdvice(modelText);
         }
     }
@@ -466,27 +349,28 @@ public class GeminiService {
                                                                     List<String> sourceUrls,
                                                                     List<String> successUrls,
                                                                     List<String> failedUrls) throws JsonProcessingException {
-        try {
-            UniversityModelResponse parsed = objectMapper.readValue(extractLikelyJson(modelText), UniversityModelResponse.class);
-            return buildUniversityResponse(parsed, sourceUrls, successUrls, failedUrls);
-        } catch (JsonProcessingException ex) {
-            log.warn("University guidance JSON parse failed, attempting section-based parsing: reason={}, contentSnippet={}",
-                    ex.getOriginalMessage(), trim(modelText));
-            UniversityModelResponse sectionParsed = parseSectionedUniversityAdvice(modelText);
-            if (sectionParsed == null) {
-                log.warn("University guidance section-based parsing failed: model output was unusable. snippet={}", trim(modelText));
-                throw ex;
+        String recoveredJson = recoverStructuredJson(modelText);
+        if (!recoveredJson.isBlank()) {
+            try {
+                return buildUniversityResponse(objectMapper.readValue(recoveredJson, UniversityModelResponse.class), sourceUrls, successUrls, failedUrls);
+            } catch (JsonProcessingException ex) {
+                log.warn("Recovered JSON still failed parsing: {}", ex.getOriginalMessage());
             }
+        }
+
+        UniversityModelResponse sectionParsed = parseSectionedUniversityAdvice(modelText);
+        if (sectionParsed != null) {
             return buildUniversityResponse(sectionParsed, sourceUrls, successUrls, failedUrls);
         }
+        throw new JsonProcessingException("Could not parse Gemini university response") {};
     }
 
     private UniversitySourcesAnalysisResponse buildUniversityResponse(UniversityModelResponse parsed,
                                                                       List<String> sourceUrls,
                                                                       List<String> successUrls,
                                                                       List<String> failedUrls) {
-        List<String> minimumRequirements = enforceMinimumRequirements(defaultList(parsed.minimumRequirements), parsed);
-        List<String> keyRequirements = mergeKeyAndMinimumRequirements(defaultList(parsed.keyRequirements), minimumRequirements);
+        List<String> minimumRequirements = sanitizeList(parsed.minimumRequirements);
+        List<String> keyRequirements = sanitizeList(parsed.keyRequirements);
         return new UniversitySourcesAnalysisResponse(
                 true,
                 false,
@@ -495,17 +379,17 @@ public class GeminiService {
                 successUrls,
                 failedUrls,
                 successUrls.size(),
-                sanitizePromptValue(parsed.summary),
-                defaultCareerList(parsed.recommendedCareers),
-                defaultProgrammeList(parsed.recommendedProgrammes),
-                defaultList(parsed.recommendedUniversities),
+                sanitizeSourceBoundValue(parsed.summary),
+                toCareerList(parsed.recommendedCareers),
+                toProgrammeList(parsed.recommendedProgrammes),
+                sanitizeList(parsed.recommendedUniversities),
                 minimumRequirements,
                 keyRequirements,
-                defaultList(parsed.skillGaps),
-                defaultList(parsed.recommendedNextSteps),
-                defaultList(parsed.warnings),
+                sanitizeList(parsed.skillGaps),
+                sanitizeList(parsed.recommendedNextSteps),
+                sanitizeList(parsed.warnings),
                 normalizeScore(parsed.suitabilityScore),
-                resolveModel()
+                MODEL
         );
     }
 
@@ -513,119 +397,68 @@ public class GeminiService {
         if (modelText == null || modelText.isBlank()) {
             return null;
         }
+        String normalized = modelText.replace("\r", "");
+        UniversityModelResponse response = new UniversityModelResponse();
+        response.recommendedCareers = new ArrayList<>();
+        response.recommendedProgrammes = new ArrayList<>();
+        response.recommendedUniversities = new ArrayList<>();
+        response.minimumRequirements = new ArrayList<>();
+        response.keyRequirements = new ArrayList<>();
+        response.skillGaps = new ArrayList<>();
+        response.recommendedNextSteps = new ArrayList<>();
+        response.warnings = new ArrayList<>();
+        response.summary = "Not found in analysed page content";
+        response.suitabilityScore = 55;
 
-        List<String> headers = List.of(
-                "Recommended careers",
-                "Recommended programmes",
-                "Recommended universities",
-                "Skill gaps",
-                "Recommended next steps",
-                "Next steps",
-                "Warnings",
-                "Summary"
-        );
-
-        String normalized = modelText.replace("\r", "").trim();
-        Map<String, List<String>> sections = new LinkedHashMap<>();
-        String currentHeader = null;
-
+        String section = "";
         for (String line : normalized.split("\n")) {
-            String trimmed = line.trim();
+            String trimmed = stripBullet(line.trim());
+            String lower = trimmed.toLowerCase(Locale.ROOT);
+            if (lower.equals("recommended careers") || lower.equals("recommended careers:")) { section = "careers"; continue; }
+            if (lower.equals("recommended programmes") || lower.equals("recommended programmes:")) { section = "programmes"; continue; }
+            if (lower.equals("recommended universities") || lower.equals("recommended universities:")) { section = "universities"; continue; }
+            if (lower.equals("minimum requirements") || lower.equals("minimum requirements:")) { section = "minimum"; continue; }
+            if (lower.equals("key requirements") || lower.equals("key requirements:")) { section = "key"; continue; }
+            if (lower.equals("skill gaps") || lower.equals("skill gaps:")) { section = "gaps"; continue; }
+            if (lower.equals("recommended next steps") || lower.equals("recommended next steps:") || lower.equals("next steps") || lower.equals("next steps:")) { section = "steps"; continue; }
+            if (lower.equals("warnings") || lower.equals("warnings:")) { section = "warnings"; continue; }
+            if (lower.equals("summary") || lower.equals("summary:")) { section = "summary"; continue; }
             if (trimmed.isBlank()) {
                 continue;
             }
-            String header = headers.stream().filter(h -> h.equalsIgnoreCase(trimmed.replace(":", ""))).findFirst().orElse(null);
-            if (header != null) {
-                currentHeader = header;
-                sections.putIfAbsent(header, new ArrayList<>());
-                continue;
-            }
-            if (currentHeader != null) {
-                sections.get(currentHeader).add(stripBullet(trimmed));
+            switch (section) {
+                case "careers" -> response.recommendedCareers.add(careerPayload(trimmed));
+                case "programmes" -> response.recommendedProgrammes.add(programmePayload(trimmed));
+                case "universities" -> response.recommendedUniversities.add(trimmed);
+                case "minimum" -> response.minimumRequirements.add(trimmed);
+                case "key" -> response.keyRequirements.add(trimmed);
+                case "gaps" -> response.skillGaps.add(trimmed);
+                case "steps" -> response.recommendedNextSteps.add(trimmed);
+                case "warnings" -> response.warnings.add(trimmed);
+                case "summary" -> response.summary = trimmed;
+                default -> { }
             }
         }
-
-        if (sections.isEmpty()) {
-            return null;
-        }
-
-        UniversityModelResponse response = new UniversityModelResponse();
-        response.recommendedCareers = sections.getOrDefault("Recommended careers", List.of()).stream()
-                .filter(v -> !v.isBlank())
-                .map(v -> {
-                    UniversityModelResponse.RecommendedCareerPayload payload = new UniversityModelResponse.RecommendedCareerPayload();
-                    payload.name = v;
-                    payload.reason = "Derived from section-based fallback parsing.";
-                    payload.requirements = List.of("Verify subject requirements with the university");
-                    payload.relatedProgrammes = List.of();
-                    return payload;
-                }).toList();
-        response.recommendedProgrammes = sections.getOrDefault("Recommended programmes", List.of()).stream()
-                .filter(v -> !v.isBlank())
-                .map(v -> {
-                    UniversityModelResponse.RecommendedProgrammePayload payload = new UniversityModelResponse.RecommendedProgrammePayload();
-                    payload.name = v;
-                    payload.university = "University Source";
-                    payload.admissionRequirements = List.of("Not found in fetched sources");
-                    payload.notes = "Verify exact programme requirements from official university programme pages.";
-                    return payload;
-                }).toList();
-        response.recommendedUniversities = sections.getOrDefault("Recommended universities", List.of());
-        response.skillGaps = sections.getOrDefault("Skill gaps", List.of());
-        response.recommendedNextSteps = sections.containsKey("Recommended next steps")
-                ? sections.get("Recommended next steps")
-                : sections.getOrDefault("Next steps", List.of());
-        response.warnings = sections.getOrDefault("Warnings", List.of());
-        response.summary = String.join(" ", sections.getOrDefault("Summary", List.of()));
-        response.minimumRequirements = List.of();
-        response.keyRequirements = List.of();
-        response.suitabilityScore = 60;
-        return response;
+        return response.recommendedCareers.isEmpty() && response.recommendedProgrammes.isEmpty() && response.recommendedUniversities.isEmpty()
+                ? null : response;
     }
 
-
-    private UniversitySourcesAnalysisResponse enrichWithWarnings(UniversitySourcesAnalysisResponse response,
-                                                                 List<String> failedUrls) {
-        Set<String> warnings = new LinkedHashSet<>(defaultList(response.warnings()));
+    private UniversitySourcesAnalysisResponse addWarnings(UniversitySourcesAnalysisResponse response,
+                                                          List<String> runtimeWarnings,
+                                                          List<String> failedUrls,
+                                                          String warningMessage) {
+        LinkedHashSet<String> warnings = new LinkedHashSet<>(sanitizeList(response.warnings()));
+        warnings.addAll(runtimeWarnings);
         if (!failedUrls.isEmpty()) {
-            warnings.add("Some sources failed to load and were skipped.");
+            warnings.add("Some public university pages failed to load and were skipped.");
+        }
+        if (response.totalSourcesUsed() == 0) {
+            warnings.add("No public university sources were analysed.");
         }
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
                 response.fallbackUsed(),
-                response.warningMessage(),
-                response.sourceUrls(),
-                response.successfullyAnalysedUrls(),
-                response.failedUrls(),
-                response.totalSourcesUsed(),
-                response.summary(),
-                response.recommendedCareers(),
-                response.recommendedProgrammes(),
-                response.recommendedUniversities(),
-                response.minimumRequirements(),
-                response.keyRequirements(),
-                response.skillGaps(),
-                response.recommendedNextSteps(),
-                new ArrayList<>(warnings),
-                response.suitabilityScore(),
-                response.rawModelUsed()
-        );
-    }
-
-
-    private UniversitySourcesAnalysisResponse withRuntimeWarnings(UniversitySourcesAnalysisResponse response,
-                                                                  List<String> runtimeWarnings) {
-        if (runtimeWarnings == null || runtimeWarnings.isEmpty()) {
-            return response;
-        }
-
-        LinkedHashSet<String> warnings = new LinkedHashSet<>(defaultList(response.warnings()));
-        warnings.addAll(runtimeWarnings);
-
-        return new UniversitySourcesAnalysisResponse(
-                true,
-                false,
-                runtimeWarnings.get(0),
+                warningMessage != null ? warningMessage : response.warningMessage(),
                 response.sourceUrls(),
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
@@ -649,445 +482,238 @@ public class GeminiService {
             List<String> sourceUrls,
             List<String> successUrls,
             List<String> failedUrls,
-            List<String> warnings
-    ) {
+            List<String> warnings) {
         int max = request.safeMaxRecommendations();
+        List<String> mergedWarnings = new ArrayList<>(warnings);
+        mergedWarnings.add("Fallback recommendations are not live Gemini internet-grounded guidance.");
+        if (successUrls.isEmpty()) {
+            mergedWarnings.add("No analysed public university page content was available for grounding.");
+        }
         return new UniversitySourcesAnalysisResponse(
                 false,
                 true,
-                "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",
+                warnings.isEmpty() ? "Fallback recommendations were used." : warnings.get(0),
                 sourceUrls,
                 successUrls,
                 failedUrls,
                 successUrls.size(),
-                "Based on the available university sources and your profile, here are practical options to explore next.",
+                "Fallback recommendations are shown because live Gemini guidance could not be completed. Verify every programme detail on the official university programme page.",
                 List.of(
-                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
-                                        "Software Developer",
-                                        "Strong fit for students interested in technology and problem solving.",
-                                        List.of("Programming fundamentals", "Mathematics and logical reasoning"),
-                                        List.of("BSc Computer Science", "Diploma in IT")
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
-                                        "Data Analyst",
-                                        "Good pathway for students who enjoy working with numbers and insights.",
-                                        List.of("Statistics basics", "Spreadsheet and data literacy"),
-                                        List.of("BCom Information Systems", "BSc Computer Science")
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
-                                        "IT Support Specialist",
-                                        "Suitable for students interested in practical technology support roles.",
-                                        List.of("Basic networking knowledge", "Troubleshooting and communication skills"),
-                                        List.of("Diploma in IT")
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
-                                        "Business Analyst",
-                                        "Recommended when combining business interest with digital systems.",
-                                        List.of("Business process understanding", "Communication and documentation"),
-                                        List.of("BCom Information Systems")
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedCareer(
-                                        "Systems Analyst",
-                                        "Useful for students interested in improving how systems work.",
-                                        List.of("Systems thinking", "Problem analysis"),
-                                        List.of("BSc Computer Science", "BCom Information Systems")
-                                ))
-                        .stream().limit(max).toList(),
+                        new UniversitySourcesAnalysisResponse.RecommendedCareer("Career exploration needed", "Fallback mode only. Use this as a starting point, not as sourced advice.", List.of("Not found in analysed page content"), List.of("Not found in analysed page content"))
+                ).stream().limit(max).toList(),
                 List.of(
-                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
-                                        "BSc Computer Science",
-                                        "University Source",
-                                        List.of("Not found in fetched sources"),
-                                        "Programme requirements should be verified on official faculty pages."
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
-                                        "BCom Information Systems",
-                                        "University Source",
-                                        List.of("Not found in fetched sources"),
-                                        "Admission criteria were not explicitly available in fetched content."
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
-                                        "Diploma in IT",
-                                        "University Source",
-                                        List.of("Not found in fetched sources"),
-                                        "Check programme-specific pages for exact subject and score minimums."
-                                ),
-                                new UniversitySourcesAnalysisResponse.RecommendedProgramme(
-                                        "BSc Engineering",
-                                        "University Source",
-                                        List.of("Not found in fetched sources"),
-                                        "Use official admissions pages to confirm current requirements."
-                                ))
-                        .stream().limit(max).toList(),
-                sourceUrls.stream().map(this::toUniversityName).distinct().toList(),
-                defaultMinimumRequirements(),
-                List.of("Check subject requirements on programme-specific pages", "Mathematics is commonly required for quantitative pathways", "English proficiency is required for most programmes"),
-                List.of("Build a practical portfolio", "Strengthen analytical and communication skills"),
-                List.of("Open programme detail pages", "Compare your subjects with entry requirements", "Upload your transcript and CV"),
-                warnings,
-                70,
-                resolveModel()
+                        new UniversitySourcesAnalysisResponse.RecommendedProgramme("Verify target programme on official site", "Fallback recommendations", List.of("Not found in analysed page content"), "Verify on the official university programme page")
+                ).stream().limit(max).toList(),
+                List.of(),
+                List.of("Not found in analysed page content"),
+                List.of("Verify on the official university programme page"),
+                List.of("A live evidence-based gap analysis was not available in fallback mode."),
+                List.of("Retry AI guidance later.", "Open official university admissions and programme pages.", "Compare your subjects and marks with the official requirements you find."),
+                mergedWarnings,
+                35,
+                MODEL
         );
     }
 
-    private List<String> enforceMinimumRequirements(List<String> provided,
-                                                    UniversityModelResponse parsed) {
-        Set<String> merged = new LinkedHashSet<>();
-        merged.addAll(defaultMinimumRequirements());
-        merged.addAll(provided);
-        merged.addAll(defaultList(parsed.keyRequirements).stream()
-                .filter(item -> item.toLowerCase().contains("grade 12")
-                        || item.toLowerCase().contains("mathematics")
-                        || item.toLowerCase().contains("english"))
-                .toList());
-        return new ArrayList<>(merged);
-    }
-
-    private List<String> mergeKeyAndMinimumRequirements(List<String> keyRequirements,
-                                                         List<String> minimumRequirements) {
-        LinkedHashSet<String> merged = new LinkedHashSet<>(minimumRequirements);
-        merged.addAll(keyRequirements);
-        return new ArrayList<>(merged);
-    }
-
-    private List<String> defaultMinimumRequirements() {
-        return List.of(
-                "Grade 12 passes are required for university admission pathways.",
-                "Mathematics is required for mathematics-related programmes.",
-                "English is required for admission and academic communication."
-        );
-    }
-
-    private String stripBullet(String value) {
-        return value.replaceFirst("^[-*•]+\s*", "").trim();
-    }
-
-    private String toUniversityName(String url) {
-        String normalized = url == null ? "" : url.toLowerCase();
-        if (normalized.contains("unisa")) {
-            return "UNISA";
+    private List<String> buildSourceWarnings(List<String> sourceUrls,
+                                             List<UniversitySourcePageResult> fetchedPages,
+                                             String combinedContext) {
+        List<String> warnings = new ArrayList<>();
+        if (sourceUrls.isEmpty()) {
+            warnings.add("No public university source URLs were requested.");
         }
-        if (normalized.contains("uj")) {
-            return "University of Johannesburg";
+        long successCount = fetchedPages.stream().filter(UniversitySourcePageResult::success).count();
+        if (successCount == 0) {
+            warnings.add("No public university pages were successfully analysed.");
         }
-        return "University Source";
+        if (combinedContext.isBlank()) {
+            warnings.add("Recommendations are based on limited public content.");
+        }
+        return warnings;
     }
 
-    private String sanitizePromptValue(String value) {
-        if (value == null) {
-            return "not provided";
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? "not provided" : trimmed;
+    private List<String> addFallbackReason(List<String> warnings, String reason) {
+        List<String> merged = new ArrayList<>(warnings);
+        merged.add("Fallback used because live Gemini guidance failed: " + sanitizePromptValue(reason));
+        return merged;
     }
 
-    private String sanitizeSourceBoundValue(String value) {
-        if (value == null) {
-            return "Not found in fetched sources";
+    private String recoverStructuredJson(String modelText) {
+        String likelyJson = extractLikelyJson(modelText);
+        if (looksLikeJsonObject(likelyJson)) {
+            return likelyJson;
         }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? "Not found in fetched sources" : trimmed;
+        String repaired = likelyJson
+                .replace("\u201c", "\"")
+                .replace("\u201d", "\"")
+                .replace("\u2018", "'")
+                .replace("\u2019", "'");
+        return looksLikeJsonObject(repaired) ? repaired : "";
     }
 
-    private Integer normalizeScore(Integer score) {
-        if (score == null) {
-            return 0;
+    private boolean looksLikeJsonObject(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
         }
-        return Math.max(0, Math.min(100, score));
+        try {
+            JsonElement element = JsonParser.parseString(text);
+            return element.isJsonObject();
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
-    private String stripCodeFences(String text) {
-        String cleaned = text == null ? "" : text.trim();
-        if (cleaned.startsWith("```")) {
-            cleaned = cleaned.replaceFirst("^```json", "").replaceFirst("^```", "").trim();
-        }
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3).trim();
-        }
-        return cleaned;
-    }
-
-    private String trim(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.length() <= 250 ? value : value.substring(0, 250) + "...";
-    }
-
-    private String extractLikelyJson(String value) {
-        String cleaned = stripCodeFences(value);
-        if (cleaned == null || cleaned.isBlank()) {
-            return "";
-        }
-
+    private String extractLikelyJson(String modelText) {
+        String cleaned = stripCodeFences(modelText == null ? "" : modelText).trim();
         int objectStart = cleaned.indexOf('{');
         int objectEnd = cleaned.lastIndexOf('}');
         if (objectStart >= 0 && objectEnd > objectStart) {
             return cleaned.substring(objectStart, objectEnd + 1).trim();
         }
+        return cleaned;
+    }
 
-        int arrayStart = cleaned.indexOf('[');
-        int arrayEnd = cleaned.lastIndexOf(']');
-        if (arrayStart >= 0 && arrayEnd > arrayStart) {
-            return cleaned.substring(arrayStart, arrayEnd + 1).trim();
+    private String stripCodeFences(String value) {
+        return value == null ? "" : value.replace("```json", "").replace("```", "").trim();
+    }
+
+    private String sanitizePromptValue(String value) {
+        return value == null || value.isBlank() ? "Not provided" : value.replaceAll("\\s+", " ").trim();
+    }
+
+    private String sanitizeSourceBoundValue(String value) {
+        String cleaned = sanitizePromptValue(value);
+        return cleaned.equals("Not provided") ? "Not found in analysed page content" : cleaned;
+    }
+
+    private List<String> sanitizeList(List<String> values) {
+        if (values == null) {
+            return List.of();
         }
-        return cleaned.trim();
+        return values.stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(this::sanitizeSourceBoundValue)
+                .distinct()
+                .toList();
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedCareer> toCareerList(List<UniversityModelResponse.RecommendedCareerPayload> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                        sanitizeSourceBoundValue(item.name),
+                        sanitizeSourceBoundValue(item.reason),
+                        sanitizeListWithFallback(item.requirements),
+                        sanitizeList(item.relatedProgrammes)
+                ))
+                .toList();
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedProgramme> toProgrammeList(List<UniversityModelResponse.RecommendedProgrammePayload> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(item -> item != null && item.name != null && !item.name.isBlank())
+                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                        sanitizeSourceBoundValue(item.name),
+                        sanitizeSourceBoundValue(item.university),
+                        sanitizeListWithFallback(item.admissionRequirements),
+                        sanitizeSourceBoundValue(item.notes)
+                ))
+                .toList();
+    }
+
+    private List<String> sanitizeListWithFallback(List<String> values) {
+        List<String> sanitized = sanitizeList(values);
+        return sanitized.isEmpty() ? List.of("Not found in analysed page content") : sanitized;
+    }
+
+    private UniversityModelResponse.RecommendedCareerPayload careerPayload(String value) {
+        UniversityModelResponse.RecommendedCareerPayload payload = new UniversityModelResponse.RecommendedCareerPayload();
+        payload.name = value;
+        payload.reason = "Recovered from a malformed Gemini response. Verify on the official university programme page.";
+        payload.requirements = List.of("Not found in analysed page content");
+        payload.relatedProgrammes = List.of();
+        return payload;
+    }
+
+    private UniversityModelResponse.RecommendedProgrammePayload programmePayload(String value) {
+        UniversityModelResponse.RecommendedProgrammePayload payload = new UniversityModelResponse.RecommendedProgrammePayload();
+        payload.name = value;
+        payload.university = "Not found in analysed page content";
+        payload.admissionRequirements = List.of("Not found in analysed page content");
+        payload.notes = "Verify on the official university programme page";
+        return payload;
     }
 
     private CareerAdviceResponse fallbackCareerAdvice(String modelText) {
-        List<String> lines = modelText == null ? List.of() : modelText.lines()
+        List<CareerAdviceResponse.RecommendedCareer> careers = (modelText == null ? List.<String>of() : modelText.lines().toList()).stream()
                 .map(this::stripBullet)
-                .map(String::trim)
                 .filter(line -> !line.isBlank())
-                .filter(line -> !line.toLowerCase().startsWith("recommended careers"))
                 .distinct()
                 .limit(5)
-                .toList();
-
-        List<CareerAdviceResponse.RecommendedCareer> careers = lines.stream()
-                .map(line -> new CareerAdviceResponse.RecommendedCareer(
-                        line.length() > 70 ? line.substring(0, 70) : line,
-                        65,
-                        "Based on your profile and current guidance context.",
-                        List.of("Review this option with your school counsellor.")
-                ))
-                .toList();
-
-        if (careers.isEmpty()) {
-            careers = List.of(
-                    new CareerAdviceResponse.RecommendedCareer(
-                            "General career exploration",
-                            60,
-                            "Broaden your choices using your interests and strengths.",
-                            List.of("Update your profile and try AI guidance again.")
-                    )
-            );
-        }
-
-        return new CareerAdviceResponse(careers.stream()
+                .map(line -> new CareerAdviceResponse.RecommendedCareer(line, 60, "Based on available profile context.", List.of("Review this option with a counsellor.")))
                 .sorted(Comparator.comparing(CareerAdviceResponse.RecommendedCareer::name))
-                .toList());
+                .toList();
+        return new CareerAdviceResponse(careers.isEmpty()
+                ? List.of(new CareerAdviceResponse.RecommendedCareer("General career exploration", 55, "AI output could not be parsed cleanly.", List.of("Try again later.")))
+                : careers);
+    }
+
+    private String stripBullet(String value) {
+        return value == null ? "" : value.replaceFirst("^[\\-*•\	 ]+", "").trim();
+    }
+
+    private int normalizeScore(Integer value) {
+        if (value == null) {
+            return 0;
+        }
+        return Math.max(0, Math.min(100, value));
     }
 
     private String readSnippet(ResponseBody responseBody) throws IOException {
         return responseBody == null ? "" : responseBody.string();
     }
 
-    private String resolveApiKey() {
-        String fromConfig = configuredApiKey == null ? "" : configuredApiKey.trim();
-        if (!fromConfig.isBlank()) {
-            return fromConfig;
-        }
-        String dotNotation = resolveProperty("gemini.api.key", "GEMINI_API_KEY", "gemini.api-key");
-        if (!dotNotation.isBlank()) {
-            return dotNotation;
-        }
-        return "";
-    }
-
-    private String resolveConfiguredModelInput() {
-        String configured = model == null ? "" : model.trim();
-        if (!configured.isBlank()) {
-            return configured;
-        }
-
-        String fromProperty = resolveProperty("gemini.model", "GEMINI_MODEL");
-        if (!fromProperty.isBlank()) {
-            return fromProperty;
-        }
-        return "";
-    }
-
-    private String resolveModel() {
-        return GeminiModelResolver.resolveModelName(resolveConfiguredModelInput());
-    }
-
-    private String resolveBaseUrl() {
-        String resolved = baseUrl == null ? "" : baseUrl.trim();
-        if (resolved.isBlank()) {
-            resolved = resolveProperty("gemini.base-url", "gemini.base.url", "GEMINI_BASE_URL");
-        }
-        if (resolved.isBlank()) {
-            resolved = GEMINI_BASE_URL;
-        }
-        String normalized = GeminiModelResolver.normalizeBaseUrl(resolved);
-        return normalized.isBlank() ? GEMINI_BASE_URL : normalized;
-    }
-
-    private String resolveProperty(String... keys) {
-        for (String key : keys) {
-            String value = environment.getProperty(key);
-            if (value != null && !value.trim().isBlank()) {
-                return value.trim();
-            }
-        }
-
-        if (environment instanceof ConfigurableEnvironment configurableEnvironment) {
-            for (PropertySource<?> propertySource : configurableEnvironment.getPropertySources()) {
-                if (!(propertySource instanceof EnumerablePropertySource<?> enumerablePropertySource)) {
-                    continue;
-                }
-                for (String propertyName : enumerablePropertySource.getPropertyNames()) {
-                    if (!matchesAnyKey(propertyName, keys)) {
-                        continue;
-                    }
-                    Object rawValue = enumerablePropertySource.getProperty(propertyName);
-                    if (rawValue == null) {
-                        continue;
-                    }
-                    String normalized = rawValue.toString().trim();
-                    if (!normalized.isBlank()) {
-                        return normalized;
-                    }
-                }
-            }
-        }
-
-        for (String key : keys) {
-            String envValue = System.getenv(key);
-            if (envValue != null && !envValue.trim().isBlank()) {
-                return envValue.trim();
-            }
-        }
-
-        return "";
-    }
-
-    private boolean matchesAnyKey(String candidate, String... keys) {
-        for (String key : keys) {
-            if (candidate.equals(key)) {
-                return true;
-            }
-
-            String normalizedCandidate = candidate.toLowerCase().replace('-', '.').replace('_', '.');
-            String normalizedKey = key.toLowerCase().replace('-', '.').replace('_', '.');
-            if (normalizedCandidate.equals(normalizedKey)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private GeminiRequestConfig resolveRequestConfig(boolean logValues) {
-        String configuredModelInput = resolveConfiguredModelInput();
-        String resolvedModel = GeminiModelResolver.resolveModelName(configuredModelInput);
-        String resolvedBaseUrl = resolveBaseUrl();
-        String endpointPath = GeminiModelResolver.buildGenerateContentPath(configuredModelInput, resolvedBaseUrl);
-        String modelInfoPath = GeminiModelResolver.buildModelInfoPath(configuredModelInput, resolvedBaseUrl);
-        String resolvedApiKey = resolveApiKey();
-        GeminiRequestConfig config = new GeminiRequestConfig(
-                resolvedApiKey,
-                resolvedModel,
-                resolvedBaseUrl,
-                endpointPath,
-                resolvedBaseUrl + endpointPath,
-                resolvedBaseUrl + modelInfoPath
-        );
-        if (logValues) {
-            log.info("Gemini request config: apiKeyPresent={}, keyMask={}, model={}, baseUrl={}, endpoint={}",
-                    !resolvedApiKey.isBlank(),
-                    maskSecret(resolvedApiKey),
-                    resolvedModel,
-                    resolvedBaseUrl,
-                    config.generateEndpoint());
-        }
-        return config;
-    }
-
-    private void logEnvironmentPresence(String context) {
-        boolean envApiKeyPresent = !environment.getProperty("GEMINI_API_KEY", "").isBlank();
-        boolean envModelPresent = !environment.getProperty("GEMINI_MODEL", "").isBlank();
-        boolean envBaseUrlPresent = !environment.getProperty("GEMINI_BASE_URL", "").isBlank();
-        boolean propertyApiKeyPresent = !environment.getProperty("gemini.api-key", "").isBlank()
-                || !environment.getProperty("gemini.api.key", "").isBlank();
-        boolean propertyModelPresent = !environment.getProperty("gemini.model", "").isBlank();
-        boolean propertyBaseUrlPresent = !environment.getProperty("gemini.base-url", "").isBlank()
-                || !environment.getProperty("gemini.base.url", "").isBlank();
-
-        log.info("Gemini config diagnostics [{}]: envApiKeyPresent={}, envModelPresent={}, envBaseUrlPresent={}, propertyApiKeyPresent={}, propertyModelPresent={}, propertyBaseUrlPresent={}, resolvedModel={}, resolvedBaseUrl={}",
-                context,
-                envApiKeyPresent,
-                envModelPresent,
-                envBaseUrlPresent,
-                propertyApiKeyPresent,
-                propertyModelPresent,
-                propertyBaseUrlPresent,
-                resolveModel(),
-                resolveBaseUrl());
-    }
-
     private void sleepBeforeRetry(int attempt) {
-        long backoff = RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)];
         try {
-            Thread.sleep(backoff);
+            Thread.sleep(RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private String trim(String value) {
+        if (value == null) {
+            return "";
+        }
+        String cleaned = value.replaceAll("\\s+", " ").trim();
+        return cleaned.length() > MAX_LOG_BODY ? cleaned.substring(0, MAX_LOG_BODY) + "..." : cleaned;
     }
 
     private String maskSecret(String secret) {
         if (secret == null || secret.isBlank()) {
             return "<empty>";
         }
-        String trimmed = secret.trim();
-        if (trimmed.length() <= 4) {
+        if (secret.length() <= 4) {
             return "****";
         }
-        return "***" + trimmed.substring(trimmed.length() - 4);
+        return "***" + secret.substring(secret.length() - 4);
     }
 
-    private List<String> defaultList(List<String> value) {
-        return value == null ? List.of() : value;
+    private String generateEndpoint() {
+        return BASE_URL + "/v1beta/models/" + MODEL + ":generateContent";
     }
 
-    private List<String> defaultListOrNotFound(List<String> value) {
-        if (value == null || value.isEmpty()) {
-            return List.of("Not found in fetched sources");
-        }
-        return value;
+    private String modelInfoEndpoint() {
+        return BASE_URL + "/v1beta/models/" + MODEL;
     }
 
-    private List<UniversitySourcesAnalysisResponse.RecommendedCareer> defaultCareerList(
-            List<UniversityModelResponse.RecommendedCareerPayload> value) {
-        if (value == null) {
-            return List.of();
-        }
-        return value.stream()
-                .filter(item -> item != null && item.name != null && !item.name.isBlank())
-                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedCareer(
-                        item.name,
-                        sanitizeSourceBoundValue(item.reason),
-                        defaultListOrNotFound(item.requirements),
-                        defaultList(item.relatedProgrammes)
-                ))
-                .toList();
-    }
-
-    private List<UniversitySourcesAnalysisResponse.RecommendedProgramme> defaultProgrammeList(
-            List<UniversityModelResponse.RecommendedProgrammePayload> value) {
-        if (value == null) {
-            return List.of();
-        }
-        return value.stream()
-                .filter(item -> item != null && item.name != null && !item.name.isBlank())
-                .map(item -> new UniversitySourcesAnalysisResponse.RecommendedProgramme(
-                        item.name,
-                        sanitizeSourceBoundValue(item.university),
-                        defaultListOrNotFound(item.admissionRequirements),
-                        sanitizeSourceBoundValue(item.notes)
-                ))
-                .toList();
-    }
-
-
-
-    public record GeminiHealthCheck(
-            boolean apiKeyPresent,
-            boolean endpointReachable,
-            String model,
-            String endpoint,
-            String message
-    ) {
+    public record GeminiHealthCheck(boolean apiKeyPresent, boolean endpointReachable, String model, String endpoint, String message) {
     }
 
     private static class UniversityModelResponse {
@@ -1115,15 +741,5 @@ public class GeminiService {
             public List<String> admissionRequirements;
             public String notes;
         }
-    }
-
-    private record GeminiRequestConfig(
-            String apiKey,
-            String model,
-            String baseUrl,
-            String endpointPath,
-            String generateEndpoint,
-            String modelInfoEndpoint
-    ) {
     }
 }
