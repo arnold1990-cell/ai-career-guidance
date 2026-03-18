@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { getDashboardPathForRole, getDashboardPathForUser, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import { studentService } from '@/services/studentService';
@@ -54,12 +55,7 @@ const roleContent: Record<AuthRole, {
   },
 };
 
-const getRoleDashboard = (user: User): string => {
-  const primaryRole = user.roles[0]?.replace('ROLE_', '') as Role | undefined;
-  if (primaryRole === 'COMPANY') return '/company/dashboard';
-  if (primaryRole === 'ADMIN') return '/admin/dashboard';
-  return '/student/dashboard';
-};
+const getRoleDashboard = (user: User): string => getDashboardPathForUser(user);
 
 const resolveRoleFromPath = (pathname: string): AuthRole => {
   if (pathname.includes('/company/')) return 'COMPANY';
@@ -187,7 +183,7 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
     try {
       const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe });
       if (!loggedInUser.roles.includes(`ROLE_${role}`)) {
-        const resolvedRole = loggedInUser.roles[0]?.replace('ROLE_', '') ?? 'STUDENT';
+        const resolvedRole = resolvePrimaryRole(loggedInUser) ?? 'STUDENT';
         navigate(buildAuthPath(resolvedRole as AuthRole, 'login'), {
           replace: true,
           state: { roleMismatch: `This account is registered as ${resolvedRole.toLowerCase()}. We've redirected you to the correct workspace.` },
@@ -195,13 +191,14 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
         return;
       }
 
-      if (loggedInUser.roles.includes('ROLE_STUDENT')) {
+      const primaryRole = resolvePrimaryRole(loggedInUser);
+      if (primaryRole === 'STUDENT') {
         const me = await studentService.getMe();
         navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', { replace: true });
         return;
       }
 
-      navigate(from && from !== '/auth/login' ? from : getRoleDashboard(loggedInUser), { replace: true });
+      navigate(from && from !== '/auth/login' ? from : getDashboardPathForRole(primaryRole), { replace: true });
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Unable to sign you in.');
     } finally {

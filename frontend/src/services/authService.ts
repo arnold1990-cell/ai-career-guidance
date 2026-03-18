@@ -1,15 +1,10 @@
 import { apiClient } from '@/services/apiClient';
+import { normalizeBackendRole } from '@/features/auth/roleUtils';
 import type { AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, StudentRegisterPayload, User } from '@/types';
-
-const normalizeRole = (role?: string): BackendRole | null => {
-  if (!role) return null;
-  const normalized = role.startsWith('ROLE_') ? role : `ROLE_${role}`;
-  return ['ROLE_STUDENT', 'ROLE_COMPANY', 'ROLE_ADMIN'].includes(normalized) ? (normalized as BackendRole) : null;
-};
 
 const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
   const userRoles = payload.user?.roles ?? payload.roles ?? (payload.user?.role ? [payload.user.role] : payload.role ? [payload.role] : []);
-  const normalizedRoles = Array.from(new Set(userRoles.map((role) => normalizeRole(role)).filter((role): role is BackendRole => Boolean(role))));
+  const normalizedRoles = Array.from(new Set(userRoles.map((role) => normalizeBackendRole(role)).filter((role): role is BackendRole => Boolean(role))));
 
   const user: User = {
     id: payload.user?.id ?? '',
