@@ -1,23 +1,26 @@
 package com.edurite.admin.controller;
 
 import com.edurite.admin.service.AdminService;
+import java.io.IOException;
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-// @RestController tells Spring this class exposes REST API endpoints.
 @RestController
-// @RequestMapping defines the base URL path for endpoints in this controller.
 @RequestMapping("/api/v1/admin")
-/**
- * This class named AdminController is part of the Spring Boot application.
- * It groups related logic so the project stays organized and easier to learn.
- */
 public class AdminController {
 
     private final AdminService adminService;
@@ -26,35 +29,62 @@ public class AdminController {
         this.adminService = adminService;
     }
 
-// @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/users")
-    public List<Map<String, String>> users() { return adminService.users(); }
+    public List<Map<String, Object>> users(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String accountType
+    ) {
+        return adminService.users(search, status, accountType);
+    }
 
-// @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/users/{id}/status")
-    public Map<String, String> userStatus() { return Map.of("message", "User status updated"); }
+    public Map<String, Object> userStatus(@PathVariable UUID id, @RequestBody Map<String, Boolean> payload, Principal principal) {
+        return adminService.updateUserStatus(id, Boolean.TRUE.equals(payload.get("active")), principal);
+    }
 
-// @GetMapping handles HTTP GET requests for reading data.
     @GetMapping("/roles")
-    public List<Map<String, String>> roles() { return List.of(Map.of("name", "ADMIN"), Map.of("name", "STUDENT")); }
+    public List<Map<String, Object>> roles() {
+        return adminService.roles();
+    }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/roles")
-    public Map<String, String> createRole() { return Map.of("message", "Role created"); }
+    public Map<String, Object> createRole(@RequestBody Map<String, Object> payload, Principal principal) {
+        return adminService.createRole(payload, principal);
+    }
 
-// @PutMapping handles HTTP PUT requests for updating data.
     @PutMapping("/roles/{id}")
-    public Map<String, String> updateRole() { return Map.of("message", "Role updated"); }
+    public Map<String, Object> updateRole(@PathVariable UUID id, @RequestBody Map<String, Object> payload, Principal principal) {
+        return adminService.updateRole(id, payload, principal);
+    }
 
-// @GetMapping handles HTTP GET requests for reading data.
+    @DeleteMapping("/roles/{id}")
+    public Map<String, String> deleteRole(@PathVariable UUID id, Principal principal) {
+        return adminService.deleteRole(id, principal);
+    }
+
     @GetMapping("/bursaries/pending")
-    public List<Map<String, String>> pendingBursaries() { return List.of(Map.of("title", "STEM Excellence 2026")); }
+    public List<Map<String, Object>> pendingBursaries() {
+        return adminService.pendingBursaries();
+    }
 
-// @PatchMapping handles HTTP PATCH requests for partial updates.
     @PatchMapping("/bursaries/{id}/review")
-    public Map<String, String> reviewBursary() { return Map.of("message", "Review recorded"); }
+    public Map<String, Object> reviewBursary(@PathVariable UUID id, @RequestBody Map<String, String> payload, Principal principal) {
+        return adminService.reviewBursary(id, payload.get("decision"), payload.get("comment"), principal);
+    }
 
-// @GetMapping handles HTTP GET requests for reading data.
+    @PostMapping("/users/bulk-upload")
+    public Map<String, Object> bulkUpload(@RequestPart("file") MultipartFile file, Principal principal) throws IOException {
+        return adminService.bulkUploadUsers(file, principal);
+    }
+
+    @GetMapping("/audit-logs")
+    public List<Map<String, Object>> auditLogs() {
+        return adminService.auditLogs();
+    }
+
     @GetMapping("/analytics")
-    public Map<String, Object> analytics() { return adminService.analytics(); }
+    public Map<String, Object> analytics() {
+        return adminService.analytics();
+    }
 }

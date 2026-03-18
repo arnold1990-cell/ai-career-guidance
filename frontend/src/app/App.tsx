@@ -34,8 +34,10 @@ export const App = () => (
       <Route path="/company/register" element={<RegisterCompanyPage />} />
       <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/company/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       <Route path="/company/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/admin/reset-password" element={<ResetPasswordPage />} />
     </Route>
 
     <Route element={<RequireAuth />}>

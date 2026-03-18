@@ -80,8 +80,8 @@ const buildAuthPath = (role: AuthRole, mode: AuthMode) => {
   return '/auth/register/student';
 };
 
-const getForgotPasswordPath = (role: AuthRole) => (role === 'COMPANY' ? '/company/forgot-password' : '/auth/forgot-password');
-const getResetPasswordLoginPath = (role: AuthRole) => (role === 'COMPANY' ? '/company/login' : '/auth/login');
+const getForgotPasswordPath = (role: AuthRole) => role === 'COMPANY' ? '/company/forgot-password' : role === 'ADMIN' ? '/admin/forgot-password' : '/auth/forgot-password';
+const getResetPasswordLoginPath = (role: AuthRole) => role === 'COMPANY' ? '/company/login' : role === 'ADMIN' ? '/admin/login' : '/auth/login';
 
 const AuthShell = ({ children, role, mode }: { children: React.ReactNode; role: AuthRole; mode: AuthMode }) => {
   const config = roleContent[role];

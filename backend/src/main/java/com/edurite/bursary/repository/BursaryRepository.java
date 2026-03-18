@@ -1,6 +1,7 @@
 package com.edurite.bursary.repository;
 
 import com.edurite.bursary.entity.Bursary;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -21,4 +22,8 @@ public interface BursaryRepository extends JpaRepository<Bursary, UUID> {
     );
 
     List<Bursary> findByCompanyIdOrderByCreatedAtDesc(UUID companyId);
+    List<Bursary> findByStatusIgnoreCaseOrderByCreatedAtDesc(String status);
+    long countByStatusIgnoreCase(String status);
+    long countByApplicationEndDateBeforeAndStatusIn(LocalDate date, List<String> statuses);
+    List<Bursary> findByApplicationEndDateBeforeAndStatusIn(LocalDate date, List<String> statuses);
 }

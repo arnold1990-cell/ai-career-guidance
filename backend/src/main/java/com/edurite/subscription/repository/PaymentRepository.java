@@ -11,4 +11,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface PaymentRepository extends JpaRepository<PaymentRecord, UUID> {
     List<PaymentRecord> findBySubscriptionIdOrderByCreatedAtDesc(UUID subscriptionId);
+    List<PaymentRecord> findAllByOrderByCreatedAtDesc();
+    long countByStatus(String status);
 }

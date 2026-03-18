@@ -10,6 +10,9 @@ public record CompanyStudentSearchResultDto(
         String location,
         String qualificationLevel,
         List<String> skills,
-        List<String> interests
+        List<String> interests,
+        int matchScore,
+        boolean bookmarked,
+        boolean shortlisted
 ) {
 }

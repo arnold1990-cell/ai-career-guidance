@@ -16,4 +16,5 @@ public interface ApplicationRepository extends JpaRepository<ApplicationRecord, 
     long countByStudentIdAndStatus(UUID studentId, String status);
 
     List<ApplicationRecord> findByStudentIdOrderByCreatedAtDesc(UUID studentId);
+    long countByBursaryId(UUID bursaryId);
 }
