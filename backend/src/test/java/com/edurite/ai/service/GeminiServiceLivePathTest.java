@@ -86,6 +86,11 @@ class GeminiServiceLivePathTest {
         assertThat(response.aiLive()).isFalse();
         assertThat(response.fallbackUsed()).isTrue();
         assertThat(response.warningMessage()).contains("Live AI guidance is temporarily unavailable");
+        assertThat(response.warnings()).contains(
+                "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",
+                "No external university sources were available for this request; guidance was generated from profile context.",
+                "No combined source context was available; guidance was generated from profile context."
+        );
     }
 
     @Test

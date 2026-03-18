@@ -14,6 +14,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.ConnectException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -169,7 +171,8 @@ public class GeminiService {
             log.warn("Fallback path used before Gemini attempt: apiKeyPresent={}, modelPresent={}, baseUrlPresent={}",
                     !config.apiKey().isBlank(), !config.model().isBlank(), !config.baseUrl().isBlank());
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
-                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                    buildFallbackWarnings(sourceLimitations,
+                            "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
 
         try {
@@ -181,7 +184,8 @@ public class GeminiService {
         } catch (Exception ex) {
             log.warn("Fallback decision: Gemini failed after live attempt, fallbackUsed=true, reason={}", ex.getMessage(), ex);
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
-                    List.of("Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                    buildFallbackWarnings(sourceLimitations,
+                            "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
         }
     }
 
@@ -248,9 +252,10 @@ public class GeminiService {
                 throw new AiServiceException(status,
                         "Gemini request failed with status " + statusCode + ". " + trim(bodySnippet));
             } catch (IOException ex) {
-                log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, message={}",
-                        config.model(), attempt + 1, attempt > 0, ex.getMessage(), ex);
-                if (retry) {
+                boolean retryableIoFailure = retry && isRetryableIoFailure(ex);
+                log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, retryableIoFailure={}, message={}",
+                        config.model(), attempt + 1, attempt > 0, retryableIoFailure, ex.getMessage(), ex);
+                if (retryableIoFailure) {
                     sleepBeforeRetry(attempt);
                     continue;
                 }
@@ -644,6 +649,19 @@ public class GeminiService {
         );
     }
 
+    private List<String> buildFallbackWarnings(List<String> runtimeWarnings, String primaryWarning) {
+        LinkedHashSet<String> mergedWarnings = new LinkedHashSet<>();
+        if (primaryWarning != null && !primaryWarning.isBlank()) {
+            mergedWarnings.add(primaryWarning);
+        }
+        if (runtimeWarnings != null) {
+            runtimeWarnings.stream()
+                    .filter(item -> item != null && !item.isBlank())
+                    .forEach(mergedWarnings::add);
+        }
+        return new ArrayList<>(mergedWarnings);
+    }
+
     private UniversitySourcesAnalysisResponse fallbackUniversityResponse(
             UniversitySourcesAnalysisRequest request,
             List<String> sourceUrls,
@@ -759,7 +777,7 @@ public class GeminiService {
     }
 
     private String stripBullet(String value) {
-        return value.replaceFirst("^[-*•]+\s*", "").trim();
+        return value.replaceFirst("^[-*•]+\\s*", "").trim();
     }
 
     private String toUniversityName(String url) {
@@ -1014,6 +1032,10 @@ public class GeminiService {
                 propertyBaseUrlPresent,
                 resolveModel(),
                 resolveBaseUrl());
+    }
+
+    private boolean isRetryableIoFailure(IOException ex) {
+        return ex instanceof InterruptedIOException && !(ex instanceof ConnectException);
     }
 
     private void sleepBeforeRetry(int attempt) {
