@@ -20,7 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.edurite.ai.university.UniversityPageType.PROGRAMME_DETAIL;
 import static com.edurite.ai.university.UniversityPageType.QUALIFICATION_LIST;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +39,8 @@ class UniversitySourcesGuidanceServiceTest {
     private StudentService studentService;
     @Mock
     private GeminiService geminiService;
+    @Mock
+    private UniversityGuidanceResultEnricher resultEnricher;
 
     @InjectMocks
     private UniversitySourcesGuidanceService service;
@@ -56,15 +57,17 @@ class UniversitySourcesGuidanceServiceTest {
         );
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(18))).thenReturn(discoveredUrls);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(discoveredUrls);
         when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context")))
-                .thenReturn(new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini"));
+                .thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages))).thenReturn(baseResponse);
 
         service.analyse(principal, request);
 
-        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(18));
+        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(24));
         verify(geminiService).getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context"));
     }
 
@@ -90,12 +93,35 @@ class UniversitySourcesGuidanceServiceTest {
         when(registryService.deduplicate(request.urls())).thenReturn(dedupedUrls);
         when(pageFetcherService.fetchPages(dedupedUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, dedupedUrls, dedupedUrls, dedupedUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 50, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(dedupedUrls), eq(fetchedPages), eq("context")))
-                .thenReturn(new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, dedupedUrls, dedupedUrls, dedupedUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 50, "gemini"));
+                .thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(dedupedUrls), eq(fetchedPages))).thenReturn(baseResponse);
 
         service.analyse(principal, request);
 
         verify(pageFetcherService).fetchPages(dedupedUrls);
+    }
+
+    @Test
+    void analyseScalesDiscoveryLimitForLargeUniversityRegistry() {
+        Principal principal = () -> "student";
+        StudentProfile profile = new StudentProfile();
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
+
+        when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(registryService.configuredUniversityCount()).thenReturn(55);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(110))).thenReturn(List.of());
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
+                "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
+        when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
+        when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq(""))).thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(List.of()), eq(List.of()))).thenReturn(baseResponse);
+
+        service.analyse(principal, request);
+
+        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(110));
     }
 
     @Test
@@ -105,12 +131,14 @@ class UniversitySourcesGuidanceServiceTest {
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(18))).thenReturn(List.of());
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(List.of());
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
+                        "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq("")))
-                .thenReturn(new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
-                        "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini"));
+                .thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(List.of()), eq(List.of()))).thenReturn(baseResponse);
 
         service.analyse(principal, request);
 
