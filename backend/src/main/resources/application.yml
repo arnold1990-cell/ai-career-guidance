@@ -1,3 +1,13 @@
+gemini:
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  api-key: ${GEMINI_API_KEY:}
+  connect-timeout-seconds: ${GEMINI_CONNECT_TIMEOUT_SECONDS:20}
+  read-timeout-seconds: ${GEMINI_READ_TIMEOUT_SECONDS:45}
+  write-timeout-seconds: ${GEMINI_WRITE_TIMEOUT_SECONDS:45}
+  call-timeout-seconds: ${GEMINI_CALL_TIMEOUT_SECONDS:60}
+  max-retries: ${GEMINI_MAX_RETRIES:2}
+
 spring:
   application:
     name: edurite-backend
@@ -25,6 +35,10 @@ springdoc:
     path: /swagger-ui.html
 
 edurite:
+  bursary:
+    fallback:
+      trusted-domains: ${EDURITE_BURSARY_TRUSTED_DOMAINS:bursaries-southafrica.co.za,zabursaries.co.za,careerwise.co.za,gov.za}
+      max-results: ${EDURITE_BURSARY_FALLBACK_MAX_RESULTS:5}
   university:
     crawl:
       cron: "0 0 2 * * *"

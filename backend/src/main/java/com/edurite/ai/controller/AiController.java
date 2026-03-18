@@ -1,11 +1,13 @@
 package com.edurite.ai.controller;
 
+import com.edurite.ai.dto.AiDashboardSummaryResponse;
 import com.edurite.ai.dto.CareerAdviceRequest;
 import com.edurite.ai.dto.CareerAdviceResponse;
 import com.edurite.ai.dto.UniversitySourcesAnalysisRequest;
 import com.edurite.ai.dto.UniversitySourcesAnalysisResponse;
 import com.edurite.ai.exception.AiServiceException;
 import com.edurite.ai.service.GeminiService;
+import com.edurite.ai.service.StudentAiGuidanceService;
 import com.edurite.ai.service.UniversitySourcesGuidanceService;
 import com.edurite.ai.university.UniversitySourceCoverage;
 import com.edurite.ai.university.UniversitySourceCoverageService;
@@ -34,13 +36,16 @@ public class AiController {
     private final GeminiService geminiService;
     private final UniversitySourcesGuidanceService universitySourcesGuidanceService;
     private final UniversitySourceCoverageService sourceCoverageService;
+    private final StudentAiGuidanceService studentAiGuidanceService;
 
     public AiController(GeminiService geminiService,
                         UniversitySourcesGuidanceService universitySourcesGuidanceService,
-                        UniversitySourceCoverageService sourceCoverageService) {
+                        UniversitySourceCoverageService sourceCoverageService,
+                        StudentAiGuidanceService studentAiGuidanceService) {
         this.geminiService = geminiService;
         this.universitySourcesGuidanceService = universitySourcesGuidanceService;
         this.sourceCoverageService = sourceCoverageService;
+        this.studentAiGuidanceService = studentAiGuidanceService;
     }
 
     @PostMapping("/career-advice")
@@ -55,6 +60,31 @@ public class AiController {
             CareerAdviceResponse response = geminiService.getCareerAdvice(request);
             log.info("AI guidance request completed successfully: recommendations={}",
                     response.recommendedCareers() == null ? 0 : response.recommendedCareers().size());
+            return ResponseEntity.ok(response);
+        } catch (AiServiceException ex) {
+            return errorResponse(httpRequest, ex);
+        }
+    }
+
+
+    @GetMapping("/career-advice/me")
+    public ResponseEntity<?> careerAdviceForStudent(Principal principal, HttpServletRequest httpRequest) {
+        try {
+            return ResponseEntity.ok(studentAiGuidanceService.careerAdviceForStudent(principal));
+        } catch (AiServiceException ex) {
+            return errorResponse(httpRequest, ex);
+        }
+    }
+
+    @GetMapping("/bursary-guidance/me")
+    public ResponseEntity<List<com.edurite.bursary.dto.BursaryResultDto>> bursaryGuidanceForStudent(Principal principal) {
+        return ResponseEntity.ok(studentAiGuidanceService.bursaryGuidanceForStudent(principal));
+    }
+
+    @GetMapping("/dashboard-summary")
+    public ResponseEntity<?> dashboardSummary(Principal principal, HttpServletRequest httpRequest) {
+        try {
+            AiDashboardSummaryResponse response = studentAiGuidanceService.dashboardSummary(principal);
             return ResponseEntity.ok(response);
         } catch (AiServiceException ex) {
             return errorResponse(httpRequest, ex);

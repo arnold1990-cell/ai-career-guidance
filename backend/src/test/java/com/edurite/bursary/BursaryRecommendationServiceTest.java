@@ -29,13 +29,14 @@ class BursaryRecommendationServiceTest {
         profile.setCareerGoals("data science");
         when(studentService.getProfileEntity(any())).thenReturn(profile);
 
-        BursaryResultDto b1 = new BursaryResultDto("1", "Data Science Bursary", "P", "data science", "Degree", "Gauteng", "python", LocalDate.now(), "", "OFFICIAL_PROVIDER", 70);
-        BursaryResultDto b2 = new BursaryResultDto("2", "Generic", "P", "general", "Diploma", "Cape Town", "none", LocalDate.now(), "", "OFFICIAL_PROVIDER", 75);
+        BursaryResultDto b1 = new BursaryResultDto("1", "Data Science Bursary", "P", "data science", "Degree", "Gauteng", "python", LocalDate.now(), "", "OFFICIAL_PROVIDER", 70, List.of(), true, false, null);
+        BursaryResultDto b2 = new BursaryResultDto("2", "Generic", "P", "general", "Diploma", "Cape Town", "none", null, "", "TRUSTED_PUBLIC_FALLBACK", 75, List.of("https://example.org"), false, true, "Unverified");
         when(aggregationService.search(any())).thenReturn(new BursarySearchResponse(List.of(b1, b2), 0, 20, 2));
 
         List<BursaryResultDto> recommendations = service.recommendForStudent((Principal) () -> "student@test");
 
         assertThat(recommendations.get(0).title()).isEqualTo("Data Science Bursary");
         assertThat(recommendations.get(0).relevanceScore()).isGreaterThan(recommendations.get(1).relevanceScore());
+        assertThat(recommendations.get(0).officialSource()).isTrue();
     }
 }
