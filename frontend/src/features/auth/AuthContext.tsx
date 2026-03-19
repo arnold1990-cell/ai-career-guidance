@@ -1,4 +1,5 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { authStore } from '@/features/auth/authStore';
 import { getNormalizedUserRoles, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { authService } from '@/services/authService';
@@ -22,7 +23,8 @@ const normalizeStoredUser = (user: User | null): User | null => {
   if (!user) return null;
   const roles = getNormalizedUserRoles(user);
   if (!roles.length) return null;
-  return { ...user, roles };
+  const primaryRole = resolvePrimaryRole({ ...user, roles });
+  return { ...user, roles, primaryRole: primaryRole ? `ROLE_${primaryRole}` : user.primaryRole };
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -42,10 +44,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setSession = (payload: { accessToken: string; refreshToken?: string; user: User }, options?: { rememberMe?: boolean }) => {
     const rememberMe = options?.rememberMe ?? true;
+    const normalizedUser = normalizeStoredUser(payload.user);
+    if (!normalizedUser) {
+      throw new Error('Authenticated session did not include a supported role.');
+    }
     authStore.setTokens(payload.accessToken, payload.refreshToken, rememberMe);
-    authStore.setUser(payload.user, rememberMe);
-    setUser(payload.user);
-    return payload.user;
+    authStore.setUser(normalizedUser, rememberMe);
+    flushSync(() => {
+      setUser(normalizedUser);
+    });
+    if (import.meta.env.DEV) {
+      console.info('[auth] auth context session committed', {
+        email: normalizedUser.email,
+        roles: normalizedUser.roles,
+        primaryRole: normalizedUser.primaryRole,
+      });
+    }
+    return normalizedUser;
   };
 
   const value = useMemo<AuthContextType>(

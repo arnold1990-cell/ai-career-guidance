@@ -8,7 +8,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.function.Function;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +25,8 @@ import org.springframework.stereotype.Service;
  * It groups related logic so the project stays organized and easier to learn.
  */
 public class JwtService {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
     private final SecretKey signingKey;
     private final long accessTokenExpiration;
@@ -42,9 +47,8 @@ public class JwtService {
      * It exists to keep this class focused and reusable.
      */
     public String generateAccessToken(UserDetails userDetails) {
-        return generateToken(userDetails.getUsername(), accessTokenExpiration, Map.of(
-                "roles", userDetails.getAuthorities().stream().map(Object::toString).sorted().toList()
-        ));
+        List<String> roles = userDetails.getAuthorities().stream().map(Object::toString).sorted().toList();
+        return generateToken(userDetails.getUsername(), accessTokenExpiration, buildAccessClaims(roles));
     }
 
     /**
@@ -60,9 +64,9 @@ public class JwtService {
      * It exists to keep this class focused and reusable.
      */
     public String generateAccessToken(User user) {
-        return generateToken(user.getEmail(), accessTokenExpiration, Map.of(
-                "roles", user.getRoles().stream().map(role -> role.getName().trim().toUpperCase()).sorted().toList()
-        ));
+        List<String> roles = user.getRoles().stream().map(role -> role.getName().trim().toUpperCase()).sorted().toList();
+        log.info("[auth] jwt issued username={} jwtRoles={}", user.getEmail(), roles);
+        return generateToken(user.getEmail(), accessTokenExpiration, buildAccessClaims(roles));
     }
 
     /**
@@ -71,6 +75,20 @@ public class JwtService {
      */
     public String generateRefreshToken(User user) {
         return generateToken(user.getEmail(), refreshTokenExpiration, Map.of("type", "refresh"));
+    }
+
+
+    private Map<String, Object> buildAccessClaims(List<String> roles) {
+        java.util.LinkedHashMap<String, Object> claims = new java.util.LinkedHashMap<>();
+        claims.put("roles", roles);
+        String primaryRole = roles.stream()
+                .filter(role -> java.util.Set.of("ROLE_ADMIN", "ROLE_COMPANY", "ROLE_STUDENT").contains(role))
+                .findFirst()
+                .orElse(null);
+        if (primaryRole != null) {
+            claims.put("primaryRole", primaryRole);
+        }
+        return claims;
     }
 
     /**

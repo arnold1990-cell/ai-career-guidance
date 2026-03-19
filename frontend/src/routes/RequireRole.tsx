@@ -15,5 +15,8 @@ export const RequireRole = ({ role }: { role: Role }) => {
   }
 
   const primaryRole = getPrimaryRole();
+  if (import.meta.env.DEV) {
+    console.info('[auth] protected route denied', { requestedRole: role, primaryRole, redirectPath: getDashboardPathForRole(primaryRole) ?? '/auth/login' });
+  }
   return <Navigate to={getDashboardPathForRole(primaryRole) ?? '/auth/login'} replace />;
 };

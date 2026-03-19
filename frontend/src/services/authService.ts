@@ -40,6 +40,16 @@ const normalizeRoles = (roles: string[]): BackendRole[] => Array.from(
 const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
   const responseRoles = payload.user?.roles ?? payload.roles ?? (payload.user?.role ? [payload.user.role] : payload.role ? [payload.role] : []);
   const normalizedRoles = normalizeRoles([...responseRoles, ...getRolesFromAccessToken(payload.accessToken)]);
+  const normalizedPrimaryRole = normalizeBackendRole(payload.user?.primaryRole ?? payload.primaryRole ?? payload.user?.role ?? payload.role);
+
+  if (import.meta.env.DEV) {
+    console.info('[auth] frontend role normalization', {
+      responseRoles,
+      tokenRoles: getRolesFromAccessToken(payload.accessToken),
+      normalizedRoles,
+      normalizedPrimaryRole,
+    });
+  }
 
   const user: User = {
     id: payload.user?.id ?? '',
@@ -47,6 +57,7 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
     fullName: payload.user?.fullName,
     companyName: payload.user?.companyName,
     roles: normalizedRoles,
+    primaryRole: normalizedPrimaryRole ?? normalizedRoles[0],
   };
 
   return {

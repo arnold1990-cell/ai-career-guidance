@@ -339,7 +339,52 @@ class AuthFlowIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.primaryRole").value("ROLE_ADMIN"))
+                .andExpect(jsonPath("$.user.primaryRole").value("ROLE_ADMIN"))
                 .andExpect(jsonPath("$.user.roles[0]").value("ROLE_ADMIN"));
+    }
+
+    @Test
+    void loginResponsePrimaryRoleMatchesJwtAndDatabaseRoleForAllBuiltInRoles() throws Exception {
+        registerStudent("primary.role.student@example.com");
+        registerCompany("primary.role.company@example.com", "PRIMARY-ROLE-001");
+
+        String studentResponse = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"primary.role.student@example.com","password":"StrongPass@123"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.primaryRole").value("ROLE_STUDENT"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String companyResponse = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"primary.role.company@example.com","password":"StrongPass@123"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.primaryRole").value("ROLE_COMPANY"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String adminResponse = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"admin@test.local","password":"AdminPass@123"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.primaryRole").value("ROLE_ADMIN"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(jwtService.extractRoles(objectMapper.readTree(studentResponse).get("accessToken").asText())).containsExactly("ROLE_STUDENT");
+        assertThat(jwtService.extractRoles(objectMapper.readTree(companyResponse).get("accessToken").asText())).containsExactly("ROLE_COMPANY");
+        assertThat(jwtService.extractRoles(objectMapper.readTree(adminResponse).get("accessToken").asText())).containsExactly("ROLE_ADMIN");
     }
 
     @Test
