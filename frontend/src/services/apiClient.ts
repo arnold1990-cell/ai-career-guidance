@@ -1,8 +1,29 @@
 import axios from 'axios';
 import { authStore } from '@/features/auth/authStore';
-import type { ApiError } from '@/types';
+import { normalizeBackendRole } from '@/features/auth/roleUtils';
+import type { ApiError, BackendRole, User } from '@/types';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+
+const normalizeRefreshedUser = (payload: unknown): User | null => {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const data = payload as { user?: { id?: string; email?: string; fullName?: string; companyName?: string; roles?: string[]; role?: string }; roles?: string[]; role?: string };
+  const rawRoles = data.user?.roles ?? data.roles ?? (data.user?.role ? [data.user.role] : data.role ? [data.role] : []);
+  const roles = Array.from(new Set(rawRoles
+    .map((role) => normalizeBackendRole(role))
+    .filter((role): role is BackendRole => Boolean(role))));
+
+  if (!roles.length) return null;
+
+  return {
+    id: data.user?.id ?? '',
+    email: data.user?.email ?? '',
+    fullName: data.user?.fullName,
+    companyName: data.user?.companyName,
+    roles,
+  };
+};
 
 export const apiClient = axios.create({
   baseURL,
@@ -30,6 +51,10 @@ apiClient.interceptors.response.use(
           refreshToken: authStore.getRefreshToken(),
         });
         authStore.setTokens(response.data.accessToken, response.data.refreshToken);
+        const refreshedUser = normalizeRefreshedUser(response.data);
+        if (refreshedUser) {
+          authStore.setUser(refreshedUser);
+        }
         error.config.headers.Authorization = `Bearer ${response.data.accessToken}`;
         return apiClient.request(error.config);
       } catch {

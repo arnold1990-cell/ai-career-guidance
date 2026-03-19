@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
@@ -41,7 +42,9 @@ public class JwtService {
      * It exists to keep this class focused and reusable.
      */
     public String generateAccessToken(UserDetails userDetails) {
-        return generateToken(userDetails.getUsername(), accessTokenExpiration, Map.of());
+        return generateToken(userDetails.getUsername(), accessTokenExpiration, Map.of(
+                "roles", userDetails.getAuthorities().stream().map(Object::toString).sorted().toList()
+        ));
     }
 
     /**
@@ -57,7 +60,9 @@ public class JwtService {
      * It exists to keep this class focused and reusable.
      */
     public String generateAccessToken(User user) {
-        return generateToken(user.getEmail(), accessTokenExpiration, Map.of());
+        return generateToken(user.getEmail(), accessTokenExpiration, Map.of(
+                "roles", user.getRoles().stream().map(role -> role.getName().trim().toUpperCase()).sorted().toList()
+        ));
     }
 
     /**
@@ -82,6 +87,18 @@ public class JwtService {
      */
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    /**
+     * this method handles the "extractRoles" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
+    public java.util.List<String> extractRoles(String token) {
+        Object roles = extractAllClaims(token).get("roles");
+        if (roles instanceof Collection<?> collection) {
+            return collection.stream().filter(String.class::isInstance).map(String.class::cast).toList();
+        }
+        return java.util.List.of();
     }
 
     /**

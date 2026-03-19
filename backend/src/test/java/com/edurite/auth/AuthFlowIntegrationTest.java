@@ -5,6 +5,7 @@ import com.edurite.student.repository.StudentProfileRepository;
 import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.user.entity.User;
 import com.edurite.user.repository.UserRepository;
+import com.edurite.security.service.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,9 @@ class AuthFlowIntegrationTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    JwtService jwtService;
 
     @Autowired
     UserRepository userRepository;
@@ -376,6 +380,20 @@ class AuthFlowIntegrationTest {
         mockMvc.perform(get("/api/v1/careers")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void jwtContainsExactAuthenticatedRolesForStudentCompanyAndAdmin() throws Exception {
+        registerStudent("jwt.student.roles@example.com");
+        registerCompany("jwt.company.roles@example.com", "JWT-COMPANY-001");
+
+        String studentToken = loginAndGetAccessToken("jwt.student.roles@example.com", "StrongPass@123");
+        String companyToken = loginAndGetAccessToken("jwt.company.roles@example.com", "StrongPass@123");
+        String adminToken = loginAndGetAccessToken("admin@test.local", "AdminPass@123");
+
+        assertThat(jwtService.extractRoles(studentToken)).containsExactly("ROLE_STUDENT");
+        assertThat(jwtService.extractRoles(companyToken)).containsExactly("ROLE_COMPANY");
+        assertThat(jwtService.extractRoles(adminToken)).containsExactly("ROLE_ADMIN");
     }
 
     @Test
