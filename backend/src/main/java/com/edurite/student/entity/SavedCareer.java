@@ -23,4 +23,7 @@ public class SavedCareer extends BaseEntity {
     @Column(nullable = false)
     private UUID studentId;
     private UUID careerId;
+    private String opportunityType;
+    private String externalOpportunityKey;
+    private String titleSnapshot;
 }
