@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { getDashboardPathForRole, getDashboardPathForUser, isAuthorizedPathForRole, resolvePrimaryRole } from '@/features/auth/roleUtils';
+import { getCompanyPathForApprovalStatus, getDashboardPathForRole, getDashboardPathForUser, isAuthorizedPathForRole, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
 import { studentService } from '@/services/studentService';
@@ -223,9 +223,7 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
       }
 
       const dashboardPath = primaryRole === 'COMPANY'
-        ? loggedInUser.approvalStatus === 'APPROVED'
-          ? '/company/dashboard'
-          : '/company/pending-approval'
+        ? getCompanyPathForApprovalStatus(loggedInUser.approvalStatus)
         : getDashboardPathForRole(primaryRole);
       const finalPath = isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login';
       if (import.meta.env.DEV) {

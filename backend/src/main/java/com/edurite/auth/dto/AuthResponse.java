@@ -10,6 +10,7 @@ public record AuthResponse(
         long accessTokenExpiresIn,
         String role,
         String primaryRole,
+        String approvalStatus,
         UserSummary user
 ) {
     /**
