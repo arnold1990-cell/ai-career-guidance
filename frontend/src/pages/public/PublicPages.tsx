@@ -45,6 +45,37 @@ export const LandingPage = () => (
       ].map((item) => <article key={item.t} className="card p-5"><h3 className="font-semibold">{item.t}</h3><p className="mt-2 text-sm text-slate-600">{item.d}</p></article>)}
     </section>
 
+    <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-3">
+          <Badge color="blue">Student experience</Badge>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Notifications & Alerts</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+              Stay informed with timely updates delivered directly through the platform and via email or SMS.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+          <ul className="space-y-3 text-sm leading-6 text-slate-700 sm:text-base">
+            {[
+              'Receive alerts for new bursary opportunities',
+              'Get reminders before application deadlines',
+              'Stay updated with new career insights and recommendations',
+            ].map((feature) => (
+              <li key={feature} className="flex gap-3">
+                <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600" aria-hidden="true" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 border-t border-slate-200 pt-4 text-sm font-medium leading-6 text-slate-700 sm:text-base">
+            Log out securely from your account whenever needed.
+          </p>
+        </div>
+      </div>
+    </section>
+
     <section className="grid gap-4 lg:grid-cols-2"><PlaceholderChart title="Platform growth snapshot" /><PlaceholderChart title="Application and conversion trends" /></section>
   </div>
 );
