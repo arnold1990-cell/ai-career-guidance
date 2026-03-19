@@ -11,7 +11,7 @@ import { applicationService } from '@/services/applicationService';
 import { subscriptionService } from '@/services/subscriptionService';
 import { settingsService } from '@/services/settingsService';
 import { careerService } from '@/services/careerService';
-import { Bell, BriefcaseBusiness, CheckCheck, Clock3, Eye, Landmark, Settings, Sparkles } from 'lucide-react';
+import { Bell, BriefcaseBusiness, CheckCheck, CircleDollarSign, Clock3, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -396,12 +396,50 @@ export const StudentApplicationsPage = () => {
 
 type NotificationType = 'SYSTEM' | 'BURSARY' | 'DEADLINE' | 'CAREER' | 'SUBSCRIPTION';
 
-const notificationTypeMeta: Record<NotificationType, { label: string; icon: typeof Bell; accent: string; pill: 'slate' | 'emerald' | 'amber' | 'blue'; buttonLabel: string; }> = {
-  SYSTEM: { label: 'System', icon: Settings, accent: 'border-l-slate-400 bg-slate-50/80', pill: 'slate', buttonLabel: 'Mark as Read' },
-  BURSARY: { label: 'Bursary', icon: Landmark, accent: 'border-l-emerald-400 bg-emerald-50/80', pill: 'emerald', buttonLabel: 'View' },
-  DEADLINE: { label: 'Deadline', icon: Clock3, accent: 'border-l-amber-400 bg-amber-50/80', pill: 'amber', buttonLabel: 'View' },
-  CAREER: { label: 'Career', icon: BriefcaseBusiness, accent: 'border-l-blue-400 bg-blue-50/80', pill: 'blue', buttonLabel: 'Explore' },
-  SUBSCRIPTION: { label: 'Subscription', icon: Bell, accent: 'border-l-violet-400 bg-violet-50/80', pill: 'blue', buttonLabel: 'Mark as Read' },
+type NotificationTypeMeta = {
+  label: string;
+  icon: typeof Bell;
+  unreadAccent: string;
+  iconClassName: string;
+  pill: 'slate' | 'emerald' | 'amber' | 'blue';
+};
+
+const notificationTypeMeta: Record<NotificationType, NotificationTypeMeta> = {
+  SYSTEM: {
+    label: 'System',
+    icon: Settings,
+    unreadAccent: 'border-l-slate-400 bg-slate-50/80',
+    iconClassName: 'bg-slate-100 text-slate-700',
+    pill: 'slate',
+  },
+  BURSARY: {
+    label: 'Bursary',
+    icon: CircleDollarSign,
+    unreadAccent: 'border-l-emerald-400 bg-emerald-50/80',
+    iconClassName: 'bg-emerald-100 text-emerald-700',
+    pill: 'emerald',
+  },
+  DEADLINE: {
+    label: 'Deadline',
+    icon: Clock3,
+    unreadAccent: 'border-l-amber-400 bg-amber-50/80',
+    iconClassName: 'bg-amber-100 text-amber-700',
+    pill: 'amber',
+  },
+  CAREER: {
+    label: 'Career',
+    icon: BriefcaseBusiness,
+    unreadAccent: 'border-l-blue-400 bg-blue-50/80',
+    iconClassName: 'bg-blue-100 text-blue-700',
+    pill: 'blue',
+  },
+  SUBSCRIPTION: {
+    label: 'Subscription',
+    icon: Bell,
+    unreadAccent: 'border-l-violet-400 bg-violet-50/80',
+    iconClassName: 'bg-violet-100 text-violet-700',
+    pill: 'blue',
+  },
 };
 
 const inferNotificationType = (note: Notification): NotificationType => {
@@ -423,18 +461,21 @@ const formatNotificationTimestamp = (value?: string) => {
   if (Number.isNaN(timestamp.getTime())) return 'Recently';
 
   const diffMs = Date.now() - timestamp.getTime();
-  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMs < 0) {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(timestamp);
+  }
+
+  const diffMinutes = Math.floor(diffMs / 60000);
   if (diffMinutes < 1) return 'Just now';
   if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
 
-  const diffHours = Math.round(diffMinutes / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
 
-  const daysBetween = Math.floor((new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime() - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()) / 86400000);
-  if (daysBetween === 0) return 'Today';
-  if (daysBetween === -1) return 'Yesterday';
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: timestamp.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }).format(timestamp);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(timestamp);
 };
 
 export const StudentNotificationsPage = () => {
@@ -458,36 +499,41 @@ export const StudentNotificationsPage = () => {
         const Icon = n.meta.icon;
         return <article
           key={n.id}
-          className={`group rounded-2xl border border-slate-200 p-4 transition hover:-translate-y-0.5 hover:shadow-md md:p-5 ${n.read ? 'bg-white' : `border-l-4 ${n.meta.accent} shadow-sm`}`}
+          className={`group rounded-2xl border border-slate-200 p-4 transition hover:-translate-y-0.5 hover:shadow-md md:p-5 ${n.read ? 'bg-slate-50/70 opacity-90' : `border-l-4 ${n.meta.unreadAccent} shadow-sm`}`}
         >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex gap-3">
-              <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${n.read ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-700 shadow-sm'}`}>
+              <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${n.read ? 'bg-slate-100 text-slate-500' : `${n.meta.iconClassName} shadow-sm`}`}>
                 <Icon size={20} />
               </div>
-              <div className="min-w-0 space-y-2">
+              <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className={`text-base ${n.read ? 'font-medium text-slate-800' : 'font-semibold text-slate-900'}`}>{n.title}</p>
+                  <p className={`text-base ${n.read ? 'font-medium text-slate-700' : 'font-semibold text-slate-900'}`}>{n.title}</p>
                   <Badge color={n.meta.pill}>{n.meta.label}</Badge>
                   {!n.read ? <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700"><span className="h-2 w-2 rounded-full bg-primary-600" />Unread</span> : null}
                 </div>
-                <p className="text-sm leading-6 text-slate-600">{n.message}</p>
+                <p className={`text-sm leading-6 ${n.read ? 'text-slate-500' : 'text-slate-600'}`}>{n.message}</p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   <span>{n.timestampLabel}</span>
-                  {n.createdAt ? <span aria-hidden="true">•</span> : null}
-                  {n.createdAt ? <span>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(n.createdAt))}</span> : null}
                 </div>
               </div>
             </div>
             <div className="flex shrink-0 items-center md:pl-4">
-              <Button
-                onClick={() => !n.read && markRead.mutate(n.id)}
-                disabled={markRead.isPending || n.read}
-                className={n.read ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'inline-flex items-center gap-2'}
-              >
-                {n.read ? <CheckCheck size={16} /> : n.type === 'CAREER' || n.type === 'BURSARY' || n.type === 'DEADLINE' ? <Eye size={16} /> : <Sparkles size={16} />}
-                {n.read ? 'Read' : n.meta.buttonLabel}
-              </Button>
+              {n.read ? (
+                <span className="inline-flex cursor-default items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-500">
+                  <CheckCheck size={16} />
+                  ✓ Read
+                </span>
+              ) : (
+                <Button
+                  onClick={() => markRead.mutate(n.id)}
+                  disabled={markRead.isPending}
+                  className="inline-flex items-center gap-2 bg-primary-600 shadow-sm hover:bg-primary-500"
+                >
+                  <CheckCheck size={16} />
+                  Mark as Read
+                </Button>
+              )}
             </div>
           </div>
         </article>;
