@@ -194,11 +194,10 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
         ? `This account is signed in as ${primaryRole.toLowerCase()}, so EduRite redirected you to the ${primaryRole.toLowerCase()} workspace.`
         : undefined;
 
-      if (primaryRole === 'STUDENT') {
-        const me = await studentService.getMe();
-        const finalPath = me.profileCompleted ? '/student/dashboard' : '/student/profile';
+      if (primaryRole === 'ADMIN') {
+        const finalPath = isAuthorizedPathForRole(from, primaryRole) ? from! : '/admin/dashboard';
         if (import.meta.env.DEV) {
-          console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, finalPath });
+          console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, approvalStatus: loggedInUser.approvalStatus, finalPath });
         }
         navigate(finalPath, {
           replace: true,
@@ -207,10 +206,27 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
         return;
       }
 
-      const dashboardPath = getDashboardPathForRole(primaryRole);
+      if (primaryRole === 'STUDENT') {
+        const me = await studentService.getMe();
+        const finalPath = me.profileCompleted ? '/student/dashboard' : '/student/profile';
+        if (import.meta.env.DEV) {
+          console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, approvalStatus: loggedInUser.approvalStatus, finalPath });
+        }
+        navigate(finalPath, {
+          replace: true,
+          state: roleMismatch ? { roleMismatch } : undefined,
+        });
+        return;
+      }
+
+      const dashboardPath = primaryRole === 'COMPANY'
+        ? loggedInUser.approvalStatus === 'APPROVED'
+          ? '/company/dashboard'
+          : '/company/pending-approval'
+        : getDashboardPathForRole(primaryRole);
       const finalPath = isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login';
       if (import.meta.env.DEV) {
-        console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, finalPath });
+        console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, approvalStatus: loggedInUser.approvalStatus, finalPath });
       }
       navigate(finalPath, {
         replace: true,

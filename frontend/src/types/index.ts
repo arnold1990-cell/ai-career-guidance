@@ -1,9 +1,11 @@
 export type Role = 'STUDENT' | 'COMPANY' | 'ADMIN';
 export type BackendRole = `ROLE_${Role}`;
 
-export interface User { id: string; email: string; fullName?: string; companyName?: string; roles: BackendRole[]; primaryRole?: BackendRole; }
-export interface AuthResponse { accessToken: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; user: User; }
-export interface AuthResponseRaw { accessToken?: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; role?: string; primaryRole?: string; roles?: string[]; user?: Partial<User> & { role?: string; primaryRole?: string; roles?: string[] }; }
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'MORE_INFO_REQUIRED';
+
+export interface User { id: string; email: string; fullName?: string; companyName?: string; roles: BackendRole[]; role?: Role; primaryRole?: BackendRole; approvalStatus?: ApprovalStatus; }
+export interface AuthResponse { accessToken: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; role?: string; primaryRole?: string; user: User; }
+export interface AuthResponseRaw { accessToken?: string; refreshToken?: string; tokenType?: string; accessTokenExpiresIn?: number; role?: string; primaryRole?: string; approvalStatus?: string; roles?: string[]; user?: Partial<User> & { role?: string; primaryRole?: string; approvalStatus?: string; roles?: string[] }; }
 
 export interface StudentRegisterPayload { fullName?: string; firstName?: string; lastName?: string; email: string; password: string; interests?: string; location?: string; phone?: string; dateOfBirth?: string; gender?: string; qualificationLevel?: string; }
 export interface CompanyRegisterPayload { companyName: string; registrationNumber: string; industry?: string; officialEmail: string; mobileNumber?: string; contactPersonName: string; address?: string; website?: string; description?: string; password: string; }
