@@ -50,9 +50,25 @@ export const LandingPage = () => (
 );
 
 export const AboutPage = () => (
-  <section className="space-y-4">
-    <PageIntro title="About EduRite" subtitle="EduRite powers equitable access to education and career opportunities." />
-    <div className="card p-6 text-sm text-slate-600">We combine AI-driven recommendations with human-centered workflows for students, companies, and administrators.</div>
+  <section className="space-y-6">
+    <PageIntro title="About EduRite" subtitle="A smarter, more connected pathway from education to opportunity." />
+    <div className="mx-auto max-w-4xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
+      <div className="max-w-3xl space-y-5 text-sm leading-7 text-slate-600 sm:text-base">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">About EduRite</h2>
+        <p>EduRite is a smart education and career platform designed to expand access to opportunities for students, institutions, and organizations.</p>
+        <p>We leverage AI-powered recommendations to guide students toward the right careers, courses, and bursaries based on their skills, interests, and academic background.</p>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+          <h3 className="text-lg font-semibold text-slate-900">Human-centered workflows</h3>
+          <p className="mt-2">At the same time, EduRite integrates human-centered workflows that allow:</p>
+          <ul className="mt-4 space-y-3 text-slate-700">
+            <li className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600" aria-hidden="true" /><span>Students to discover opportunities and receive personalized guidance</span></li>
+            <li className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600" aria-hidden="true" /><span>Companies to identify and recruit suitable talent</span></li>
+            <li className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600" aria-hidden="true" /><span>Administrators to manage approvals, bursaries, and platform operations efficiently</span></li>
+          </ul>
+        </div>
+        <p>Our mission is to bridge the gap between education and employment, ensuring that every learner has a clear, data-driven pathway to success.</p>
+      </div>
+    </div>
   </section>
 );
 
@@ -114,12 +130,55 @@ export const BursaryDetailsPage = () => {
   return <section className="space-y-4"><PageIntro title="Bursary Details" subtitle={`Eligibility requirements, benefits, and process details for bursary #${id}.`} /><div className="card p-6 text-sm text-slate-600">Prepare your supporting documents and track all key submission dates.</div></section>;
 };
 
+const pricingPlans = [
+  {
+    name: 'Starter',
+    price: 'Free',
+    desc: 'Get started with essential tools',
+    features: ['Basic profile creation', 'Explore careers and courses', 'Limited discovery features'],
+  },
+  {
+    name: 'Student Pro',
+    price: 'R15 / month',
+    desc: 'Unlock smarter guidance and opportunities',
+    features: ['Advanced AI recommendations', 'Personalized alerts (bursaries & careers)', 'Enhanced search and insights'],
+    featured: true,
+  },
+  {
+    name: 'Company Growth',
+    price: 'R49.99 / month',
+    desc: 'Grow your talent pipeline efficiently',
+    features: ['Applicant pipeline management', 'Talent search and filtering', 'Post opportunities and bursaries'],
+  },
+];
+
 export const PricingPage = () => (
   <section className="space-y-6">
-    <PageIntro title="Pricing" subtitle="Choose a plan that matches your goals—student growth, hiring, or platform administration." />
-    <div className="grid gap-4 md:grid-cols-3">
-      {[{ name: 'Starter', price: 'Free', desc: 'Basic discovery and profile tools' }, { name: 'Student Pro', price: 'R89/mo', desc: 'Advanced recommendations and alerts' }, { name: 'Company Growth', price: 'R2,499/mo', desc: 'Applicant pipeline and talent search' }].map((plan) => (
-        <article key={plan.name} className="card p-5"><h2 className="text-lg font-semibold">{plan.name}</h2><p className="mt-2 text-2xl font-bold">{plan.price}</p><p className="mt-2 text-sm text-slate-600">{plan.desc}</p><Button className="mt-4 w-full">Choose plan</Button></article>
+    <PageIntro title="Pricing Plans" subtitle="Simple options for students and organizations looking to grow with EduRite." />
+    <div className="grid gap-5 md:grid-cols-3">
+      {pricingPlans.map((plan) => (
+        <article
+          key={plan.name}
+          className={`flex h-full flex-col rounded-[28px] border p-6 shadow-sm transition-transform duration-200 sm:p-7 ${plan.featured ? 'border-primary-200 bg-gradient-to-b from-primary-50 via-white to-white shadow-lg shadow-primary-200/40' : 'border-slate-200 bg-white hover:-translate-y-0.5'}`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">{plan.name}</h2>
+              <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{plan.price}</p>
+            </div>
+            {plan.featured ? <span className="rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">Recommended</span> : null}
+          </div>
+          <p className="mt-4 text-sm leading-6 text-slate-600">{plan.desc}</p>
+          <ul className="mt-6 space-y-3 text-sm leading-6 text-slate-700">
+            {plan.features.map((feature) => (
+              <li key={feature} className="flex gap-3">
+                <span className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${plan.featured ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-700'}`}>✓</span>
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <Button className={`mt-8 w-full rounded-2xl px-5 py-3 text-sm ${plan.featured ? 'shadow-lg shadow-primary-600/20' : ''}`}>Choose Plan</Button>
+        </article>
       ))}
     </div>
   </section>
