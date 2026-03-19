@@ -339,7 +339,9 @@ class AuthFlowIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.primaryRole").value("ROLE_ADMIN"))
+                .andExpect(jsonPath("$.user.role").value("ADMIN"))
                 .andExpect(jsonPath("$.user.primaryRole").value("ROLE_ADMIN"))
                 .andExpect(jsonPath("$.user.roles[0]").value("ROLE_ADMIN"));
     }
@@ -355,6 +357,7 @@ class AuthFlowIntegrationTest {
                                 {"email":"primary.role.student@example.com","password":"StrongPass@123"}
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("STUDENT"))
                 .andExpect(jsonPath("$.primaryRole").value("ROLE_STUDENT"))
                 .andReturn()
                 .getResponse()
@@ -366,7 +369,9 @@ class AuthFlowIntegrationTest {
                                 {"email":"primary.role.company@example.com","password":"StrongPass@123"}
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("COMPANY"))
                 .andExpect(jsonPath("$.primaryRole").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.user.approvalStatus").value("PENDING"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -377,14 +382,18 @@ class AuthFlowIntegrationTest {
                                 {"email":"admin@test.local","password":"AdminPass@123"}
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.primaryRole").value("ROLE_ADMIN"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertThat(jwtService.extractRoles(objectMapper.readTree(studentResponse).get("accessToken").asText())).containsExactly("ROLE_STUDENT");
+        assertThat(jwtService.extractRole(objectMapper.readTree(studentResponse).get("accessToken").asText())).isEqualTo("STUDENT");
         assertThat(jwtService.extractRoles(objectMapper.readTree(companyResponse).get("accessToken").asText())).containsExactly("ROLE_COMPANY");
+        assertThat(jwtService.extractRole(objectMapper.readTree(companyResponse).get("accessToken").asText())).isEqualTo("COMPANY");
         assertThat(jwtService.extractRoles(objectMapper.readTree(adminResponse).get("accessToken").asText())).containsExactly("ROLE_ADMIN");
+        assertThat(jwtService.extractRole(objectMapper.readTree(adminResponse).get("accessToken").asText())).isEqualTo("ADMIN");
     }
 
     @Test

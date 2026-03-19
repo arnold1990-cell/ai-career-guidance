@@ -26,7 +26,13 @@ export const resolvePrimaryRole = (user: Pick<User, 'roles'> | null | undefined)
 
 export const getDashboardPathForRole = (role: Role | null): string | null => role ? DASHBOARD_PATHS[role] : null;
 
-export const getDashboardPathForUser = (user: Pick<User, 'roles'> | null | undefined): string | null => getDashboardPathForRole(resolvePrimaryRole(user));
+export const getDashboardPathForUser = (user: Pick<User, 'roles' | 'approvalStatus'> | null | undefined): string | null => {
+  const primaryRole = resolvePrimaryRole(user);
+  if (primaryRole === 'COMPANY' && user?.approvalStatus && user.approvalStatus !== 'APPROVED') {
+    return '/company/pending-approval';
+  }
+  return getDashboardPathForRole(primaryRole);
+};
 
 export const isAuthorizedPathForRole = (pathname: string | null | undefined, role: Role | null): boolean => {
   if (!pathname || !role) return false;

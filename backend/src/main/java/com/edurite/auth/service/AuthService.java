@@ -262,15 +262,17 @@ public class AuthService {
         String primaryRole = resolvePrimaryRole(roles);
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
-        String companyName = companyProfileRepository.findByUserId(user.getId())
-                .map(CompanyProfile::getCompanyName)
-                .orElse(null);
-        log.info("[auth] login response username={} responseRole={} responseRoles={}", user.getEmail(), primaryRole, roles);
+        CompanyProfile companyProfile = companyProfileRepository.findByUserId(user.getId()).orElse(null);
+        String companyName = companyProfile == null ? null : companyProfile.getCompanyName();
+        String approvalStatus = roles.contains("ROLE_COMPANY") && companyProfile != null ? companyProfile.getStatus().name() : null;
+        String role = primaryRole == null ? null : primaryRole.replace("ROLE_", "");
+        log.info("[auth] login response username={} responseRole={} responseRoles={} approvalStatus={}", user.getEmail(), primaryRole, roles, approvalStatus);
         return new AuthResponse(
                 accessToken,
                 refreshToken,
                 "Bearer",
                 jwtService.accessTokenExpirationSeconds(),
+                role,
                 primaryRole,
                 new AuthResponse.UserSummary(
                         user.getId(),
@@ -278,7 +280,9 @@ public class AuthService {
                         "%s %s".formatted(user.getFirstName(), user.getLastName()).trim(),
                         companyName,
                         roles,
-                        primaryRole
+                        role,
+                        primaryRole,
+                        approvalStatus
                 )
         );
     }

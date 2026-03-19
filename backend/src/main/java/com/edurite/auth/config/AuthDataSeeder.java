@@ -29,8 +29,8 @@ public class AuthDataSeeder {
             RoleRepository roleRepository,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${edurite.auth.seed.admin.email:admin@edurite.local}") String adminEmail,
-            @Value("${edurite.auth.seed.admin.password:Admin@12345}") String adminPassword,
+            @Value("${edurite.auth.seed.admin.email:admin@edurite.com}") String adminEmail,
+            @Value("${edurite.auth.seed.admin.password:Admin@123}") String adminPassword,
             @Value("${edurite.auth.seed.admin.first-name:System}") String firstName,
             @Value("${edurite.auth.seed.admin.last-name:Admin}") String lastName
     ) {

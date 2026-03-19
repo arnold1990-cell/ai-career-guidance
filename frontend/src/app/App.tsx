@@ -65,6 +65,7 @@ export const App = () => (
           <Route element={<DashboardLayout />}>
             <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
             <Route path="/company/pending" element={<CompanyPendingApprovalPage />} />
+            <Route path="/company/pending-approval" element={<CompanyPendingApprovalPage />} />
             <Route path="/company/profile" element={<CompanyProfilePage />} />
             <Route path="/company/verification-docs" element={<CompanyVerificationDocsPage />} />
             <Route path="/company/bursaries" element={<CompanyBursariesPage />} />

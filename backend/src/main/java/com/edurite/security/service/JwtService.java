@@ -87,6 +87,7 @@ public class JwtService {
                 .orElse(null);
         if (primaryRole != null) {
             claims.put("primaryRole", primaryRole);
+            claims.put("role", primaryRole.replace("ROLE_", ""));
         }
         return claims;
     }
@@ -117,6 +118,16 @@ public class JwtService {
             return collection.stream().filter(String.class::isInstance).map(String.class::cast).toList();
         }
         return java.util.List.of();
+    }
+
+
+    /**
+     * this method handles the "extractRole" step of the feature.
+     * It exists to keep this class focused and reusable.
+     */
+    public String extractRole(String token) {
+        Object role = extractAllClaims(token).get("role");
+        return role instanceof String value ? value : null;
     }
 
     /**

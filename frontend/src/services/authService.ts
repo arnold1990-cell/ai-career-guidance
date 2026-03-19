@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/apiClient';
 import { authStore } from '@/features/auth/authStore';
 import { normalizeBackendRole } from '@/features/auth/roleUtils';
-import type { AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, StudentRegisterPayload, User } from '@/types';
+import type { ApprovalStatus, AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, StudentRegisterPayload, User } from '@/types';
 
 const decodeBase64Url = (value: string): string | null => {
   try {
@@ -33,6 +33,11 @@ const getRolesFromAccessToken = (accessToken?: string): string[] => {
   return [];
 };
 
+const normalizeApprovalStatus = (status?: string | null): ApprovalStatus | undefined => {
+  if (!status) return undefined;
+  return ['PENDING', 'APPROVED', 'REJECTED', 'MORE_INFO_REQUIRED'].includes(status) ? status as ApprovalStatus : undefined;
+};
+
 const normalizeRoles = (roles: string[]): BackendRole[] => Array.from(
   new Set(roles.map((role) => normalizeBackendRole(role)).filter((role): role is BackendRole => Boolean(role))),
 );
@@ -41,6 +46,7 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
   const responseRoles = payload.user?.roles ?? payload.roles ?? (payload.user?.role ? [payload.user.role] : payload.role ? [payload.role] : []);
   const normalizedRoles = normalizeRoles([...responseRoles, ...getRolesFromAccessToken(payload.accessToken)]);
   const normalizedPrimaryRole = normalizeBackendRole(payload.user?.primaryRole ?? payload.primaryRole ?? payload.user?.role ?? payload.role);
+  const approvalStatus = normalizeApprovalStatus(payload.user?.approvalStatus ?? payload.approvalStatus);
 
   if (import.meta.env.DEV) {
     console.info('[auth] frontend role normalization', {
@@ -48,6 +54,7 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
       tokenRoles: getRolesFromAccessToken(payload.accessToken),
       normalizedRoles,
       normalizedPrimaryRole,
+      approvalStatus,
     });
   }
 
@@ -57,7 +64,9 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
     fullName: payload.user?.fullName,
     companyName: payload.user?.companyName,
     roles: normalizedRoles,
+    role: (normalizedPrimaryRole ?? normalizedRoles[0])?.replace('ROLE_', '') as User['role'] | undefined,
     primaryRole: normalizedPrimaryRole ?? normalizedRoles[0],
+    approvalStatus,
   };
 
   return {
@@ -65,6 +74,8 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
     refreshToken: payload.refreshToken,
     tokenType: payload.tokenType,
     accessTokenExpiresIn: payload.accessTokenExpiresIn,
+    role: user.role,
+    primaryRole: user.primaryRole,
     user,
   };
 };

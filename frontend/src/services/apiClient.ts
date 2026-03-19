@@ -1,14 +1,19 @@
 import axios from 'axios';
 import { authStore } from '@/features/auth/authStore';
 import { normalizeBackendRole } from '@/features/auth/roleUtils';
-import type { ApiError, BackendRole, User } from '@/types';
+import type { ApiError, ApprovalStatus, BackendRole, User } from '@/types';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+
+const normalizeApprovalStatus = (status?: string | null): ApprovalStatus | undefined => {
+  if (!status) return undefined;
+  return ['PENDING', 'APPROVED', 'REJECTED', 'MORE_INFO_REQUIRED'].includes(status) ? status as ApprovalStatus : undefined;
+};
 
 const normalizeRefreshedUser = (payload: unknown): User | null => {
   if (!payload || typeof payload !== 'object') return null;
 
-  const data = payload as { user?: { id?: string; email?: string; fullName?: string; companyName?: string; roles?: string[]; role?: string; primaryRole?: string }; roles?: string[]; role?: string; primaryRole?: string };
+  const data = payload as { user?: { id?: string; email?: string; fullName?: string; companyName?: string; roles?: string[]; role?: string; primaryRole?: string; approvalStatus?: string }; roles?: string[]; role?: string; primaryRole?: string; approvalStatus?: string };
   const rawRoles = data.user?.roles ?? data.roles ?? (data.user?.role ? [data.user.role] : data.role ? [data.role] : []);
   const roles = Array.from(new Set(rawRoles
     .map((role) => normalizeBackendRole(role))
@@ -22,7 +27,9 @@ const normalizeRefreshedUser = (payload: unknown): User | null => {
     fullName: data.user?.fullName,
     companyName: data.user?.companyName,
     roles,
+    role: (normalizeBackendRole(data.user?.primaryRole ?? data.primaryRole ?? data.user?.role ?? data.role) ?? roles[0])?.replace('ROLE_', '') as User['role'] | undefined,
     primaryRole: normalizeBackendRole(data.user?.primaryRole ?? data.primaryRole ?? data.user?.role ?? data.role) ?? roles[0],
+    approvalStatus: normalizeApprovalStatus(data.user?.approvalStatus ?? data.approvalStatus),
   };
 };
 

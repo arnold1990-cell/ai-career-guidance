@@ -8,7 +8,7 @@ type CompanyProfile = {
   status: CompanyProfileStatus;
 };
 
-const allowedPendingRoutes = ['/company/pending', '/company/profile', '/company/verification-docs', '/company/settings'];
+const allowedPendingRoutes = ['/company/pending', '/company/pending-approval', '/company/profile', '/company/verification-docs', '/company/settings'];
 
 export const RequireCompanyApproval = () => {
   const location = useLocation();
@@ -33,5 +33,5 @@ export const RequireCompanyApproval = () => {
     return <Outlet />;
   }
 
-  return <Navigate to="/company/pending" replace />;
+  return <Navigate to="/company/pending-approval" replace />;
 };
