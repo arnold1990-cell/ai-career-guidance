@@ -52,6 +52,7 @@ apiClient.interceptors.response.use(
     const requestMethod = error.config?.method?.toUpperCase() ?? 'UNKNOWN';
     const requestUrl = error.config?.url ?? 'UNKNOWN_URL';
     const responseStatus = error.response?.status;
+    const responseBody = error.response?.data;
 
     if (error.response?.status === 401 && authStore.getRefreshToken()) {
       try {
@@ -73,14 +74,15 @@ apiClient.interceptors.response.use(
       }
     }
     if (import.meta.env.DEV) {
-      console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: error.response?.data });
+      console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: responseBody, error });
     }
 
+    const message = responseBody?.message ?? 'Unexpected error occurred';
     const normalized: ApiError = {
-      message: error.response?.data?.message ?? 'Unexpected error occurred',
+      message,
       status: error.response?.status,
-      details: error.response?.data?.errors,
+      details: responseBody?.errors,
     };
-    return Promise.reject(normalized);
+    return Promise.reject(Object.assign(new Error(message), normalized));
   },
 );

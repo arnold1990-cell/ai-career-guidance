@@ -22,12 +22,14 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -212,6 +214,30 @@ public class AuthService {
      */
     public AuthResponse login(LoginRequest request) {
         String normalizedEmail = normalizeEmail(request.email());
+        Optional<User> candidateUser = userRepository.findByEmail(normalizedEmail);
+        boolean passwordMatches = candidateUser
+                .map(user -> passwordEncoder.matches(request.password(), user.getPasswordHash()))
+                .orElse(false);
+        log.info(
+                "[auth] login requested email={} userFound={} passwordMatches={}",
+                normalizedEmail,
+                candidateUser.isPresent(),
+                passwordMatches
+        );
+        candidateUser.ifPresent(user -> {
+            Set<String> databaseRoles = user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            CompanyApprovalStatus companyApprovalStatus = companyProfileRepository.findByUserId(user.getId())
+                    .map(CompanyProfile::getStatus)
+                    .orElse(null);
+            log.info(
+                    "[auth] login candidate email={} dbRoles={} status={} companyApprovalStatus={} passwordHash={}",
+                    user.getEmail(),
+                    databaseRoles,
+                    user.getStatus(),
+                    companyApprovalStatus,
+                    user.getPasswordHash()
+            );
+        });
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(normalizedEmail, request.password())
@@ -222,8 +248,14 @@ public class AuthService {
             log.info("[auth] authenticated username={} dbRoles={}", user.getEmail(), databaseRoles);
             return toAuthResponse(user);
         } catch (BadCredentialsException ex) {
-            log.warn("[auth] failed login attempt username={}", normalizedEmail);
+            log.warn("[auth] failed login attempt username={} reason=bad_credentials", normalizedEmail, ex);
             throw new InvalidCredentialsException();
+        } catch (DisabledException ex) {
+            log.warn("[auth] failed login attempt username={} reason=disabled", normalizedEmail, ex);
+            throw new InvalidCredentialsException();
+        } catch (RuntimeException ex) {
+            log.error("[auth] failed login attempt username={} reason=unexpected_exception", normalizedEmail, ex);
+            throw ex;
         }
     }
 
