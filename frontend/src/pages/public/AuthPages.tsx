@@ -79,6 +79,28 @@ const buildAuthPath = (role: AuthRole, mode: AuthMode) => {
 const getForgotPasswordPath = (role: AuthRole) => role === 'COMPANY' ? '/company/forgot-password' : role === 'ADMIN' ? '/admin/forgot-password' : '/auth/forgot-password';
 const getResetPasswordLoginPath = (role: AuthRole) => role === 'COMPANY' ? '/company/login' : role === 'ADMIN' ? '/admin/login' : '/auth/login';
 
+const passwordRequirements = [
+  'At least 8 characters',
+  'One uppercase letter (A–Z)',
+  'One lowercase letter (a–z)',
+  'One number (0–9)',
+  'One special character (!@#$%^&*)',
+];
+
+const PasswordRequirementsPanel = () => (
+  <div className="mt-3 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-4 text-sm text-slate-700">
+    <p className="font-semibold text-slate-900">Password must contain:</p>
+    <ul className="mt-3 space-y-2">
+      {passwordRequirements.map((rule) => (
+        <li key={rule} className="flex items-start gap-2">
+          <span className="text-emerald-600" aria-hidden="true">✔</span>
+          <span>{rule}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
 const AuthShell = ({ children, role, mode }: { children: React.ReactNode; role: AuthRole; mode: AuthMode }) => {
   const config = roleContent[role];
 
@@ -390,7 +412,7 @@ export const RegisterStudentPage = () => {
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Password
             <Input name="password" type="password" autoComplete="new-password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" minLength={8} required />
-            <span className="mt-1 block text-xs text-slate-500">Use at least 8 characters and include a number.</span>
+            <PasswordRequirementsPanel />
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Interests
@@ -463,7 +485,7 @@ export const RegisterCompanyPage = () => {
           <label className="block text-sm font-medium text-slate-700">Contact person<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('contactPersonName', { required: true })} /></label>
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">Address<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('address')} /></label>
           <label className="block text-sm font-medium text-slate-700">Website<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('website')} /></label>
-          <label className="block text-sm font-medium text-slate-700">Password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('password', { required: true, minLength: 8 })} /></label>
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">Password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('password', { required: true, minLength: 8 })} /><PasswordRequirementsPanel /></label>
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">Description<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('description')} /></label>
           <div className="sm:col-span-2 space-y-4 pt-2">
             <Button disabled={isSubmitting} type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">{isSubmitting ? 'Creating account...' : 'Create company account'}</Button>
@@ -512,7 +534,7 @@ export const ResetPasswordPage = () => {
         await authService.resetPassword({ token, newPassword, confirmPassword });
         setMessage('Password reset complete. You can now sign in.');
       })}>
-        <label className="text-sm font-medium text-slate-700">New password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('newPassword', { required: true })} /></label>
+        <label className="text-sm font-medium text-slate-700">New password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('newPassword', { required: true })} /><PasswordRequirementsPanel /></label>
         <label className="text-sm font-medium text-slate-700">Confirm password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('confirmPassword', { required: true })} /></label>
         <Button type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">Reset password</Button>
         {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
