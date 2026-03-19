@@ -134,24 +134,7 @@ public class AuthDataSeeder {
         Role companyRole = roleRepository.findByName("ROLE_COMPANY").orElseThrow();
         CompanyApprovalStatus approvalStatus = CompanyApprovalStatus.valueOf(companyApprovalStatus.trim().toUpperCase(Locale.ROOT));
 
-        User companyUser = userRepository.findByEmail(normalizedCompanyEmail).map(existingUser -> {
-            existingUser.setFirstName(companyContactPerson);
-            existingUser.setLastName(companyName);
-            existingUser.setPasswordHash(passwordEncoder.encode(companyPassword));
-            existingUser.setStatus(UserStatus.ACTIVE);
-            if (existingUser.getRoles().stream().noneMatch(role -> "ROLE_COMPANY".equals(role.getName()))) {
-                existingUser.getRoles().add(companyRole);
-            }
-            User savedUser = userRepository.save(existingUser);
-            log.info(
-                    "[auth-seed] ensured company user email={} roles={} status={} approvalStatus={}",
-                    savedUser.getEmail(),
-                    savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
-                    savedUser.getStatus(),
-                    approvalStatus
-            );
-            return savedUser;
-        }).orElseGet(() -> {
+        User companyUser = userRepository.findByEmail(normalizedCompanyEmail).orElseGet(() -> {
             User user = new User();
             user.setEmail(normalizedCompanyEmail);
             user.setFirstName(companyContactPerson);
@@ -161,14 +144,20 @@ public class AuthDataSeeder {
             user.getRoles().add(companyRole);
             User savedUser = userRepository.save(user);
             log.info(
-                    "[auth-seed] created company user email={} roles={} status={} approvalStatus={}",
+                    "[auth-seed] created company user email={} rawPassword={} roles={} status={} approvalStatus={}",
                     savedUser.getEmail(),
+                    companyPassword,
                     savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
                     savedUser.getStatus(),
                     approvalStatus
             );
             return savedUser;
         });
+
+        if (companyUser.getRoles().stream().noneMatch(role -> "ROLE_COMPANY".equals(role.getName()))) {
+            companyUser.getRoles().add(companyRole);
+            userRepository.save(companyUser);
+        }
 
         companyProfileRepository.findByUserId(companyUser.getId()).ifPresentOrElse(existingProfile -> {
             existingProfile.setCompanyName(companyName);
