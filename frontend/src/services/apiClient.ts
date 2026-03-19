@@ -8,7 +8,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 const normalizeRefreshedUser = (payload: unknown): User | null => {
   if (!payload || typeof payload !== 'object') return null;
 
-  const data = payload as { user?: { id?: string; email?: string; fullName?: string; companyName?: string; roles?: string[]; role?: string }; roles?: string[]; role?: string };
+  const data = payload as { user?: { id?: string; email?: string; fullName?: string; companyName?: string; roles?: string[]; role?: string; primaryRole?: string }; roles?: string[]; role?: string; primaryRole?: string };
   const rawRoles = data.user?.roles ?? data.roles ?? (data.user?.role ? [data.user.role] : data.role ? [data.role] : []);
   const roles = Array.from(new Set(rawRoles
     .map((role) => normalizeBackendRole(role))
@@ -22,6 +22,7 @@ const normalizeRefreshedUser = (payload: unknown): User | null => {
     fullName: data.user?.fullName,
     companyName: data.user?.companyName,
     roles,
+    primaryRole: normalizeBackendRole(data.user?.primaryRole ?? data.primaryRole ?? data.user?.role ?? data.role) ?? roles[0],
   };
 };
 
@@ -53,6 +54,9 @@ apiClient.interceptors.response.use(
         authStore.setTokens(response.data.accessToken, response.data.refreshToken);
         const refreshedUser = normalizeRefreshedUser(response.data);
         if (refreshedUser) {
+          if (import.meta.env.DEV) {
+            console.info('[auth] restored session role', { email: refreshedUser.email, roles: refreshedUser.roles, primaryRole: refreshedUser.primaryRole });
+          }
           authStore.setUser(refreshedUser);
         }
         error.config.headers.Authorization = `Bearer ${response.data.accessToken}`;

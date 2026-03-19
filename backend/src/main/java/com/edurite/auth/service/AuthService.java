@@ -18,8 +18,14 @@ import com.edurite.user.entity.User;
 import com.edurite.user.entity.UserStatus;
 import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,6 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
  * It groups related logic so the project stays organized and easier to learn.
  */
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+    private static final List<String> ROLE_PRIORITY = List.of("ROLE_ADMIN", "ROLE_COMPANY", "ROLE_STUDENT");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -202,14 +211,18 @@ public class AuthService {
      * It exists to keep this class focused and reusable.
      */
     public AuthResponse login(LoginRequest request) {
+        String normalizedEmail = normalizeEmail(request.email());
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(normalizeEmail(request.email()), request.password())
+                    new UsernamePasswordAuthenticationToken(normalizedEmail, request.password())
             );
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow(InvalidCredentialsException::new);
+            Set<String> databaseRoles = user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            log.info("[auth] authenticated username={} dbRoles={}", user.getEmail(), databaseRoles);
             return toAuthResponse(user);
         } catch (BadCredentialsException ex) {
+            log.warn("[auth] failed login attempt username={}", normalizedEmail);
             throw new InvalidCredentialsException();
         }
     }
@@ -242,24 +255,44 @@ public class AuthService {
      * It exists to keep this class focused and reusable.
      */
     private AuthResponse toAuthResponse(User user) {
+        Set<String> roles = user.getRoles().stream()
+                .map(Role::getName)
+                .map(this::normalizeRoleName)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        String primaryRole = resolvePrimaryRole(roles);
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
         String companyName = companyProfileRepository.findByUserId(user.getId())
                 .map(CompanyProfile::getCompanyName)
                 .orElse(null);
+        log.info("[auth] login response username={} responseRole={} responseRoles={}", user.getEmail(), primaryRole, roles);
         return new AuthResponse(
                 accessToken,
                 refreshToken,
                 "Bearer",
                 jwtService.accessTokenExpirationSeconds(),
+                primaryRole,
                 new AuthResponse.UserSummary(
                         user.getId(),
                         user.getEmail(),
                         "%s %s".formatted(user.getFirstName(), user.getLastName()).trim(),
                         companyName,
-                        user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet())
+                        roles,
+                        primaryRole
                 )
         );
+    }
+
+    private String resolvePrimaryRole(Set<String> roles) {
+        return ROLE_PRIORITY.stream()
+                .filter(roles::contains)
+                .findFirst()
+                .orElseGet(() -> roles.stream().map(this::normalizeRoleName).sorted(Comparator.naturalOrder()).findFirst().orElse(null));
+    }
+
+    private String normalizeRoleName(String roleName) {
+        String normalized = roleName == null ? "" : roleName.trim().toUpperCase(Locale.ROOT);
+        return normalized.startsWith("ROLE_") ? normalized : "ROLE_" + normalized;
     }
 
     /**

@@ -196,7 +196,11 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
 
       if (primaryRole === 'STUDENT') {
         const me = await studentService.getMe();
-        navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', {
+        const finalPath = me.profileCompleted ? '/student/dashboard' : '/student/profile';
+        if (import.meta.env.DEV) {
+          console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, finalPath });
+        }
+        navigate(finalPath, {
           replace: true,
           state: roleMismatch ? { roleMismatch } : undefined,
         });
@@ -204,7 +208,11 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
       }
 
       const dashboardPath = getDashboardPathForRole(primaryRole);
-      navigate(isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login', {
+      const finalPath = isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login';
+      if (import.meta.env.DEV) {
+        console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, finalPath });
+      }
+      navigate(finalPath, {
         replace: true,
         state: roleMismatch ? { roleMismatch } : undefined,
       });

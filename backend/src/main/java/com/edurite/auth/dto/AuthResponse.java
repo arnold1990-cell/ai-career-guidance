@@ -8,12 +8,13 @@ public record AuthResponse(
         String refreshToken,
         String tokenType,
         long accessTokenExpiresIn,
+        String primaryRole,
         UserSummary user
 ) {
     /**
      * this method handles the "UserSummary" step of the feature.
      * It exists to keep this class focused and reusable.
      */
-    public record UserSummary(UUID id, String email, String fullName, String companyName, Set<String> roles) {
+    public record UserSummary(UUID id, String email, String fullName, String companyName, Set<String> roles, String primaryRole) {
     }
 }
