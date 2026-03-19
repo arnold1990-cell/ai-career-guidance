@@ -83,12 +83,25 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
 export const authService = {
   login: (payload: { email: string; password: string }) => {
     authStore.clear();
-    return apiClient.post<AuthResponseRaw>('/auth/login', payload).then((response) => {
-      if (import.meta.env.DEV) {
-        console.info('[auth] login response', response.data);
-      }
-      return normalizeAuthResponse(response.data);
-    });
+    if (import.meta.env.DEV) {
+      console.info('[auth] login payload', { email: payload.email, passwordLength: payload.password.length });
+    }
+    return apiClient.post<AuthResponseRaw>('/auth/login', payload)
+      .then((response) => {
+        if (import.meta.env.DEV) {
+          console.info('[auth] login response', { status: response.status, body: response.data });
+        }
+        return normalizeAuthResponse(response.data);
+      })
+      .catch((error: unknown) => {
+        if (import.meta.env.DEV) {
+          console.error('[auth] login request failed', {
+            payload: { email: payload.email, passwordLength: payload.password.length },
+            error,
+          });
+        }
+        throw error;
+      });
   },
   registerStudent: (payload: StudentRegisterPayload) => apiClient.post<AuthResponseRaw>('/auth/register/student', payload).then((r) => normalizeAuthResponse(r.data)),
   registerCompany: (payload: CompanyRegisterPayload) => apiClient.post<AuthResponseRaw>('/auth/register/company', payload).then((r) => normalizeAuthResponse(r.data)),

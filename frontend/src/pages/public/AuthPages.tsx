@@ -179,6 +179,9 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
     event.preventDefault();
     setServerError(null);
     setIsSubmitting(true);
+    if (import.meta.env.DEV) {
+      console.info('[auth] submit login form', { email: form.email, passwordLength: form.password.length, role });
+    }
 
     try {
       const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe });
@@ -233,7 +236,11 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
         state: roleMismatch ? { roleMismatch } : undefined,
       });
     } catch (error) {
-      setServerError(error instanceof Error ? error.message : 'Unable to sign you in.');
+      const message = error instanceof Error ? error.message : 'Unable to sign you in.';
+      if (import.meta.env.DEV) {
+        console.error('[auth] displayed login error', { error, displayedMessage: message });
+      }
+      setServerError(message);
     } finally {
       setIsSubmitting(false);
     }

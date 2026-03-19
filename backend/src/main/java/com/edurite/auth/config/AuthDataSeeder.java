@@ -6,6 +6,11 @@ import com.edurite.user.entity.UserStatus;
 import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
  * It groups related logic so the project stays organized and easier to learn.
  */
 public class AuthDataSeeder {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthDataSeeder.class);
 
 // @Bean tells Spring to register this method return value in the dependency injection container.
     @Bean
@@ -47,25 +54,46 @@ public class AuthDataSeeder {
             String firstName,
             String lastName
     ) {
+        String normalizedAdminEmail = adminEmail.toLowerCase(Locale.ROOT);
         List<String> roles = List.of("ROLE_STUDENT", "ROLE_COMPANY", "ROLE_ADMIN");
         for (String roleName : roles) {
             roleRepository.findByName(roleName).orElseGet(() -> {
                 Role role = new Role();
                 role.setName(roleName);
+                log.info("[auth-seed] creating missing role={}", roleName);
                 return roleRepository.save(role);
             });
         }
 
-        userRepository.findByEmail(adminEmail.toLowerCase()).orElseGet(() -> {
+        userRepository.findByEmail(normalizedAdminEmail).ifPresentOrElse(existingUser -> {
+            Set<String> existingRoles = existingUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet());
+            log.info(
+                    "[auth-seed] admin user already exists, skipping creation email={} rawPassword={} encodedPassword={} roles={} status={}",
+                    existingUser.getEmail(),
+                    adminPassword,
+                    existingUser.getPasswordHash(),
+                    existingRoles,
+                    existingUser.getStatus()
+            );
+        }, () -> {
             Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseThrow();
+            String encodedPassword = passwordEncoder.encode(adminPassword);
             User user = new User();
-            user.setEmail(adminEmail.toLowerCase());
+            user.setEmail(normalizedAdminEmail);
             user.setFirstName(firstName);
             user.setLastName(lastName);
-            user.setPasswordHash(passwordEncoder.encode(adminPassword));
+            user.setPasswordHash(encodedPassword);
             user.setStatus(UserStatus.ACTIVE);
             user.getRoles().add(adminRole);
-            return userRepository.save(user);
+            User savedUser = userRepository.save(user);
+            log.info(
+                    "[auth-seed] created admin user email={} rawPassword={} encodedPassword={} roles={} status={}",
+                    savedUser.getEmail(),
+                    adminPassword,
+                    encodedPassword,
+                    savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
+                    savedUser.getStatus()
+            );
         });
     }
 }
