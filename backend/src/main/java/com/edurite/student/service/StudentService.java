@@ -223,7 +223,10 @@ public class StudentService {
      */
     public List<UUID> savedCareerIds(Principal principal) {
         StudentProfile profile = getProfileEntity(principal);
-        return savedCareerRepository.findByStudentId(profile.getId()).stream().map(SavedCareer::getCareerId).toList();
+        return savedCareerRepository.findByStudentId(profile.getId()).stream()
+                .map(SavedCareer::getCareerId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     /**

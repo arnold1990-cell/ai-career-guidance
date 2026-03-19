@@ -31,6 +31,19 @@ export interface StudentProfile {
 
 export interface Career { id: string; title: string; description?: string; industry?: string; location?: string; qualificationLevel?: string; matchScore?: number; }
 export interface Bursary { id: string; title: string; provider?: string; qualificationLevel?: string; region?: string; eligibility?: string; deadline?: string; status: string; }
+export type OpportunityType = 'ALL' | 'CAREER' | 'JOB' | 'INTERNSHIP';
+export interface UnifiedOpportunity {
+  id: string;
+  title: string;
+  type: Exclude<OpportunityType, 'ALL'>;
+  field?: string;
+  industry?: string;
+  qualification?: string;
+  location?: string;
+  demand?: string;
+  saved: boolean;
+  recommended: boolean;
+}
 
 export interface Course { id: string; name: string; institutionName: string; duration: string; }
 export interface Institution { id: string; name: string; location?: string; city?: string; province?: string; country?: string; website?: string; logoUrl?: string; category?: string; featured?: boolean; active?: boolean; }

@@ -13,5 +13,7 @@ public interface SavedCareerRepository extends JpaRepository<SavedCareer, UUID> 
     long countByStudentId(UUID studentId);
     List<SavedCareer> findByStudentId(UUID studentId);
     boolean existsByStudentIdAndCareerId(UUID studentId, UUID careerId);
+    boolean existsByStudentIdAndOpportunityTypeAndExternalOpportunityKey(UUID studentId, String opportunityType, String externalOpportunityKey);
     void deleteByStudentIdAndCareerId(UUID studentId, UUID careerId);
+    void deleteByStudentIdAndOpportunityTypeAndExternalOpportunityKey(UUID studentId, String opportunityType, String externalOpportunityKey);
 }
