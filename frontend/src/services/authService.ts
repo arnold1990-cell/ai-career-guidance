@@ -51,7 +51,7 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
   const responseRoles = payload.user?.roles ?? payload.roles ?? (payload.user?.role ? [payload.user.role] : payload.role ? [payload.role] : []);
   const normalizedRoles = normalizeRoles([...responseRoles, ...getRolesFromAccessToken(payload.accessToken)]);
   const normalizedPrimaryRole = normalizeBackendRole(payload.user?.primaryRole ?? payload.primaryRole ?? payload.user?.role ?? payload.role);
-  const approvalStatus = normalizeApprovalStatus(payload.user?.approvalStatus ?? payload.approvalStatus);
+  const approvalStatus = normalizeApprovalStatus(payload.user?.approvalStatus ?? payload.approvalStatus ?? (typeof tokenPayload?.approvalStatus === 'string' ? tokenPayload.approvalStatus : undefined));
 
   if (import.meta.env.DEV) {
     console.info('[auth] frontend role normalization', {

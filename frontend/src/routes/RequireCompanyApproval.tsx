@@ -8,7 +8,7 @@ type CompanyProfile = {
   status: CompanyProfileStatus;
 };
 
-const allowedPendingRoutes = ['/company/pending', '/company/pending-approval', '/company/profile', '/company/verification-docs', '/company/settings'];
+const allowedPendingRoutes = ['/company/pending', '/company/pending-approval', '/company/rejected', '/company/profile', '/company/verification-docs', '/company/settings'];
 
 export const RequireCompanyApproval = () => {
   const location = useLocation();
@@ -25,12 +25,20 @@ export const RequireCompanyApproval = () => {
     return <div className="p-6 text-sm text-red-600">Unable to load company approval status.</div>;
   }
 
+  if (import.meta.env.DEV) {
+    console.info('[auth] company approval guard', { pathname: location.pathname, approvalStatus: profile.data?.status });
+  }
+
   if (profile.data?.status === 'APPROVED') {
     return <Outlet />;
   }
 
   if (allowedPendingRoutes.some((route) => location.pathname.startsWith(route))) {
     return <Outlet />;
+  }
+
+  if (profile.data?.status === 'REJECTED') {
+    return <Navigate to="/company/rejected" replace />;
   }
 
   return <Navigate to="/company/pending-approval" replace />;

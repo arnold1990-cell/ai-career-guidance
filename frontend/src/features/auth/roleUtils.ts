@@ -1,4 +1,4 @@
-import type { BackendRole, Role, User } from '@/types';
+import type { ApprovalStatus, BackendRole, Role, User } from '@/types';
 
 const ROLE_PRIORITY: Role[] = ['ADMIN', 'COMPANY', 'STUDENT'];
 const DASHBOARD_PATHS: Record<Role, string> = {
@@ -26,10 +26,23 @@ export const resolvePrimaryRole = (user: Pick<User, 'roles'> | null | undefined)
 
 export const getDashboardPathForRole = (role: Role | null): string | null => role ? DASHBOARD_PATHS[role] : null;
 
+export const getCompanyPathForApprovalStatus = (approvalStatus?: ApprovalStatus | null): string => {
+  switch (approvalStatus) {
+    case 'APPROVED':
+      return '/company/dashboard';
+    case 'REJECTED':
+      return '/company/rejected';
+    case 'MORE_INFO_REQUIRED':
+    case 'PENDING':
+    default:
+      return '/company/pending-approval';
+  }
+};
+
 export const getDashboardPathForUser = (user: Pick<User, 'roles' | 'approvalStatus'> | null | undefined): string | null => {
   const primaryRole = resolvePrimaryRole(user);
-  if (primaryRole === 'COMPANY' && user?.approvalStatus && user.approvalStatus !== 'APPROVED') {
-    return '/company/pending-approval';
+  if (primaryRole === 'COMPANY') {
+    return getCompanyPathForApprovalStatus(user?.approvalStatus);
   }
   return getDashboardPathForRole(primaryRole);
 };

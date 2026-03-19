@@ -20,7 +20,18 @@ export const CompanyPendingApprovalPage = () => {
   if (profile.isLoading) return <LoadingState />;
   if (profile.error) return <ErrorState message="Unable to load company profile." />;
   const status = profile.data?.status ?? 'PENDING';
-  return <section className="space-y-6"><Header title="Approval in Progress" subtitle="Your company account is restricted until an admin review is completed." /><div className="card p-5 space-y-3 text-sm"><p><span className="font-semibold">Status:</span> <Badge color={status === 'APPROVED' ? 'emerald' : status === 'REJECTED' ? 'slate' : 'amber'}>{status}</Badge></p><p><span className="font-semibold">Company:</span> {profile.data?.companyName}</p><p><span className="font-semibold">Official email:</span> {profile.data?.officialEmail}</p>{profile.data?.reviewNotes ? <p><span className="font-semibold">Admin notes:</span> {profile.data.reviewNotes}</p> : null}<p className="text-slate-500">You can still update profile details and upload verification documents while your account is being reviewed.</p><div className="flex gap-3"><Link to="/company/profile"><Button>Update Profile</Button></Link><Link to="/company/verification-docs"><Button className="bg-slate-700 hover:bg-slate-600">Upload Documents</Button></Link></div></div></section>;
+  const title = status === 'REJECTED' ? 'Company Review Update' : status === 'MORE_INFO_REQUIRED' ? 'More Information Required' : 'Approval in Progress';
+  const subtitle = status === 'REJECTED'
+    ? 'Your company account has been reviewed and cannot access the company workspace until the review issues are resolved.'
+    : status === 'MORE_INFO_REQUIRED'
+      ? 'Your company account needs additional verification details before full company access can be granted.'
+      : 'Your company account is restricted until an admin review is completed.';
+  const guidance = status === 'REJECTED'
+    ? 'Review the admin notes, update your company profile, and contact support or resubmit the required verification evidence.'
+    : status === 'MORE_INFO_REQUIRED'
+      ? 'Please update your company profile and upload any requested verification documents so the admin team can continue the review.'
+      : 'You can still update profile details and upload verification documents while your account is being reviewed.';
+  return <section className="space-y-6"><Header title={title} subtitle={subtitle} /><div className="card p-5 space-y-3 text-sm"><p><span className="font-semibold">Status:</span> <Badge color={status === 'APPROVED' ? 'emerald' : status === 'REJECTED' ? 'slate' : 'amber'}>{status}</Badge></p><p><span className="font-semibold">Company:</span> {profile.data?.companyName}</p><p><span className="font-semibold">Official email:</span> {profile.data?.officialEmail}</p>{profile.data?.reviewNotes ? <p><span className="font-semibold">Admin notes:</span> {profile.data.reviewNotes}</p> : null}<p className="text-slate-500">{guidance}</p><div className="flex gap-3"><Link to="/company/profile"><Button>Update Profile</Button></Link><Link to="/company/verification-docs"><Button className="bg-slate-700 hover:bg-slate-600">Upload Documents</Button></Link></div></div></section>;
 };
 
 export const CompanyDashboardPage = () => {
