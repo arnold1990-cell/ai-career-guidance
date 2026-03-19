@@ -12,24 +12,28 @@ const decodeBase64Url = (value: string): string | null => {
   }
 };
 
-const getRolesFromAccessToken = (accessToken?: string): string[] => {
-  if (!accessToken) return [];
+const getTokenPayload = (accessToken?: string): { roles?: unknown; role?: unknown; authorities?: unknown; primaryRole?: unknown; approvalStatus?: unknown } | null => {
+  if (!accessToken) return null;
 
   const [, payload] = accessToken.split('.');
-  if (!payload) return [];
+  if (!payload) return null;
 
   const decodedPayload = decodeBase64Url(payload);
-  if (!decodedPayload) return [];
+  if (!decodedPayload) return null;
 
   try {
-    const claims = JSON.parse(decodedPayload) as { roles?: unknown; role?: unknown; authorities?: unknown };
-    if (Array.isArray(claims.roles)) return claims.roles.filter((role): role is string => typeof role === 'string');
-    if (Array.isArray(claims.authorities)) return claims.authorities.filter((role): role is string => typeof role === 'string');
-    if (typeof claims.role === 'string') return [claims.role];
+    return JSON.parse(decodedPayload) as { roles?: unknown; role?: unknown; authorities?: unknown; primaryRole?: unknown; approvalStatus?: unknown };
   } catch {
-    return [];
+    return null;
   }
+};
 
+const getRolesFromAccessToken = (accessToken?: string): string[] => {
+  const claims = getTokenPayload(accessToken);
+  if (!claims) return [];
+  if (Array.isArray(claims.roles)) return claims.roles.filter((role): role is string => typeof role === 'string');
+  if (Array.isArray(claims.authorities)) return claims.authorities.filter((role): role is string => typeof role === 'string');
+  if (typeof claims.role === 'string') return [claims.role];
   return [];
 };
 
@@ -43,6 +47,7 @@ const normalizeRoles = (roles: string[]): BackendRole[] => Array.from(
 );
 
 const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
+  const tokenPayload = getTokenPayload(payload.accessToken);
   const responseRoles = payload.user?.roles ?? payload.roles ?? (payload.user?.role ? [payload.user.role] : payload.role ? [payload.role] : []);
   const normalizedRoles = normalizeRoles([...responseRoles, ...getRolesFromAccessToken(payload.accessToken)]);
   const normalizedPrimaryRole = normalizeBackendRole(payload.user?.primaryRole ?? payload.primaryRole ?? payload.user?.role ?? payload.role);
@@ -50,6 +55,7 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
 
   if (import.meta.env.DEV) {
     console.info('[auth] frontend role normalization', {
+      tokenPayload,
       responseRoles,
       tokenRoles: getRolesFromAccessToken(payload.accessToken),
       normalizedRoles,

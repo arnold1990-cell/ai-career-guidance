@@ -1,8 +1,10 @@
 package com.edurite.security.service;
 
+import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.user.entity.Role;
 import com.edurite.user.entity.User;
 import com.edurite.user.entity.UserStatus;
+import java.util.LinkedHashSet;
 import com.edurite.user.repository.UserRepository;
 import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
@@ -21,9 +23,11 @@ import org.springframework.stereotype.Service;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final CompanyProfileRepository companyProfileRepository;
 
-    public CustomUserDetailsService(UserRepository userRepository) {
+    public CustomUserDetailsService(UserRepository userRepository, CompanyProfileRepository companyProfileRepository) {
         this.userRepository = userRepository;
+        this.companyProfileRepository = companyProfileRepository;
     }
 
     @Override
@@ -35,8 +39,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(Role::getName)
+        List<GrantedAuthority> authorities = resolveEffectiveAuthorities(user).stream()
                 .map(this::toAuthority)
                 .map(SimpleGrantedAuthority::new)
                 .map(GrantedAuthority.class::cast)
@@ -48,6 +51,18 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .disabled(user.getStatus() != UserStatus.ACTIVE)
                 .authorities(authorities)
                 .build();
+    }
+
+    private List<String> resolveEffectiveAuthorities(User user) {
+        LinkedHashSet<String> authorities = user.getRoles().stream()
+                .map(Role::getName)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (companyProfileRepository.findByUserId(user.getId()).isPresent()) {
+            authorities.remove("ROLE_ADMIN");
+            authorities.remove("ROLE_STUDENT");
+            authorities.add("ROLE_COMPANY");
+        }
+        return authorities.stream().toList();
     }
 
     /**

@@ -194,11 +194,12 @@ public class AuthService {
         }
 
         User user = userRepository.findByEmail(username).orElseThrow(InvalidCredentialsException::new);
+        Set<String> effectiveRoles = resolveEffectiveRoles(user);
         org.springframework.security.core.userdetails.UserDetails userDetails = org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPasswordHash())
                 .disabled(user.getStatus() != UserStatus.ACTIVE)
-                .authorities(user.getRoles().stream().map(Role::getName).toArray(String[]::new))
+                .authorities(effectiveRoles.toArray(String[]::new))
                 .build();
 
         if (!jwtService.isTokenValid(refreshToken, userDetails)) {
@@ -287,18 +288,15 @@ public class AuthService {
      * It exists to keep this class focused and reusable.
      */
     private AuthResponse toAuthResponse(User user) {
-        Set<String> roles = user.getRoles().stream()
-                .map(Role::getName)
-                .map(this::normalizeRoleName)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        String primaryRole = resolvePrimaryRole(roles);
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
+        Set<String> roles = resolveEffectiveRoles(user);
         CompanyProfile companyProfile = companyProfileRepository.findByUserId(user.getId()).orElse(null);
+        String approvalStatus = companyProfile == null ? null : companyProfile.getStatus().name();
+        String primaryRole = resolvePrimaryRole(roles);
+        String accessToken = jwtService.generateAccessToken(user, roles, approvalStatus);
+        String refreshToken = jwtService.generateRefreshToken(user);
         String companyName = companyProfile == null ? null : companyProfile.getCompanyName();
-        String approvalStatus = roles.contains("ROLE_COMPANY") && companyProfile != null ? companyProfile.getStatus().name() : null;
         String role = primaryRole == null ? null : primaryRole.replace("ROLE_", "");
-        log.info("[auth] login response username={} responseRole={} responseRoles={} approvalStatus={}", user.getEmail(), primaryRole, roles, approvalStatus);
+        log.info("[auth] login response username={} responseRole={} responseRoles={} approvalStatus={} payloadUserRole={}", user.getEmail(), primaryRole, roles, approvalStatus, role);
         return new AuthResponse(
                 accessToken,
                 refreshToken,
@@ -317,6 +315,27 @@ public class AuthService {
                         approvalStatus
                 )
         );
+    }
+
+    private Set<String> resolveEffectiveRoles(User user) {
+        Set<String> roles = user.getRoles().stream()
+                .map(Role::getName)
+                .map(this::normalizeRoleName)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        CompanyProfile companyProfile = companyProfileRepository.findByUserId(user.getId()).orElse(null);
+        if (companyProfile != null) {
+            roles.remove("ROLE_ADMIN");
+            roles.remove("ROLE_STUDENT");
+            roles.add("ROLE_COMPANY");
+            log.info(
+                    "[auth] effective company role email={} dbRoles={} effectiveRoles={} approvalStatus={}",
+                    user.getEmail(),
+                    user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)),
+                    roles,
+                    companyProfile.getStatus()
+            );
+        }
+        return roles;
     }
 
     private String resolvePrimaryRole(Set<String> roles) {

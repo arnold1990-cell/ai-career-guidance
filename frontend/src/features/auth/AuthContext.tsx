@@ -58,6 +58,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email: normalizedUser.email,
         roles: normalizedUser.roles,
         primaryRole: normalizedUser.primaryRole,
+        approvalStatus: normalizedUser.approvalStatus,
+        localStorageAuth: {
+          accessToken: localStorage.getItem('edurite_access_token'),
+          refreshToken: localStorage.getItem('edurite_refresh_token'),
+          user: localStorage.getItem('edurite_user'),
+        },
+        sessionStorageAuth: {
+          accessToken: sessionStorage.getItem('edurite_access_token'),
+          refreshToken: sessionStorage.getItem('edurite_refresh_token'),
+          user: sessionStorage.getItem('edurite_user'),
+        },
       });
     }
     return normalizedUser;
