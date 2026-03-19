@@ -151,6 +151,23 @@ public class StudentController {
     }
 
 // @GetMapping handles HTTP GET requests for reading data.
+    @PostMapping("/opportunities/{opportunityType}/{opportunityId}/save")
+    public ResponseEntity<Map<String, String>> saveOpportunity(Principal principal, @PathVariable String opportunityType, @PathVariable String opportunityId) {
+        studentService.saveOpportunity(principal, opportunityType, opportunityId);
+        return ResponseEntity.ok(Map.of("message", "Opportunity saved"));
+    }
+
+    @DeleteMapping("/opportunities/{opportunityType}/{opportunityId}/save")
+    public ResponseEntity<Map<String, String>> unsaveOpportunity(Principal principal, @PathVariable String opportunityType, @PathVariable String opportunityId) {
+        studentService.unsaveOpportunity(principal, opportunityType, opportunityId);
+        return ResponseEntity.ok(Map.of("message", "Opportunity removed"));
+    }
+
+    @GetMapping("/opportunities/saved")
+    public Map<String, Object> savedOpportunities(Principal principal) {
+        return Map.of("items", studentService.savedOpportunityKeys(principal));
+    }
+
     @GetMapping("/careers/saved")
     /**
      * this method handles the "savedCareers" step of the feature.

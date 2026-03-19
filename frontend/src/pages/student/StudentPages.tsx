@@ -4,7 +4,7 @@ import { useAppQuery } from '@/hooks/useAppQuery';
 import { studentService } from '@/services/studentService';
 import { recommendationService } from '@/services/recommendationService';
 import { aiGuidanceService } from '@/services/aiGuidanceService';
-import { careerService } from '@/services/careerService';
+import { opportunityService } from '@/services/opportunityService';
 import { bursaryService } from '@/services/bursaryService';
 import { notificationService } from '@/services/notificationService';
 import { applicationService } from '@/services/applicationService';
@@ -13,7 +13,7 @@ import { settingsService } from '@/services/settingsService';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback/States';
-import type { ApiError, UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
+import type { ApiError, Opportunity, OpportunityType, UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => <section className="card p-5 space-y-4"><h1 className="text-xl font-semibold">{title}</h1>{children}</section>;
 const Card = ({ label, value }: { label: string; value: string | number }) => <div className="rounded border p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-2xl font-semibold">{value}</p></div>;
@@ -272,24 +272,96 @@ export const StudentBursaryRecommendationsPage = StudentCareerRecommendationsPag
 
 export const StudentSavedPage = () => {
   const qc = useQueryClient();
-  const [filters, setFilters] = useState({ q: '', field: '', industry: '', qualificationLevel: '', location: '', demand: '', salaryRange: '' });
-  const careers = useAppQuery({ queryKey: ['careers', filters], queryFn: () => careerService.list(filters) });
-  const saved = useAppQuery({ queryKey: ['saved-career-ids'], queryFn: studentService.savedCareers });
-  const toggle = useMutation({ mutationFn: ({ id, exists }: { id: string; exists: boolean }) => exists ? studentService.unsaveCareer(id) : studentService.saveCareer(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-career-ids'] }) });
-  const items = asList(careers.data);
-  return <Section title="Career Search">
-    <div className="grid gap-2 md:grid-cols-3">
-      <Input placeholder="Search" value={filters.q} onChange={(e) => setFilters((s) => ({ ...s, q: e.target.value }))} />
-      <Input placeholder="Field" value={filters.field} onChange={(e) => setFilters((s) => ({ ...s, field: e.target.value }))} />
-      <Input placeholder="Industry" value={filters.industry} onChange={(e) => setFilters((s) => ({ ...s, industry: e.target.value }))} />
-      <Input placeholder="Qualification" value={filters.qualificationLevel} onChange={(e) => setFilters((s) => ({ ...s, qualificationLevel: e.target.value }))} />
-      <Input placeholder="Location" value={filters.location} onChange={(e) => setFilters((s) => ({ ...s, location: e.target.value }))} />
-      <Input placeholder="Demand" value={filters.demand} onChange={(e) => setFilters((s) => ({ ...s, demand: e.target.value }))} />
+  const [filters, setFilters] = useState({ q: '', field: '', industry: '', qualification: '', location: '', demand: '', opportunityType: 'ALL' as OpportunityType });
+  const [activeTab, setActiveTab] = useState<OpportunityType>('ALL');
+  const opportunities = useAppQuery({
+    queryKey: ['opportunities', filters, activeTab],
+    queryFn: () => opportunityService.list({ ...filters, opportunityType: activeTab === 'ALL' ? filters.opportunityType : activeTab }),
+  });
+  const saved = useAppQuery({ queryKey: ['saved-opportunity-keys'], queryFn: studentService.savedOpportunities });
+  const toggle = useMutation({
+    mutationFn: ({ item, exists }: { item: Opportunity; exists: boolean }) => exists
+      ? studentService.unsaveOpportunity(item.type, item.careerId ?? item.id)
+      : studentService.saveOpportunity(item.type, item.careerId ?? item.id),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['saved-opportunity-keys'] }),
+        qc.invalidateQueries({ queryKey: ['saved-career-ids'] }),
+      ]);
+    },
+  });
+
+  const items = opportunities.data ?? [];
+  const filtersSummary = [filters.field, filters.industry, filters.qualification, filters.location, filters.demand].filter(Boolean).join(' • ');
+  const tabs: Array<{ label: string; value: OpportunityType }> = [
+    { label: 'All', value: 'ALL' },
+    { label: 'Careers', value: 'CAREER' },
+    { label: 'Jobs', value: 'JOB' },
+    { label: 'Internships', value: 'INTERNSHIP' },
+  ];
+  const badgeClasses: Record<Exclude<OpportunityType, 'ALL'>, string> = {
+    CAREER: 'bg-sky-50 text-sky-700 border-sky-200',
+    JOB: 'bg-violet-50 text-violet-700 border-violet-200',
+    INTERNSHIP: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  };
+  const labelMap: Record<Exclude<OpportunityType, 'ALL'>, string> = { CAREER: 'Career', JOB: 'Job', INTERNSHIP: 'Internship' };
+
+  return <Section title="Career Search & Opportunities">
+    <p className="text-sm text-slate-500">Explore careers, jobs, and internships tailored to your skills, interests, and academic background.</p>
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Input placeholder="Search" value={filters.q} onChange={(e) => setFilters((s) => ({ ...s, q: e.target.value }))} />
+        <Input placeholder="Field" value={filters.field} onChange={(e) => setFilters((s) => ({ ...s, field: e.target.value }))} />
+        <Input placeholder="Industry" value={filters.industry} onChange={(e) => setFilters((s) => ({ ...s, industry: e.target.value }))} />
+        <Input placeholder="Qualification" value={filters.qualification} onChange={(e) => setFilters((s) => ({ ...s, qualification: e.target.value }))} />
+        <Input placeholder="Location" value={filters.location} onChange={(e) => setFilters((s) => ({ ...s, location: e.target.value }))} />
+        <Input placeholder="Demand" value={filters.demand} onChange={(e) => setFilters((s) => ({ ...s, demand: e.target.value }))} />
+        <label className="text-sm text-slate-600 md:col-span-2 xl:col-span-2">
+          <span className="mb-1 block font-medium">Opportunity Type</span>
+          <select className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={filters.opportunityType} onChange={(e) => { const value = e.target.value as OpportunityType; setFilters((s) => ({ ...s, opportunityType: value })); setActiveTab(value); }}>
+            <option value="ALL">All Opportunities</option>
+            <option value="CAREER">Careers</option>
+            <option value="JOB">Jobs</option>
+            <option value="INTERNSHIP">Internships</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((tab) => <button key={tab.value} type="button" className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${activeTab === tab.value ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-primary-300 hover:text-primary-700'}`} onClick={() => { setActiveTab(tab.value); setFilters((s) => ({ ...s, opportunityType: tab.value })); }}>{tab.label}</button>)}
+      </div>
     </div>
-    {items.map((c) => {
-      const exists = (saved.data ?? []).includes(c.id);
-      return <div key={c.id} className="flex justify-between border p-2 rounded"><span>{c.title} - {c.industry}</span><Button onClick={() => toggle.mutate({ id: c.id, exists })}>{exists ? 'Saved' : 'Save'}</Button></div>;
-    })}
+    {opportunities.isLoading ? <LoadingState message="Loading opportunities..." /> : null}
+    {opportunities.isError ? <ErrorState message="Unable to load opportunities right now. Please try again." /> : null}
+    {!opportunities.isLoading && !opportunities.isError && items.length === 0 ? <EmptyState title="No opportunities found" message="No opportunities found. Try adjusting your filters." /> : null}
+    <div className="grid gap-4 lg:grid-cols-2">
+      {items.map((item) => {
+        const savedKey = `${item.type}:${item.careerId ?? item.id}`;
+        const exists = (saved.data ?? []).includes(savedKey);
+        return <article key={`${item.type}-${item.id}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClasses[item.type]}`}>{labelMap[item.type]}</span>
+                {item.recommended ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Recommended for you</span> : null}
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
+              <p className="text-sm text-slate-600">{item.description || 'Explore this opportunity to understand the pathway, expectations, and growth potential.'}</p>
+            </div>
+            <Button onClick={() => toggle.mutate({ item, exists })} disabled={toggle.isPending}>{exists ? 'Saved ✓' : 'Save'}</Button>
+          </div>
+          <dl className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+            <div><dt className="font-medium text-slate-900">Industry</dt><dd>{item.industry || 'Not specified'}</dd></div>
+            <div><dt className="font-medium text-slate-900">Location</dt><dd>{item.location || 'Flexible'}</dd></div>
+            <div><dt className="font-medium text-slate-900">Qualification</dt><dd>{item.qualification || 'Open to multiple levels'}</dd></div>
+            <div><dt className="font-medium text-slate-900">Demand</dt><dd>{item.demand || 'Standard'}</dd></div>
+          </dl>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+            <p className="text-xs text-slate-500">{filtersSummary ? `Filtered by ${filtersSummary}` : 'Use filters to narrow results by field, industry, location, and qualification.'}</p>
+            <Button className="bg-white text-primary-700 border border-primary-200 hover:bg-primary-50">View Details</Button>
+          </div>
+        </article>;
+      })}
+    </div>
   </Section>;
 };
 

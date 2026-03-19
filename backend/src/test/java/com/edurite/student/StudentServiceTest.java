@@ -5,6 +5,7 @@ import com.edurite.bursary.repository.BursaryRepository;
 import com.edurite.notification.repository.NotificationRepository;
 import com.edurite.security.service.CurrentUserService;
 import com.edurite.student.dto.StudentSettingsDto;
+import com.edurite.student.entity.SavedCareer;
 import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.repository.SavedBursaryRepository;
 import com.edurite.student.repository.SavedCareerRepository;
@@ -101,6 +102,30 @@ class StudentServiceTest {
         Map<String, Object> result = studentService.dashboard(principal);
 
         assertThat(result).containsEntry("subscriptionTier", "BASIC");
+    }
+
+
+    @Test
+    void savedOpportunityKeysIncludeCareersAndInternships() {
+        StudentProfile profile = new StudentProfile();
+        profile.setId(UUID.randomUUID());
+        profile.setUserId(user.getId());
+        when(profileRepository.findByUserId(user.getId())).thenReturn(Optional.of(profile));
+
+        SavedCareer savedCareer = new SavedCareer();
+        savedCareer.setCareerId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+
+        SavedCareer savedInternship = new SavedCareer();
+        savedInternship.setOpportunityType("INTERNSHIP");
+        savedInternship.setExternalKey("internship-data-analyst-intern");
+
+        when(savedCareerRepository.findByStudentId(profile.getId())).thenReturn(java.util.List.of(savedCareer, savedInternship));
+
+        assertThat(studentService.savedOpportunityKeys(principal))
+                .containsExactly(
+                        "CAREER:11111111-1111-1111-1111-111111111111",
+                        "INTERNSHIP:internship-data-analyst-intern"
+                );
     }
 
     @Test
