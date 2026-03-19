@@ -183,18 +183,31 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
     try {
       const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe });
       const primaryRole = resolvePrimaryRole(loggedInUser);
+      if (import.meta.env.DEV) {
+        console.info('[auth] normalized login user', loggedInUser);
+      }
       if (!primaryRole) {
         throw new Error('Signed in successfully, but no supported role was returned for this account.');
       }
 
+      const roleMismatch = primaryRole !== role
+        ? `This account is signed in as ${primaryRole.toLowerCase()}, so EduRite redirected you to the ${primaryRole.toLowerCase()} workspace.`
+        : undefined;
+
       if (primaryRole === 'STUDENT') {
         const me = await studentService.getMe();
-        navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', { replace: true });
+        navigate(me.profileCompleted ? '/student/dashboard' : '/student/profile', {
+          replace: true,
+          state: roleMismatch ? { roleMismatch } : undefined,
+        });
         return;
       }
 
       const dashboardPath = getDashboardPathForRole(primaryRole);
-      navigate(isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login', { replace: true });
+      navigate(isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login', {
+        replace: true,
+        state: roleMismatch ? { roleMismatch } : undefined,
+      });
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Unable to sign you in.');
     } finally {
