@@ -156,6 +156,31 @@ class AuthFlowIntegrationTest {
                 .andExpect(jsonPath("$.user.email").value(email));
     }
 
+
+    @Test
+    void seededCompanyUserCanLoginAndReceivesCompanyRoleAndApprovalStatusInJwt() throws Exception {
+        String response = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"company@edurite.com","password":"Company@123"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("COMPANY"))
+                .andExpect(jsonPath("$.primaryRole").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.approvalStatus").value("PENDING"))
+                .andExpect(jsonPath("$.user.role").value("COMPANY"))
+                .andExpect(jsonPath("$.user.primaryRole").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.user.approvalStatus").value("PENDING"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode json = objectMapper.readTree(response);
+        String accessToken = json.get("accessToken").asText();
+        assertThat(jwtService.extractRole(accessToken)).isEqualTo("COMPANY");
+        assertThat(jwtService.extractRoles(accessToken)).contains("ROLE_COMPANY");
+    }
+
     @Test
     void companyRegistrationSuccess() throws Exception {
         mockMvc.perform(post("/api/v1/auth/register/company")

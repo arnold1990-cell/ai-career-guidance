@@ -1,5 +1,8 @@
 package com.edurite.auth.config;
 
+import com.edurite.company.entity.CompanyApprovalStatus;
+import com.edurite.company.entity.CompanyProfile;
+import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.user.entity.Role;
 import com.edurite.user.entity.User;
 import com.edurite.user.entity.UserStatus;
@@ -35,24 +38,38 @@ public class AuthDataSeeder {
     ApplicationRunner authSeedRunner(
             RoleRepository roleRepository,
             UserRepository userRepository,
+            CompanyProfileRepository companyProfileRepository,
             PasswordEncoder passwordEncoder,
             @Value("${edurite.auth.seed.admin.email:admin@edurite.com}") String adminEmail,
             @Value("${edurite.auth.seed.admin.password:Admin@123}") String adminPassword,
             @Value("${edurite.auth.seed.admin.first-name:System}") String firstName,
-            @Value("${edurite.auth.seed.admin.last-name:Admin}") String lastName
+            @Value("${edurite.auth.seed.admin.last-name:Admin}") String lastName,
+            @Value("${edurite.auth.seed.company.email:company@edurite.com}") String companyEmail,
+            @Value("${edurite.auth.seed.company.password:Company@123}") String companyPassword,
+            @Value("${edurite.auth.seed.company.name:EduRite Company}") String companyName,
+            @Value("${edurite.auth.seed.company.registration-number:EDURITE-COMPANY-001}") String companyRegistrationNumber,
+            @Value("${edurite.auth.seed.company.contact-person:Company Admin}") String companyContactPerson,
+            @Value("${edurite.auth.seed.company.approval-status:PENDING}") String companyApprovalStatus
     ) {
-        return args -> seed(roleRepository, userRepository, passwordEncoder, adminEmail, adminPassword, firstName, lastName);
+        return args -> seed(roleRepository, userRepository, companyProfileRepository, passwordEncoder, adminEmail, adminPassword, firstName, lastName, companyEmail, companyPassword, companyName, companyRegistrationNumber, companyContactPerson, companyApprovalStatus);
     }
 
     @Transactional
     void seed(
             RoleRepository roleRepository,
             UserRepository userRepository,
+            CompanyProfileRepository companyProfileRepository,
             PasswordEncoder passwordEncoder,
             String adminEmail,
             String adminPassword,
             String firstName,
-            String lastName
+            String lastName,
+            String companyEmail,
+            String companyPassword,
+            String companyName,
+            String companyRegistrationNumber,
+            String companyContactPerson,
+            String companyApprovalStatus
     ) {
         String normalizedAdminEmail = adminEmail.toLowerCase(Locale.ROOT);
         List<String> roles = List.of("ROLE_STUDENT", "ROLE_COMPANY", "ROLE_ADMIN");
@@ -65,18 +82,23 @@ public class AuthDataSeeder {
             });
         }
 
+        Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseThrow();
         userRepository.findByEmail(normalizedAdminEmail).ifPresentOrElse(existingUser -> {
-            Set<String> existingRoles = existingUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet());
+            existingUser.setFirstName(firstName);
+            existingUser.setLastName(lastName);
+            existingUser.setPasswordHash(passwordEncoder.encode(adminPassword));
+            existingUser.setStatus(UserStatus.ACTIVE);
+            if (existingUser.getRoles().stream().noneMatch(role -> "ROLE_ADMIN".equals(role.getName()))) {
+                existingUser.getRoles().add(adminRole);
+            }
+            User savedUser = userRepository.save(existingUser);
             log.info(
-                    "[auth-seed] admin user already exists, skipping creation email={} rawPassword={} encodedPassword={} roles={} status={}",
-                    existingUser.getEmail(),
-                    adminPassword,
-                    existingUser.getPasswordHash(),
-                    existingRoles,
-                    existingUser.getStatus()
+                    "[auth-seed] ensured admin user email={} roles={} status={}",
+                    savedUser.getEmail(),
+                    savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
+                    savedUser.getStatus()
             );
         }, () -> {
-            Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseThrow();
             String encodedPassword = passwordEncoder.encode(adminPassword);
             User user = new User();
             user.setEmail(normalizedAdminEmail);
@@ -87,13 +109,86 @@ public class AuthDataSeeder {
             user.getRoles().add(adminRole);
             User savedUser = userRepository.save(user);
             log.info(
-                    "[auth-seed] created admin user email={} rawPassword={} encodedPassword={} roles={} status={}",
+                    "[auth-seed] created admin user email={} roles={} status={}",
                     savedUser.getEmail(),
-                    adminPassword,
-                    encodedPassword,
                     savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
                     savedUser.getStatus()
             );
         });
+        seedCompany(roleRepository, userRepository, companyProfileRepository, passwordEncoder, companyEmail, companyPassword, companyName, companyRegistrationNumber, companyContactPerson, companyApprovalStatus);
     }
+
+    private void seedCompany(
+            RoleRepository roleRepository,
+            UserRepository userRepository,
+            CompanyProfileRepository companyProfileRepository,
+            PasswordEncoder passwordEncoder,
+            String companyEmail,
+            String companyPassword,
+            String companyName,
+            String companyRegistrationNumber,
+            String companyContactPerson,
+            String companyApprovalStatus
+    ) {
+        String normalizedCompanyEmail = companyEmail.toLowerCase(Locale.ROOT);
+        Role companyRole = roleRepository.findByName("ROLE_COMPANY").orElseThrow();
+        CompanyApprovalStatus approvalStatus = CompanyApprovalStatus.valueOf(companyApprovalStatus.trim().toUpperCase(Locale.ROOT));
+
+        User companyUser = userRepository.findByEmail(normalizedCompanyEmail).map(existingUser -> {
+            existingUser.setFirstName(companyContactPerson);
+            existingUser.setLastName(companyName);
+            existingUser.setPasswordHash(passwordEncoder.encode(companyPassword));
+            existingUser.setStatus(UserStatus.ACTIVE);
+            if (existingUser.getRoles().stream().noneMatch(role -> "ROLE_COMPANY".equals(role.getName()))) {
+                existingUser.getRoles().add(companyRole);
+            }
+            User savedUser = userRepository.save(existingUser);
+            log.info(
+                    "[auth-seed] ensured company user email={} roles={} status={} approvalStatus={}",
+                    savedUser.getEmail(),
+                    savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
+                    savedUser.getStatus(),
+                    approvalStatus
+            );
+            return savedUser;
+        }).orElseGet(() -> {
+            User user = new User();
+            user.setEmail(normalizedCompanyEmail);
+            user.setFirstName(companyContactPerson);
+            user.setLastName(companyName);
+            user.setPasswordHash(passwordEncoder.encode(companyPassword));
+            user.setStatus(UserStatus.ACTIVE);
+            user.getRoles().add(companyRole);
+            User savedUser = userRepository.save(user);
+            log.info(
+                    "[auth-seed] created company user email={} roles={} status={} approvalStatus={}",
+                    savedUser.getEmail(),
+                    savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
+                    savedUser.getStatus(),
+                    approvalStatus
+            );
+            return savedUser;
+        });
+
+        companyProfileRepository.findByUserId(companyUser.getId()).ifPresentOrElse(existingProfile -> {
+            existingProfile.setCompanyName(companyName);
+            existingProfile.setOfficialEmail(normalizedCompanyEmail);
+            existingProfile.setContactPersonName(companyContactPerson);
+            existingProfile.setRegistrationNumber(companyRegistrationNumber);
+            existingProfile.setStatus(approvalStatus);
+            companyProfileRepository.save(existingProfile);
+            log.info("[auth-seed] ensured seeded company profile email={} registrationNumber={} approvalStatus={}", normalizedCompanyEmail, companyRegistrationNumber, approvalStatus);
+        }, () -> {
+            CompanyProfile profile = new CompanyProfile();
+            profile.setUserId(companyUser.getId());
+            profile.setCompanyName(companyName);
+            profile.setRegistrationNumber(companyRegistrationNumber);
+            profile.setOfficialEmail(normalizedCompanyEmail);
+            profile.setContactPersonName(companyContactPerson);
+            profile.setStatus(approvalStatus);
+            companyProfileRepository.save(profile);
+            log.info("[auth-seed] created company profile email={} registrationNumber={} approvalStatus={}", normalizedCompanyEmail, companyRegistrationNumber, approvalStatus);
+        });
+    }
+
 }

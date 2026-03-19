@@ -304,6 +304,7 @@ public class AuthService {
                 jwtService.accessTokenExpirationSeconds(),
                 role,
                 primaryRole,
+                approvalStatus,
                 new AuthResponse.UserSummary(
                         user.getId(),
                         user.getEmail(),
