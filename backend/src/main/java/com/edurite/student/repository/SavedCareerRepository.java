@@ -10,8 +10,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * It groups related logic so the project stays organized and easier to learn.
  */
 public interface SavedCareerRepository extends JpaRepository<SavedCareer, UUID> {
-    long countByStudentId(UUID studentId);
+
     List<SavedCareer> findByStudentId(UUID studentId);
+
     boolean existsByStudentIdAndCareerId(UUID studentId, UUID careerId);
+
+    boolean existsByStudentIdAndOpportunityTypeAndExternalKey(UUID studentId, String opportunityType, String externalKey);
+
     void deleteByStudentIdAndCareerId(UUID studentId, UUID careerId);
+
+    void deleteByStudentIdAndOpportunityTypeAndExternalKey(UUID studentId, String opportunityType, String externalKey);
+
+    long countByStudentId(UUID studentId);
 }

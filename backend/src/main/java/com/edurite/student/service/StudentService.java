@@ -9,6 +9,7 @@ import com.edurite.student.dto.StudentProfileUpsertRequest;
 import com.edurite.student.dto.StudentSettingsDto;
 import com.edurite.student.entity.SavedBursary;
 import com.edurite.student.entity.SavedCareer;
+import java.util.Locale;
 import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.repository.SavedBursaryRepository;
 import com.edurite.student.repository.SavedCareerRepository;
@@ -175,11 +176,29 @@ public class StudentService {
      * It exists to keep this class focused and reusable.
      */
     public void saveCareer(Principal principal, UUID careerId) {
+        saveOpportunity(principal, "CAREER", careerId.toString());
+    }
+
+    public void saveOpportunity(Principal principal, String opportunityType, String opportunityId) {
         StudentProfile profile = getProfileEntity(principal);
-        if (!savedCareerRepository.existsByStudentIdAndCareerId(profile.getId(), careerId)) {
+        String normalizedType = normalizeOpportunityType(opportunityType);
+        if ("CAREER".equals(normalizedType)) {
+            UUID careerId = UUID.fromString(opportunityId);
+            if (!savedCareerRepository.existsByStudentIdAndCareerId(profile.getId(), careerId)) {
+                SavedCareer saved = new SavedCareer();
+                saved.setStudentId(profile.getId());
+                saved.setCareerId(careerId);
+                saved.setOpportunityType(normalizedType);
+                saved.setExternalKey(opportunityId);
+                savedCareerRepository.save(saved);
+            }
+            return;
+        }
+        if (!savedCareerRepository.existsByStudentIdAndOpportunityTypeAndExternalKey(profile.getId(), normalizedType, opportunityId)) {
             SavedCareer saved = new SavedCareer();
             saved.setStudentId(profile.getId());
-            saved.setCareerId(careerId);
+            saved.setOpportunityType(normalizedType);
+            saved.setExternalKey(opportunityId);
             savedCareerRepository.save(saved);
         }
     }
@@ -204,8 +223,17 @@ public class StudentService {
      * It exists to keep this class focused and reusable.
      */
     public void unsaveCareer(Principal principal, UUID careerId) {
+        unsaveOpportunity(principal, "CAREER", careerId.toString());
+    }
+
+    public void unsaveOpportunity(Principal principal, String opportunityType, String opportunityId) {
         StudentProfile profile = getProfileEntity(principal);
-        savedCareerRepository.deleteByStudentIdAndCareerId(profile.getId(), careerId);
+        String normalizedType = normalizeOpportunityType(opportunityType);
+        if ("CAREER".equals(normalizedType)) {
+            savedCareerRepository.deleteByStudentIdAndCareerId(profile.getId(), UUID.fromString(opportunityId));
+            return;
+        }
+        savedCareerRepository.deleteByStudentIdAndOpportunityTypeAndExternalKey(profile.getId(), normalizedType, opportunityId);
     }
 
     /**
@@ -223,7 +251,26 @@ public class StudentService {
      */
     public List<UUID> savedCareerIds(Principal principal) {
         StudentProfile profile = getProfileEntity(principal);
-        return savedCareerRepository.findByStudentId(profile.getId()).stream().map(SavedCareer::getCareerId).toList();
+        return savedCareerRepository.findByStudentId(profile.getId()).stream()
+                .map(SavedCareer::getCareerId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    public List<String> savedOpportunityKeys(Principal principal) {
+        StudentProfile profile = getProfileEntity(principal);
+        return savedCareerRepository.findByStudentId(profile.getId()).stream()
+                .map(saved -> {
+                    if (saved.getCareerId() != null) {
+                        return "CAREER:" + saved.getCareerId();
+                    }
+                    if (saved.getOpportunityType() != null && saved.getExternalKey() != null) {
+                        return saved.getOpportunityType() + ":" + saved.getExternalKey();
+                    }
+                    return null;
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     /**
@@ -256,6 +303,17 @@ public class StudentService {
      * this method handles the "createDefault" step of the feature.
      * It exists to keep this class focused and reusable.
      */
+
+    private String normalizeOpportunityType(String opportunityType) {
+        String normalized = opportunityType == null || opportunityType.isBlank()
+                ? "CAREER"
+                : opportunityType.trim().toUpperCase(Locale.ROOT);
+        if (normalized.endsWith("S")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
     private StudentProfile createDefault(User user) {
         StudentProfile profile = new StudentProfile();
         profile.setUserId(user.getId());

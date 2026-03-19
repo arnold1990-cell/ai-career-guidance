@@ -29,7 +29,10 @@ export interface StudentProfile {
   profileCompleteness: number;
 }
 
-export interface Career { id: string; title: string; description?: string; industry?: string; location?: string; qualificationLevel?: string; matchScore?: number; }
+export type OpportunityType = 'ALL' | 'CAREER' | 'JOB' | 'INTERNSHIP';
+
+export interface Career { id: string; title: string; description?: string; industry?: string; location?: string; qualificationLevel?: string; demandLevel?: string; matchScore?: number; }
+export interface Opportunity { id: string; careerId?: string | null; title: string; type: Exclude<OpportunityType, 'ALL'>; description?: string; industry?: string; location?: string; qualification?: string; demand?: string; recommended?: boolean; saved?: boolean; }
 export interface Bursary { id: string; title: string; provider?: string; qualificationLevel?: string; region?: string; eligibility?: string; deadline?: string; status: string; }
 
 export interface Course { id: string; name: string; institutionName: string; duration: string; }
