@@ -184,7 +184,7 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
     }
 
     try {
-      const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe });
+      const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe, portal: role });
       const primaryRole = resolvePrimaryRole(loggedInUser);
       if (import.meta.env.DEV) {
         console.info('[auth] normalized login user', loggedInUser);
