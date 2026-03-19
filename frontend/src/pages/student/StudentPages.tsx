@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppQuery } from '@/hooks/useAppQuery';
 import { studentService } from '@/services/studentService';
@@ -9,6 +10,7 @@ import { notificationService } from '@/services/notificationService';
 import { applicationService } from '@/services/applicationService';
 import { subscriptionService } from '@/services/subscriptionService';
 import { settingsService } from '@/services/settingsService';
+import { careerService } from '@/services/careerService';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -271,6 +273,7 @@ export const StudentCareerRecommendationsPage = () => {
 export const StudentBursaryRecommendationsPage = StudentCareerRecommendationsPage;
 
 export const StudentSavedPage = () => {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [filters, setFilters] = useState({ q: '', field: '', industry: '', qualification: '', location: '', demand: '', opportunityType: 'ALL' as OpportunityType });
   const opportunities = useAppQuery({ queryKey: ['student-opportunities', filters], queryFn: () => studentService.searchOpportunities(filters) });
@@ -317,10 +320,48 @@ export const StudentSavedPage = () => {
           <p><span className="font-medium text-slate-800">Qualification:</span> {item.qualification ?? '—'}</p>
           <p><span className="font-medium text-slate-800">Demand:</span> {item.demand ?? '—'}</p>
         </div>
-        {item.type === 'CAREER' ? <div><Button className="bg-slate-700 hover:bg-slate-600" onClick={() => window.location.assign(`/careers/${item.id}`)}>View details</Button></div> : null}
+        {item.type === 'CAREER' ? <div><Button className="bg-slate-700 hover:bg-slate-600" onClick={() => navigate(`/student/careers/${item.id}`)}>View details</Button></div> : null}
       </article>)}
     </div>
     {!items.length && !opportunities.isLoading ? <EmptyState title="No opportunities found" message="Try broadening your filters to explore more careers, jobs, and internships." /> : null}
+  </Section>;
+};
+
+export const StudentCareerDetailsPage = () => {
+  const { id = '' } = useParams();
+  const career = useAppQuery({
+    queryKey: ['student', 'career', id],
+    queryFn: () => careerService.details(id),
+    enabled: Boolean(id),
+  });
+
+  if (career.isLoading) return <LoadingState message="Loading career details..." />;
+  if (career.isError || !career.data) return <ErrorState message="Could not load this career right now. Please return to search results and try again." />;
+
+  return <Section title={career.data.title}>
+    <p className="text-sm text-slate-500">Detailed information for the selected career path.</p>
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="rounded border p-4 bg-white">
+        <p className="text-xs uppercase tracking-wide text-slate-500">Industry</p>
+        <p className="mt-1 text-sm text-slate-700">{career.data.industry || 'Not specified'}</p>
+      </div>
+      <div className="rounded border p-4 bg-white">
+        <p className="text-xs uppercase tracking-wide text-slate-500">Location</p>
+        <p className="mt-1 text-sm text-slate-700">{career.data.location || 'Not specified'}</p>
+      </div>
+      <div className="rounded border p-4 bg-white">
+        <p className="text-xs uppercase tracking-wide text-slate-500">Qualification level</p>
+        <p className="mt-1 text-sm text-slate-700">{career.data.qualificationLevel || 'Not specified'}</p>
+      </div>
+      <div className="rounded border p-4 bg-white">
+        <p className="text-xs uppercase tracking-wide text-slate-500">Career ID</p>
+        <p className="mt-1 break-all text-sm text-slate-700">{career.data.id}</p>
+      </div>
+    </div>
+    <div className="rounded border p-4 bg-white">
+      <p className="text-xs uppercase tracking-wide text-slate-500">Overview</p>
+      <p className="mt-2 text-sm text-slate-700">{career.data.description || 'Detailed overview is not available for this career yet.'}</p>
+    </div>
   </Section>;
 };
 
