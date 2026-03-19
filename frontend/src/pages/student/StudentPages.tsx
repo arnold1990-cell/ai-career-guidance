@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppQuery } from '@/hooks/useAppQuery';
@@ -11,11 +11,12 @@ import { applicationService } from '@/services/applicationService';
 import { subscriptionService } from '@/services/subscriptionService';
 import { settingsService } from '@/services/settingsService';
 import { careerService } from '@/services/careerService';
+import { Bell, BriefcaseBusiness, CheckCheck, Clock3, Eye, Landmark, Settings, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback/States';
-import type { ApiError, OpportunityType, UnifiedOpportunity, UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
+import type { ApiError, Notification, OpportunityType, UnifiedOpportunity, UniversityRecommendedCareer, UniversityRecommendedProgramme } from '@/types';
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => <section className="card p-5 space-y-4"><h1 className="text-xl font-semibold">{title}</h1>{children}</section>;
 const Card = ({ label, value }: { label: string; value: string | number }) => <div className="rounded border p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-2xl font-semibold">{value}</p></div>;
@@ -393,13 +394,106 @@ export const StudentApplicationsPage = () => {
   </Section>;
 };
 
+type NotificationType = 'SYSTEM' | 'BURSARY' | 'DEADLINE' | 'CAREER' | 'SUBSCRIPTION';
+
+const notificationTypeMeta: Record<NotificationType, { label: string; icon: typeof Bell; accent: string; pill: 'slate' | 'emerald' | 'amber' | 'blue'; buttonLabel: string; }> = {
+  SYSTEM: { label: 'System', icon: Settings, accent: 'border-l-slate-400 bg-slate-50/80', pill: 'slate', buttonLabel: 'Mark as Read' },
+  BURSARY: { label: 'Bursary', icon: Landmark, accent: 'border-l-emerald-400 bg-emerald-50/80', pill: 'emerald', buttonLabel: 'View' },
+  DEADLINE: { label: 'Deadline', icon: Clock3, accent: 'border-l-amber-400 bg-amber-50/80', pill: 'amber', buttonLabel: 'View' },
+  CAREER: { label: 'Career', icon: BriefcaseBusiness, accent: 'border-l-blue-400 bg-blue-50/80', pill: 'blue', buttonLabel: 'Explore' },
+  SUBSCRIPTION: { label: 'Subscription', icon: Bell, accent: 'border-l-violet-400 bg-violet-50/80', pill: 'blue', buttonLabel: 'Mark as Read' },
+};
+
+const inferNotificationType = (note: Notification): NotificationType => {
+  const backendType = (note.type ?? '').toUpperCase();
+  if (backendType in notificationTypeMeta) return backendType as NotificationType;
+
+  const haystack = `${note.title} ${note.message}`.toLowerCase();
+  if (haystack.includes('subscription') || haystack.includes('plan') || haystack.includes('premium')) return 'SUBSCRIPTION';
+  if (haystack.includes('deadline') || haystack.includes('closes') || haystack.includes('due')) return 'DEADLINE';
+  if (haystack.includes('bursary') || haystack.includes('scholarship') || haystack.includes('funding')) return 'BURSARY';
+  if (haystack.includes('career') || haystack.includes('job') || haystack.includes('internship') || haystack.includes('match')) return 'CAREER';
+  return 'SYSTEM';
+};
+
+const formatNotificationTimestamp = (value?: string) => {
+  if (!value) return 'Recently';
+
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) return 'Recently';
+
+  const diffMs = Date.now() - timestamp.getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+
+  const daysBetween = Math.floor((new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime() - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()) / 86400000);
+  if (daysBetween === 0) return 'Today';
+  if (daysBetween === -1) return 'Yesterday';
+
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: timestamp.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }).format(timestamp);
+};
+
 export const StudentNotificationsPage = () => {
   const qc = useQueryClient();
   const notes = useAppQuery({ queryKey: ['notes'], queryFn: notificationService.mine });
   const markRead = useMutation({ mutationFn: (id: string) => notificationService.markRead(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }) });
+
+  const notifications = useMemo(() => (notes.data ?? []).map((note) => {
+    const type = inferNotificationType(note);
+    const read = note.read ?? note.isRead ?? false;
+    return { ...note, read, type, meta: notificationTypeMeta[type], timestampLabel: formatNotificationTimestamp(note.createdAt) };
+  }), [notes.data]);
+
   if (notes.isLoading) return <LoadingState />;
-  if (!notes.data?.length) return <EmptyState title="No notifications yet" message="We'll show bursary alerts and reminders here." />;
-  return <Section title="Notifications">{(notes.data ?? []).map((n) => <div key={n.id} className="border p-2 rounded"><p className="font-medium">{n.title}</p><p>{n.message}</p><Button onClick={() => markRead.mutate(n.id)}>{n.read ? 'Read' : 'Mark read'}</Button></div>)}</Section>;
+  if (notes.isError) return <ErrorState message="Could not load your notifications. Please refresh and try again." />;
+  if (!notes.data?.length) return <EmptyState title="No notifications yet" message="We’ll notify you when something important comes up." />;
+
+  return <Section title="Notifications">
+    <div className="grid gap-3">
+      {notifications.map((n) => {
+        const Icon = n.meta.icon;
+        return <article
+          key={n.id}
+          className={`group rounded-2xl border border-slate-200 p-4 transition hover:-translate-y-0.5 hover:shadow-md md:p-5 ${n.read ? 'bg-white' : `border-l-4 ${n.meta.accent} shadow-sm`}`}
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex gap-3">
+              <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${n.read ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-700 shadow-sm'}`}>
+                <Icon size={20} />
+              </div>
+              <div className="min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={`text-base ${n.read ? 'font-medium text-slate-800' : 'font-semibold text-slate-900'}`}>{n.title}</p>
+                  <Badge color={n.meta.pill}>{n.meta.label}</Badge>
+                  {!n.read ? <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700"><span className="h-2 w-2 rounded-full bg-primary-600" />Unread</span> : null}
+                </div>
+                <p className="text-sm leading-6 text-slate-600">{n.message}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>{n.timestampLabel}</span>
+                  {n.createdAt ? <span aria-hidden="true">•</span> : null}
+                  {n.createdAt ? <span>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(n.createdAt))}</span> : null}
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center md:pl-4">
+              <Button
+                onClick={() => !n.read && markRead.mutate(n.id)}
+                disabled={markRead.isPending || n.read}
+                className={n.read ? 'bg-slate-200 text-slate-600 hover:bg-slate-200' : 'inline-flex items-center gap-2'}
+              >
+                {n.read ? <CheckCheck size={16} /> : n.type === 'CAREER' || n.type === 'BURSARY' || n.type === 'DEADLINE' ? <Eye size={16} /> : <Sparkles size={16} />}
+                {n.read ? 'Read' : n.meta.buttonLabel}
+              </Button>
+            </div>
+          </div>
+        </article>;
+      })}
+    </div>
+  </Section>;
 };
 
 export const StudentSubscriptionPage = () => {
