@@ -4,6 +4,7 @@ import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.repository.StudentProfileRepository;
 import com.edurite.company.repository.CompanyProfileRepository;
 import com.edurite.user.entity.User;
+import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
 import com.edurite.security.service.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -64,6 +65,9 @@ class AuthFlowIntegrationTest {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    RoleRepository roleRepository;
 
     @Autowired
     StudentProfileRepository studentProfileRepository;
@@ -328,6 +332,43 @@ class AuthFlowIntegrationTest {
                                 """.formatted(email)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.roles[0]").value("ROLE_COMPANY"));
+    }
+
+    @Test
+    void companyLoginUsesCompanyRoleAndAuthoritiesEvenWhenDatabaseRoleWasIncorrect() throws Exception {
+        String email = "legacy.company.role@example.com";
+        registerCompany(email, "LEGACY-COMPANY-001");
+
+        User companyUser = userRepository.findByEmail(email).orElseThrow();
+        companyUser.getRoles().clear();
+        companyUser.getRoles().add(roleRepository.findByName("ROLE_STUDENT").orElseThrow());
+        userRepository.saveAndFlush(companyUser);
+
+        String loginResponse = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("COMPANY"))
+                .andExpect(jsonPath("$.primaryRole").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.user.role").value("COMPANY"))
+                .andExpect(jsonPath("$.user.primaryRole").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_COMPANY"))
+                .andExpect(jsonPath("$.user.approvalStatus").value("PENDING"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String accessToken = objectMapper.readTree(loginResponse).get("accessToken").asText();
+        assertThat(jwtService.extractRoles(accessToken)).containsExactly("ROLE_COMPANY");
+        assertThat(jwtService.extractRole(accessToken)).isEqualTo("COMPANY");
+
+        mockMvc.perform(get("/api/v1/companies/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.companyName").value("Secure Co"));
     }
 
     @Test

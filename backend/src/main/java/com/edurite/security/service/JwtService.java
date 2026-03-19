@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -69,6 +70,12 @@ public class JwtService {
         return generateToken(user.getEmail(), accessTokenExpiration, buildAccessClaims(roles));
     }
 
+    public String generateAccessToken(User user, Collection<String> roles, String approvalStatus) {
+        List<String> normalizedRoles = roles.stream().map(role -> role.trim().toUpperCase()).sorted().toList();
+        log.info("[auth] jwt issued username={} jwtRoles={} approvalStatus={}", user.getEmail(), normalizedRoles, approvalStatus);
+        return generateToken(user.getEmail(), accessTokenExpiration, buildAccessClaims(normalizedRoles, approvalStatus));
+    }
+
     /**
      * this method handles the "generateRefreshToken" step of the feature.
      * It exists to keep this class focused and reusable.
@@ -79,7 +86,11 @@ public class JwtService {
 
 
     private Map<String, Object> buildAccessClaims(List<String> roles) {
-        java.util.LinkedHashMap<String, Object> claims = new java.util.LinkedHashMap<>();
+        return buildAccessClaims(roles, null);
+    }
+
+    private Map<String, Object> buildAccessClaims(List<String> roles, String approvalStatus) {
+        LinkedHashMap<String, Object> claims = new LinkedHashMap<>();
         claims.put("roles", roles);
         String primaryRole = roles.stream()
                 .filter(role -> java.util.Set.of("ROLE_ADMIN", "ROLE_COMPANY", "ROLE_STUDENT").contains(role))
@@ -88,6 +99,9 @@ public class JwtService {
         if (primaryRole != null) {
             claims.put("primaryRole", primaryRole);
             claims.put("role", primaryRole.replace("ROLE_", ""));
+        }
+        if (approvalStatus != null && !approvalStatus.isBlank()) {
+            claims.put("approvalStatus", approvalStatus);
         }
         return claims;
     }
