@@ -55,13 +55,13 @@ public class GeminiService {
     private final Environment environment;
     private final int maxGeminiRetries;
 
-    @Value("${gemini.api-key:}")
+    @Value("${GEMINI_API_KEY:}")
     private String configuredApiKey;
 
-    @Value("${gemini.model:gemini-2.5-flash}")
+    @Value("${GEMINI_MODEL:gemini-2.5-flash}")
     private String model;
 
-    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
+    @Value("${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}")
     private String baseUrl;
 
     public GeminiService(ObjectMapper objectMapper, Environment environment) {
