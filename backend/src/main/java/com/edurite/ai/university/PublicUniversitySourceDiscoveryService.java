@@ -40,8 +40,9 @@ public class PublicUniversitySourceDiscoveryService {
     public List<String> discoverSources(StudentProfile profile, UniversitySourcesAnalysisRequest request, int maxUrls) {
         Set<String> discovered = new LinkedHashSet<>();
         for (UniversityRegistryProperties.UniversityRegistryEntry university : rankedUniversities(profile, request)) {
-            discovered.addAll(university.getSeedUrls());
-            discovered.addAll(pageFetcherService.discoverCandidateUrls(university, Math.max(4, maxUrls / 2)));
+            UniversitySourceDefinition definition = toSourceDefinition(university);
+            discovered.addAll(definition.seedUrls());
+            discovered.addAll(pageFetcherService.discoverCandidateUrls(definition, Math.max(4, maxUrls / 2)));
             discovered.addAll(searchOfficialPages(university, request, profile));
             if (discovered.size() >= maxUrls) {
                 break;
@@ -53,6 +54,18 @@ public class PublicUniversitySourceDiscoveryService {
                 .filter(registryService::isAllowedUrl)
                 .limit(maxUrls)
                 .toList();
+    }
+
+    private UniversitySourceDefinition toSourceDefinition(UniversityRegistryProperties.UniversityRegistryEntry entry) {
+        return new UniversitySourceDefinition(
+                entry.getUniversityName(),
+                entry.getBaseDomain(),
+                entry.getAllowedDomains(),
+                entry.getSeedUrls(),
+                entry.getQualificationLevelsSupported(),
+                entry.isActive(),
+                entry.getCrawlPriority()
+        );
     }
 
     private List<UniversityRegistryProperties.UniversityRegistryEntry> rankedUniversities(StudentProfile profile,

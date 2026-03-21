@@ -35,7 +35,8 @@ public class UniversityCrawlOrchestrator {
         for (UniversityRegistryProperties.UniversityRegistryEntry university : registryService.getActiveUniversities()) {
             universitiesProcessed++;
             try {
-                List<String> discovered = pageFetcherService.discoverCandidateUrls(university, 40);
+                UniversitySourceDefinition definition = toSourceDefinition(university);
+                List<String> discovered = pageFetcherService.discoverCandidateUrls(definition, 40);
                 seedUrlsProcessed += university.getSeedUrls().size();
                 pagesDiscovered += discovered.size();
 
@@ -54,6 +55,18 @@ public class UniversityCrawlOrchestrator {
 
         return new UniversityCrawlSummary(universitiesProcessed, seedUrlsProcessed, pagesDiscovered,
                 pagesSaved, failures, System.currentTimeMillis() - startedAt);
+    }
+
+    private UniversitySourceDefinition toSourceDefinition(UniversityRegistryProperties.UniversityRegistryEntry entry) {
+        return new UniversitySourceDefinition(
+                entry.getUniversityName(),
+                entry.getBaseDomain(),
+                entry.getAllowedDomains(),
+                entry.getSeedUrls(),
+                entry.getQualificationLevelsSupported(),
+                entry.isActive(),
+                entry.getCrawlPriority()
+        );
     }
 
     private void upsert(String universityName, UniversitySourcePageResult pageResult) {

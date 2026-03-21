@@ -43,10 +43,44 @@ class MultiUniversityPageFetcherServiceTest {
         );
 
         var university = properties.getRegistry().get(0);
-        List<String> candidates = service.discoverCandidateUrls(university, 15);
+        UniversitySourceDefinition definition = new UniversitySourceDefinition(
+                university.getUniversityName(),
+                university.getBaseDomain(),
+                university.getAllowedDomains(),
+                university.getSeedUrls(),
+                university.getQualificationLevelsSupported(),
+                university.isActive(),
+                university.getCrawlPriority()
+        );
+        List<String> candidates = service.discoverCandidateUrls(definition, 15);
 
         assertThat(candidates).contains("http://localhost:" + port + "/programmes", "http://localhost:" + port + "/courses");
         assertThat(candidates).doesNotContain("https://external.example.com/programmes");
+    }
+
+
+    @Test
+    void discoversCandidateUrlsFromLegacyRegistryEntryAdapter() throws Exception {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", this::rootPage);
+        server.createContext("/programmes", exchange -> respond(exchange, 200, "<html><title>Programmes</title><body>entry requirements degree</body></html>"));
+        server.start();
+
+        int port = server.getAddress().getPort();
+        UniversityRegistryProperties properties = buildProperties(port);
+        UniversitySourceRegistryService registryService = new UniversitySourceRegistryService(properties, new UniversityUrlNormalizer());
+        MultiUniversityPageFetcherService service = new MultiUniversityPageFetcherService(
+                registryService,
+                new UniversityPageClassifier(),
+                new UniversityUrlNormalizer(),
+                properties
+        );
+
+        UniversityRegistryProperties.UniversityRegistryEntry university = properties.getRegistry().get(0);
+
+        List<String> candidates = service.discoverCandidateUrlsFromRegistryEntry(university, 10);
+
+        assertThat(candidates).contains("http://localhost:" + port + "/programmes");
     }
 
 

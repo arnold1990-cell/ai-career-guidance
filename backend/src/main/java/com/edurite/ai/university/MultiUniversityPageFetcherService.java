@@ -64,7 +64,7 @@ public class MultiUniversityPageFetcherService {
         this.properties = properties;
     }
 
-    public List<String> discoverCandidateUrls(UniversityRegistryProperties.UniversityRegistryEntry university, int maxUrls) {
+    public List<String> discoverCandidateUrls(UniversitySourceDefinition university, int maxUrls) {
         int cappedMaxUrls = Math.min(Math.max(maxUrls, 1), crawl().getMaxDiscoveredCandidatesPerUniversity());
         Set<String> discovered = new LinkedHashSet<>();
         Set<String> visited = new LinkedHashSet<>();
@@ -182,7 +182,7 @@ public class MultiUniversityPageFetcherService {
         return text.contains("sign in") || text.contains("log in") || text.contains("login") || text.contains("password");
     }
 
-    private List<String> extractRankedInternalLinks(UniversityRegistryProperties.UniversityRegistryEntry university,
+    private List<String> extractRankedInternalLinks(UniversitySourceDefinition university,
                                                     String seedUrl,
                                                     int maxUrls,
                                                     Set<String> visited) {
@@ -218,8 +218,28 @@ public class MultiUniversityPageFetcherService {
         }
     }
 
+    /**
+     * Legacy registry-entry adapter kept under a distinct name so discovery callers use
+     * UniversitySourceDefinition as the canonical API and avoid overload ambiguity.
+     */
+    public List<String> discoverCandidateUrlsFromRegistryEntry(UniversityRegistryProperties.UniversityRegistryEntry entry, int maxUrls) {
+        return discoverCandidateUrls(toSourceDefinition(entry), maxUrls);
+    }
+
+    private UniversitySourceDefinition toSourceDefinition(UniversityRegistryProperties.UniversityRegistryEntry entry) {
+        return new UniversitySourceDefinition(
+                entry.getUniversityName(),
+                entry.getBaseDomain(),
+                entry.getAllowedDomains(),
+                entry.getSeedUrls(),
+                entry.getQualificationLevelsSupported(),
+                entry.isActive(),
+                entry.getCrawlPriority()
+        );
+    }
+
     private void addCommonPaths(Set<String> discovered,
-                                UniversityRegistryProperties.UniversityRegistryEntry university,
+                                UniversitySourceDefinition university,
                                 String seedUrl) {
         URI seedUri;
         try {
