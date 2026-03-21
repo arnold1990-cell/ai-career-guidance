@@ -168,7 +168,7 @@ export const StudentCareerRecommendationsPage = () => {
     return <div className="grid gap-3 md:grid-cols-2">{items.slice(0, 10).map((career) => <article key={career.name} className="rounded border p-3 space-y-2 bg-white">
       <h4 className="font-semibold">{career.name}</h4>
       <p className="text-sm text-slate-600">{career.reason}</p>
-      {career.rankingCategory && <p className="text-xs font-medium text-emerald-700">{career.rankingCategory}</p>}
+      <div className="flex gap-2 text-xs">{career.rankingCategory && <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">{career.rankingCategory}</span>}{career.confidenceLevel && <span className="rounded bg-slate-100 px-2 py-1 text-slate-700">Confidence: {career.confidenceLevel}</span>}{career.sourceStatus && <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">Source: {career.sourceStatus}</span>}</div>
       {career.recommendationReason && <p className="text-sm text-slate-700"><span className="font-medium">Why this was recommended:</span> {career.recommendationReason}</p>}
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500">Requirements</p>
@@ -179,6 +179,8 @@ export const StudentCareerRecommendationsPage = () => {
         <ul className="list-disc ml-5 text-sm">{career.relatedProgrammes.map((programme) => <li key={`${career.name}-${programme}`}>{programme}</li>)}</ul>
       </div>
       {career.verifiedFacts?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Verified facts</p><ul className="list-disc ml-5 text-sm">{career.verifiedFacts.map((fact) => <li key={`${career.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
+      {career.inferredInsights?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">AI insights</p><ul className="list-disc ml-5 text-sm">{career.inferredInsights.map((insight) => <li key={`${career.name}-${insight}`}>{insight}</li>)}</ul></div> : null}
+      {career.missingData?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Missing information</p><ul className="list-disc ml-5 text-sm">{career.missingData.map((fact) => <li key={`${career.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
       {career.nextBestActions?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Next best actions</p><ul className="list-disc ml-5 text-sm">{career.nextBestActions.map((action) => <li key={`${career.name}-${action}`}>{action}</li>)}</ul></div> : null}
     </article>)}</div>;
   };
@@ -200,6 +202,7 @@ export const StudentCareerRecommendationsPage = () => {
         <p><span className="font-medium">Notes:</span> {programme.notes}</p>
       </div>
       {programme.verifiedFacts?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Verified facts</p><ul className="list-disc ml-5 text-sm">{programme.verifiedFacts.map((fact) => <li key={`${programme.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
+      {programme.inferredInsights?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">AI insights</p><ul className="list-disc ml-5 text-sm">{programme.inferredInsights.map((insight) => <li key={`${programme.name}-${insight}`}>{insight}</li>)}</ul></div> : null}
       {programme.missingData?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Missing information</p><ul className="list-disc ml-5 text-sm">{programme.missingData.map((fact) => <li key={`${programme.name}-${fact}`}>{fact}</li>)}</ul></div> : null}
       {programme.nextBestActions?.length ? <div><p className="text-xs uppercase tracking-wide text-slate-500">Next best actions</p><ul className="list-disc ml-5 text-sm">{programme.nextBestActions.map((action) => <li key={`${programme.name}-${action}`}>{action}</li>)}</ul></div> : null}
     </article>)}</div>;
