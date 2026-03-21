@@ -557,3 +557,57 @@ edurite:
         qualification-levels-supported: ["Undergraduate", "Postgraduate"]
         active: true
         crawl-priority: 55
+
+      - institution-key: "central-johannesburg-tvet-college"
+        university-name: "Central Johannesburg TVET College"
+        institution-type: "TVET_COLLEGE"
+        country-code: "ZA"
+        province: "Gauteng"
+        base-domain: "cjc.edu.za"
+        allowed-domains: ["cjc.edu.za"]
+        official-homepages: ["https://cjc.edu.za/"]
+        admissions-pages: ["https://cjc.edu.za/registration/", "https://cjc.edu.za/general-information/"]
+        programme-pages: ["https://cjc.edu.za/cjc-courses/"]
+        discovery-pages: ["https://cjc.edu.za/about/"]
+        allowed-patterns: ["course", "programme", "registration", "admission", "engineering", "business"]
+        blocked-patterns: ["login", "portal", "vacancies", "tender", "supplier"]
+        qualification-levels-supported: ["Certificate", "Diploma", "TVET"]
+        active: true
+        enabled: true
+        crawl-priority: 25
+        max-pages-to-fetch: 10
+      - institution-key: "college-of-cape-town"
+        university-name: "College of Cape Town for TVET"
+        institution-type: "TVET_COLLEGE"
+        country-code: "ZA"
+        province: "Western Cape"
+        base-domain: "cct.edu.za"
+        allowed-domains: ["cct.edu.za"]
+        official-homepages: ["https://www.cct.edu.za/index.php/en/"]
+        admissions-pages: ["https://www.cct.edu.za/index.php/en/"]
+        programme-pages: ["https://www.cct.edu.za/index.php/en/"]
+        discovery-pages: ["https://www.cct.edu.za/index.php/en/home/who-we-are/quality-assurance"]
+        allowed-patterns: ["programme", "qualification", "engineering", "information technology", "admission"]
+        blocked-patterns: ["login", "vacancies", "tender"]
+        qualification-levels-supported: ["Certificate", "Diploma", "TVET"]
+        active: true
+        enabled: true
+        crawl-priority: 26
+        max-pages-to-fetch: 8
+      - institution-key: "false-bay-tvet-college"
+        university-name: "False Bay TVET College"
+        institution-type: "TVET_COLLEGE"
+        country-code: "ZA"
+        province: "Western Cape"
+        base-domain: "falsebaycollege.co.za"
+        allowed-domains: ["falsebaycollege.co.za"]
+        official-homepages: ["https://falsebaycollege.co.za/"]
+        admissions-pages: ["https://falsebaycollege.co.za/"]
+        discovery-pages: ["https://falsebaycollege.co.za/about-the-college/"]
+        allowed-patterns: ["programme", "course", "engineering", "hospitality", "business"]
+        blocked-patterns: ["login", "portal", "vacancies", "tender"]
+        qualification-levels-supported: ["Certificate", "Diploma", "TVET"]
+        active: true
+        enabled: true
+        crawl-priority: 27
+        max-pages-to-fetch: 8

@@ -122,6 +122,19 @@ export interface UniversitySourceDiagnostic {
   usableProgrammeData?: boolean;
 }
 
+export interface UniversityAnalysisDiagnostics {
+  institutionsRequested: number;
+  institutionsAttempted: number;
+  institutionsSucceeded: number;
+  usableSources: number;
+  rejectedSources: number;
+  technicalFailures: number;
+  protectedSources: number;
+  timeouts: number;
+  crawlerDurationMs: number;
+  aiAnalysisDurationMs: number;
+}
+
 export interface UniversitySourceCoverage {
   requestedSourcesCount: number;
   successfulSourcesCount: number;
@@ -131,8 +144,11 @@ export interface UniversitySourceCoverage {
 }
 
 export interface UniversitySourcesAnalysisResponse {
+  status: "SUCCESS" | "PARTIAL" | "ERROR";
   aiLive: boolean;
   fallbackUsed: boolean;
+  mode: "LIVE" | "PARTIAL" | "UNAVAILABLE" | string;
+  message?: string | null;
   warningMessage?: string | null;
   requestedSources?: string[];
   sourceUrls: string[];
@@ -155,6 +171,7 @@ export interface UniversitySourcesAnalysisResponse {
   suitabilityScoreLimitations?: string[];
   sourceDiagnostics?: UniversitySourceDiagnostic[];
   sourceCoverage?: UniversitySourceCoverage | null;
+  diagnostics?: UniversityAnalysisDiagnostics | null;
 }
 export interface Notification { id: string; title: string; message: string; read: boolean; type?: string; createdAt?: string; isRead?: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }

@@ -139,6 +139,13 @@ export const StudentCareerRecommendationsPage = () => {
     : aiAdviceErrorMessage || 'Unable to generate AI guidance right now. Please try again shortly.';
   if (!isDemoMode && aiAdvice.isError) return <ErrorState message={aiAdviceDisplayMessage} />;
 
+  const analysisStatus = aiAdvice.data?.status ?? 'ERROR';
+  const analysisMode = aiAdvice.data?.mode ?? 'UNAVAILABLE';
+  const hasMatches = Boolean((aiAdvice.data?.recommendedCareers?.length ?? 0) || (aiAdvice.data?.recommendedProgrammes?.length ?? 0) || (aiAdvice.data?.recommendedUniversities?.length ?? 0));
+  const isUnavailable = !isDemoMode && analysisStatus === 'ERROR';
+  const isPartial = !isDemoMode && analysisStatus === 'PARTIAL';
+  const isNoStrongMatches = !isDemoMode && analysisStatus === 'SUCCESS' && !hasMatches;
+
   const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
   const careers = aiAdvice.data?.recommendedCareers ?? [];
   const programmes = aiAdvice.data?.recommendedProgrammes ?? [];
@@ -149,7 +156,7 @@ export const StudentCareerRecommendationsPage = () => {
   const warnings = aiAdvice.data?.warnings ?? [];
   const sourceDiagnostics = aiAdvice.data?.sourceDiagnostics ?? [];
   const sourceCoverage = aiAdvice.data?.sourceCoverage;
-  const backendMode = aiAdvice.data?.fallbackUsed ? 'Fallback recommendations' : aiAdvice.data?.aiLive ? 'Live Gemini multi-source' : 'Unavailable';
+  const backendMode = analysisMode === 'PARTIAL' ? 'Partial official-source guidance' : analysisMode === 'LIVE' ? 'Live official-source guidance' : 'Unavailable';
   const requestedSources = aiAdvice.data?.sourceUrls?.length ?? 0;
   const analysedSources = aiAdvice.data?.totalSourcesUsed ?? 0;
 
@@ -207,27 +214,37 @@ export const StudentCareerRecommendationsPage = () => {
   return <Section title="AI Guidance">
     <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : backendMode}</p>
     {isSearching ? <LoadingState message="Searching for guidance results..." detail="Please wait while we analyse your profile and university sources." /> : null}
+    {!isDemoMode && isUnavailable && <div className="rounded border border-red-300 bg-red-50 p-4 text-sm text-red-900 space-y-2">
+      <p className="font-semibold">AI Guidance Unavailable</p>
+      <p>{aiAdvice.data?.message ?? aiAdvice.data?.warningMessage ?? 'We could not complete the university analysis from official sources right now.'}</p>
+      <button className="rounded bg-red-600 px-3 py-2 text-white" onClick={() => aiAdvice.refetch()}>Retry analysis</button>
+    </div>}
+    {!isDemoMode && isNoStrongMatches && <div className="rounded border border-slate-300 bg-slate-50 p-4 text-sm text-slate-700">
+      <p className="font-semibold">No strong verified matches found yet</p>
+      <p>{aiAdvice.data?.message ?? 'We checked curated official sources but could not find strong verified matches for the current profile. Try widening your interests or updating your profile.'}</p>
+    </div>}
     {!isDemoMode && <>
       <div className="grid gap-3 md:grid-cols-3">
         <Card label="Sources used" value={analysedSources} />
         <Card label="Requested sources" value={sourceCoverage?.requestedSourcesCount ?? requestedSources} />
         <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
       </div>
-      {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-        <span className="font-semibold">Warning:</span> {aiAdvice.data.warningMessage}
+      {(isPartial || aiAdvice.data?.warningMessage) && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <span className="font-semibold">{isPartial ? 'Partial results:' : 'Warning:'}</span> {aiAdvice.data?.message ?? aiAdvice.data?.warningMessage}
       </div>}
-      {analysedSources === 0 && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
-        No public university sources were analysed for this response. Please verify every recommendation on official university pages.
+      {analysedSources === 0 && analysisStatus !== 'ERROR' && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+        No official institution sources were successfully analysed for this response. Please verify every recommendation on official pages.
       </div>}
       {aiAdvice.data?.suitabilityScoreReason && <div className="rounded border p-3 bg-slate-50 text-sm">
         <p><span className="font-semibold">Suitability explanation:</span> {aiAdvice.data.suitabilityScoreReason}</p>
         {!!aiAdvice.data.suitabilitySignalsUsed?.length && <p className="mt-2"><span className="font-semibold">Signals used:</span> {aiAdvice.data.suitabilitySignalsUsed.join(', ')}</p>}
         {!!aiAdvice.data.suitabilityScoreLimitations?.length && <p className="mt-2"><span className="font-semibold">What lowered the score:</span> {aiAdvice.data.suitabilityScoreLimitations.join(', ')}</p>}
       </div>}
-      {sourceCoverage && <div className="rounded border p-3 bg-white text-sm">
+      {(sourceCoverage || aiAdvice.data?.diagnostics) && <div className="rounded border p-3 bg-white text-sm">
         <h3 className="font-semibold mb-1">Source coverage</h3>
-        <p>Successful: {sourceCoverage.successfulSourcesCount} · Failed: {sourceCoverage.failedSourcesCount} · Partial: {sourceCoverage.partialSourcesCount}</p>
-        {!!sourceCoverage.universitiesWithUsableProgrammeData?.length && <p className="mt-1">Universities with usable programme data: {sourceCoverage.universitiesWithUsableProgrammeData.join(', ')}</p>}
+        {sourceCoverage ? <p>Successful: {sourceCoverage.successfulSourcesCount} · Failed: {sourceCoverage.failedSourcesCount} · Partial: {sourceCoverage.partialSourcesCount}</p> : null}
+        {!!sourceCoverage?.universitiesWithUsableProgrammeData?.length && <p className="mt-1">Institutions with usable programme data: {sourceCoverage.universitiesWithUsableProgrammeData.join(', ')}</p>}
+        {aiAdvice.data?.diagnostics ? <p className="mt-1 text-slate-600">Requested institutions: {aiAdvice.data.diagnostics.institutionsRequested} · Attempted: {aiAdvice.data.diagnostics.institutionsAttempted} · Succeeded: {aiAdvice.data.diagnostics.institutionsSucceeded} · Technical failures: {aiAdvice.data.diagnostics.technicalFailures} · Protected pages: {aiAdvice.data.diagnostics.protectedSources} · Timeouts: {aiAdvice.data.diagnostics.timeouts}</p> : null}
       </div>}
     </>}
 

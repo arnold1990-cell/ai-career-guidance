@@ -1,11 +1,13 @@
 package com.edurite.ai.university;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -31,20 +33,24 @@ public class UniversitySourceRegistryService {
 
     public List<String> getDefaultSources() {
         return getActiveUniversities().stream()
-                .flatMap(entry -> entry.getSeedUrls().stream())
+                .flatMap(entry -> entry.getAllEntryPoints().stream())
                 .map(urlNormalizer::normalize)
                 .filter(url -> !url.isBlank())
                 .distinct()
-                .limit(100)
+                .limit(150)
                 .toList();
     }
 
-    public boolean isAllowedUrl(String url) {
+    public Optional<UniversityRegistryProperties.UniversityRegistryEntry> findByUrl(String url) {
         String host = host(url);
         if (host == null) {
-            return false;
+            return Optional.empty();
         }
-        return properties.getRegistry().stream().anyMatch(university -> matchesAllowedDomain(host, university));
+        return getActiveUniversities().stream().filter(university -> matchesAllowedDomain(host, university)).findFirst();
+    }
+
+    public boolean isAllowedUrl(String url) {
+        return findByUrl(url).isPresent();
     }
 
     public boolean isAllowedUrlForUniversity(String universityName, String url) {
@@ -52,8 +58,9 @@ public class UniversitySourceRegistryService {
         if (host == null) {
             return false;
         }
-        return properties.getRegistry().stream()
-                .filter(university -> university.getUniversityName().equalsIgnoreCase(universityName))
+        return getActiveUniversities().stream()
+                .filter(university -> university.getUniversityName().equalsIgnoreCase(universityName)
+                        || university.getInstitutionKey().equalsIgnoreCase(universityName))
                 .anyMatch(university -> matchesAllowedDomain(host, university));
     }
 
@@ -70,6 +77,20 @@ public class UniversitySourceRegistryService {
 
     public int configuredUniversityCount() {
         return properties.getRegistry().size();
+    }
+
+    public int configuredInstitutionCount() {
+        return getActiveUniversities().size();
+    }
+
+    public String inferInstitutionName(String url) {
+        return findByUrl(url).map(UniversityRegistryProperties.UniversityRegistryEntry::getUniversityName).orElse("Institution Source");
+    }
+
+    public List<String> officialEntryPoints(UniversityRegistryProperties.UniversityRegistryEntry entry) {
+        List<String> entryPoints = new ArrayList<>();
+        entryPoints.addAll(entry.getAllEntryPoints());
+        return deduplicate(entryPoints);
     }
 
     private String host(String url) {
