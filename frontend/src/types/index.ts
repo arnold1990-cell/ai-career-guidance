@@ -134,6 +134,7 @@ export interface UniversitySourcesAnalysisResponse {
   aiLive: boolean;
   fallbackUsed: boolean;
   warningMessage?: string | null;
+  requestedSources?: string[];
   sourceUrls: string[];
   successfullyAnalysedUrls: string[];
   failedUrls: string[];
