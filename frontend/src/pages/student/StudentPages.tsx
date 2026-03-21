@@ -137,7 +137,13 @@ export const StudentCareerRecommendationsPage = () => {
   const aiAdviceDisplayMessage = aiAdviceError?.code === 'AI_CONFIG_MISSING'
     ? 'AI service is not configured on the server.'
     : aiAdviceErrorMessage || 'Unable to generate AI guidance right now. Please try again shortly.';
-  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={aiAdviceDisplayMessage} />;
+  if (!isDemoMode && aiAdvice.isError) return <Section title="AI Guidance">
+    <div className="rounded border border-rose-300 bg-rose-50 p-4 text-sm text-rose-900">
+      <p className="font-semibold">AI Guidance request failed.</p>
+      <p className="mt-1">{aiAdviceDisplayMessage}</p>
+      <Button className="mt-3" onClick={() => aiAdvice.refetch()}>Retry</Button>
+    </div>
+  </Section>;
 
   const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
   const careers = aiAdvice.data?.recommendedCareers ?? [];
@@ -149,9 +155,11 @@ export const StudentCareerRecommendationsPage = () => {
   const warnings = aiAdvice.data?.warnings ?? [];
   const sourceDiagnostics = aiAdvice.data?.sourceDiagnostics ?? [];
   const sourceCoverage = aiAdvice.data?.sourceCoverage;
-  const backendMode = aiAdvice.data?.mode ?? (aiAdvice.data?.fallbackUsed ? 'FALLBACK' : aiAdvice.data?.aiLive ? 'LIVE' : 'UNAVAILABLE');
+  const responseStatus = aiAdvice.data?.status ?? 'SUCCESS';
+  const backendMode = aiAdvice.data?.mode ?? (aiAdvice.data?.fallbackUsed ? 'PARTIAL' : aiAdvice.data?.aiLive ? 'LIVE' : 'UNAVAILABLE');
   const requestedSources = aiAdvice.data?.sourceCoverage?.requestedSourcesCount ?? aiAdvice.data?.requestedSources?.length ?? aiAdvice.data?.sourceUrls?.length ?? 0;
   const analysedSources = aiAdvice.data?.totalSourcesUsed ?? 0;
+  const responseMessage = aiAdvice.data?.message ?? aiAdvice.data?.warningMessage ?? null;
 
   const renderSimpleList = (items: string[], emptyText: string) => {
     if (items.length === 0) {
@@ -208,14 +216,20 @@ export const StudentCareerRecommendationsPage = () => {
     <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : backendMode}</p>
     {isSearching ? <LoadingState message="Searching for guidance results..." detail="Please wait while we analyse your profile and university sources." /> : null}
     {!isDemoMode && <>
+      {!isSearching && responseStatus === 'ERROR' && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+        <p className="font-semibold">AI Guidance is currently unavailable.</p>
+        <p>{responseMessage ?? 'The backend reported an error instead of valid guidance results.'}</p>
+        <Button className="mt-3" onClick={() => aiAdvice.refetch()}>Retry</Button>
+      </div>}
+      {!isSearching && responseStatus === 'PARTIAL' && <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
+        <p className="font-semibold">Partial results returned.</p>
+        <p>{responseMessage ?? 'EduRite continued with the sources that completed successfully.'}</p>
+      </div>}
       <div className="grid gap-3 md:grid-cols-3">
         <Card label="Sources used" value={analysedSources} />
         <Card label="Requested sources" value={sourceCoverage?.requestedSourcesCount ?? requestedSources} />
         <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
       </div>
-      {backendMode === 'PARTIAL' && <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-        EduRite analysed some official university sources successfully and returned partial results while other sources failed.
-      </div>}
       {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
         <span className="font-semibold">Warning:</span> {aiAdvice.data.warningMessage}
       </div>}

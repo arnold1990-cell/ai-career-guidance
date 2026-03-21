@@ -24,9 +24,11 @@ class UniversityGuidanceResultEnricherTest {
 
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(List.of(), "Computer Science", "Software Developer", "Undergraduate", 5);
         UniversitySourcesAnalysisResponse response = new UniversitySourcesAnalysisResponse(
+                "PARTIAL",
                 true,
                 false,
-                "live Gemini",
+                "PARTIAL",
+                "EduRite returned partial guidance using the university sources that completed in time.",
                 "PARTIALLY_GROUNDED",
                 50,
                 null,

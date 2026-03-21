@@ -549,9 +549,11 @@ public class GeminiService {
         List<String> minimumRequirements = enforceMinimumRequirements(defaultList(parsed.minimumRequirements), parsed);
         List<String> keyRequirements = mergeKeyAndMinimumRequirements(defaultList(parsed.keyRequirements), minimumRequirements);
         return new UniversitySourcesAnalysisResponse(
+                "SUCCESS",
                 true,
                 false,
-                "live Gemini",
+                "LIVE",
+                "EduRite analysed live university sources successfully.",
                 resolveGroundingStatus(successUrls, failedUrls, sourceUrls),
                 calculateEvidenceCoverage(sourceUrls, successUrls),
                 null,
@@ -660,9 +662,11 @@ public class GeminiService {
             warnings.add("Some sources failed to load and were skipped.");
         }
         return new UniversitySourcesAnalysisResponse(
+                failedUrls.isEmpty() ? response.status() : "PARTIAL",
                 response.aiLive(),
                 response.fallbackUsed(),
                 response.mode(),
+                response.message(),
                 response.groundingStatus(),
                 response.evidenceCoverage(),
                 response.warningMessage(),
@@ -698,9 +702,11 @@ public class GeminiService {
         warnings.addAll(runtimeWarnings);
 
         return new UniversitySourcesAnalysisResponse(
-                true,
-                false,
+                response.status(),
+                response.aiLive(),
+                response.fallbackUsed(),
                 response.mode(),
+                response.message(),
                 response.groundingStatus(),
                 response.evidenceCoverage(),
                 runtimeWarnings.get(0),
@@ -747,9 +753,11 @@ public class GeminiService {
     ) {
         int max = request.safeMaxRecommendations();
         return new UniversitySourcesAnalysisResponse(
+                "PARTIAL",
                 false,
                 true,
-                "fallback recommendations",
+                "PARTIAL",
+                "Live Gemini guidance was unavailable, so EduRite returned resilient profile-based recommendations.",
                 resolveGroundingStatus(successUrls, failedUrls, sourceUrls),
                 calculateEvidenceCoverage(sourceUrls, successUrls),
                 "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",

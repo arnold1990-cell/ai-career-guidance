@@ -42,6 +42,7 @@ public class UniversityRegistryProperties {
         private int maxCrawlDepth = 1;
         private int timeoutMs = 8_000;
         private int maxFetchRetries = 3;
+        private int maxUniversitiesPerRequest = 4;
 
         public List<String> getCandidatePaths() {
             return candidatePaths;
@@ -89,6 +90,14 @@ public class UniversityRegistryProperties {
 
         public void setMaxFetchRetries(int maxFetchRetries) {
             this.maxFetchRetries = maxFetchRetries;
+        }
+
+        public int getMaxUniversitiesPerRequest() {
+            return maxUniversitiesPerRequest;
+        }
+
+        public void setMaxUniversitiesPerRequest(int maxUniversitiesPerRequest) {
+            this.maxUniversitiesPerRequest = maxUniversitiesPerRequest;
         }
     }
 

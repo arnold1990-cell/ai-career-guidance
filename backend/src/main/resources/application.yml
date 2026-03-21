@@ -46,8 +46,9 @@ edurite:
       cron: "0 0 2 * * *"
       timeout-ms: 8000
       max-fetch-retries: 3
+      max-universities-per-request: 4
       max-discovered-candidates-per-university: 60
-      max-fetched-pages-per-university: 30
+      max-fetched-pages-per-university: 12
       max-crawl-depth: 1
       candidate-paths:
         - "/programmes"
