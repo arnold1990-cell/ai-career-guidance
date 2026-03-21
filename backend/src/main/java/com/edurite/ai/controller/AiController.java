@@ -93,7 +93,7 @@ public class AiController {
     }
 
     @PostMapping("/analyse-university-sources")
-    public ResponseEntity<?> analyseUniversitySources(@Valid @RequestBody UniversitySourcesAnalysisRequest request,
+    public ResponseEntity<UniversitySourcesAnalysisResponse> analyseUniversitySources(@Valid @RequestBody UniversitySourcesAnalysisRequest request,
                                                       Principal principal,
                                                       HttpServletRequest httpRequest) {
         log.info("University analysis request received: path={}, usesDefaultSources={}, requestedUrls={}, targetProgramPresent={}, careerInterestPresent={}, qualificationLevel={}",
@@ -107,11 +107,78 @@ public class AiController {
             UniversitySourcesAnalysisResponse response = universitySourcesGuidanceService.analyse(principal, request);
             return ResponseEntity.ok(response);
         } catch (AiServiceException ex) {
-            return errorResponse(httpRequest, ex);
+            log.warn("University analysis request failed with controlled AI exception: code={}, message={}", ex.getErrorCode(), ex.getMessage(), ex);
+            return ResponseEntity.ok(new UniversitySourcesAnalysisResponse(
+                    "ERROR",
+                    false,
+                    true,
+                    "UNAVAILABLE",
+                    ex.getUserMessage(),
+                    "ERROR",
+                    0,
+                    ex.getUserMessage(),
+                    request.urls() == null ? List.of() : request.urls(),
+                    request.urls() == null ? List.of() : request.urls(),
+                    List.of(),
+                    List.of(),
+                    0,
+                    "AI guidance could not be completed.",
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(ex.getUserMessage()),
+                    0,
+                    "unavailable",
+                    null,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    null,
+                    null
+            ));
         } catch (RuntimeException ex) {
             log.error("University analysis request crashed before a controlled response was returned: path={}, message={}",
                     httpRequest.getRequestURI(), ex.getMessage(), ex);
-            return unexpectedErrorResponse(httpRequest);
+            return ResponseEntity.ok(new UniversitySourcesAnalysisResponse(
+                    "ERROR",
+                    false,
+                    true,
+                    "UNAVAILABLE",
+                    "University source analysis could not be completed. Please try again shortly.",
+                    "ERROR",
+                    0,
+                    "University source analysis could not be completed. Please try again shortly.",
+                    request.urls() == null ? List.of() : request.urls(),
+                    request.urls() == null ? List.of() : request.urls(),
+                    List.of(),
+                    List.of(),
+                    0,
+                    "AI guidance could not be completed.",
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of("Unexpected university analysis failure"),
+                    0,
+                    "unavailable",
+                    null,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    null,
+                    null
+            ));
         }
     }
 

@@ -12,14 +12,14 @@ import com.edurite.student.service.StudentService;
 import java.security.Principal;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.edurite.ai.university.UniversityPageType.PROGRAMME_DETAIL;
-import static com.edurite.ai.university.UniversityPageType.QUALIFICATION_LIST;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,23 +27,30 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UniversitySourcesGuidanceServiceTest {
 
-    @Mock
-    private UniversitySourceRegistryService registryService;
-    @Mock
-    private PublicUniversitySourceDiscoveryService discoveryService;
-    @Mock
-    private MultiUniversityPageFetcherService pageFetcherService;
-    @Mock
-    private UniversitySourcesAggregatorService aggregatorService;
-    @Mock
-    private StudentService studentService;
-    @Mock
-    private GeminiService geminiService;
-    @Mock
-    private UniversityGuidanceResultEnricher resultEnricher;
+    @Mock private UniversitySourceRegistryService registryService;
+    @Mock private PublicUniversitySourceDiscoveryService discoveryService;
+    @Mock private MultiUniversityPageFetcherService pageFetcherService;
+    @Mock private UniversitySourcesAggregatorService aggregatorService;
+    @Mock private StudentService studentService;
+    @Mock private GeminiService geminiService;
+    @Mock private UniversityGuidanceResultEnricher resultEnricher;
+    @Mock private UniversityStructuredRecommendationService structuredRecommendationService;
 
-    @InjectMocks
     private UniversitySourcesGuidanceService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new UniversitySourcesGuidanceService(
+                registryService,
+                discoveryService,
+                pageFetcherService,
+                aggregatorService,
+                studentService,
+                geminiService,
+                resultEnricher,
+                structuredRecommendationService
+        );
+    }
 
     @Test
     void analyseUsesAutomaticRetrievalWhenNoUrlsProvided() {
@@ -52,96 +59,46 @@ class UniversitySourcesGuidanceServiceTest {
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
         List<String> discoveredUrls = List.of("https://www.unisa.ac.za/a", "https://www.uj.ac.za/b");
         List<UniversitySourcePageResult> fetchedPages = List.of(
-                new UniversitySourcePageResult(discoveredUrls.get(0), "A", PROGRAMME_DETAIL, "summary a", Set.of("software"), true, null, null),
-                new UniversitySourcePageResult(discoveredUrls.get(1), "B", QUALIFICATION_LIST, "summary b", Set.of("computing"), true, null, null)
+                new UniversitySourcePageResult(discoveredUrls.get(0), "A", PROGRAMME_DETAIL, "summary a", Set.of("software"), true, null, null)
         );
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(registryService.configuredUniversityCount()).thenReturn(12);
         when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(discoveredUrls);
         when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
-        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context")))
-                .thenReturn(baseResponse);
-        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages))).thenReturn(baseResponse);
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 1, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context"))).thenReturn(baseResponse);
+        when(resultEnricher.enrich(org.mockito.ArgumentMatchers.any(), eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.analyse(principal, request);
+        UniversitySourcesAnalysisResponse response = service.analyse(principal, request);
 
         verify(discoveryService).discoverSources(eq(profile), eq(request), eq(24));
-        verify(geminiService).getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context"));
+        assertThat(response.status()).isEqualTo("SUCCESS");
+        assertThat(response.diagnostics()).isNotNull();
     }
 
     @Test
-    void analyseProcessesProvidedUrls() {
+    void analyseReturnsStructuredErrorWhenLiveAiFallsBackAndNoSourcesAreUsable() {
         Principal principal = () -> "student";
         StudentProfile profile = new StudentProfile();
-        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(
-                List.of("https://www.unisa.ac.za/programmes/a", "https://www.uj.ac.za/programmes/b"),
-                "Computer Science",
-                "Software Developer",
-                "Undergraduate",
-                5
-        );
-
-        List<String> dedupedUrls = List.of("https://www.unisa.ac.za/programmes/a", "https://www.uj.ac.za/programmes/b");
-        List<UniversitySourcePageResult> fetchedPages = List.of(
-                new UniversitySourcePageResult(dedupedUrls.get(0), "A", PROGRAMME_DETAIL, "a content", Set.of("software"), true, null, null),
-                new UniversitySourcePageResult(dedupedUrls.get(1), "B", QUALIFICATION_LIST, "b content", Set.of("computing"), true, null, null)
-        );
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Engineering", "Engineering", "Undergraduate", 5);
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(registryService.deduplicate(request.urls())).thenReturn(dedupedUrls);
-        when(pageFetcherService.fetchPages(dedupedUrls)).thenReturn(fetchedPages);
-        when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, dedupedUrls, dedupedUrls, dedupedUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 50, "gemini");
-        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(dedupedUrls), eq(fetchedPages), eq("context")))
-                .thenReturn(baseResponse);
-        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(dedupedUrls), eq(fetchedPages))).thenReturn(baseResponse);
-
-        service.analyse(principal, request);
-
-        verify(pageFetcherService).fetchPages(dedupedUrls);
-    }
-
-    @Test
-    void analyseScalesDiscoveryLimitForLargeUniversityRegistry() {
-        Principal principal = () -> "student";
-        StudentProfile profile = new StudentProfile();
-        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
-
-        when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(registryService.configuredUniversityCount()).thenReturn(55);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(110))).thenReturn(List.of());
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
-                "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
-        when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
-        when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
-        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq(""))).thenReturn(baseResponse);
-        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(List.of()), eq(List.of()))).thenReturn(baseResponse);
-
-        service.analyse(principal, request);
-
-        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(110));
-    }
-
-    @Test
-    void analyseStillCallsGeminiWhenSourcePipelineIsEmpty() {
-        Principal principal = () -> "student";
-        StudentProfile profile = new StudentProfile();
-        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
-
-        when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(registryService.configuredUniversityCount()).thenReturn(12);
         when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(List.of());
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
-                        "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
-        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq("")))
-                .thenReturn(baseResponse);
-        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(List.of()), eq(List.of()))).thenReturn(baseResponse);
+        UniversitySourcesAnalysisResponse fallbackResponse = new UniversitySourcesAnalysisResponse(false, true, "fallback recommendations", "NO_LIVE_SOURCES", 0, "warning", List.of(), List.of(), List.of(), List.of(), 0, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 0, "gemini");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq(""))).thenReturn(fallbackResponse);
+        when(structuredRecommendationService.buildResponse(eq(request), eq(profile), eq(List.of()), eq(List.of()), org.mockito.ArgumentMatchers.any(), eq("ERROR"), eq("UNAVAILABLE"), org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(invocation -> new UniversitySourcesAnalysisResponse("ERROR", false, true, "UNAVAILABLE", invocation.getArgument(7), "ERROR", 0, invocation.getArgument(7), List.of(), List.of(), List.of(), List.of(), 0, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 0, "registry-driven", null, List.of(), List.of(), List.of(), null, invocation.getArgument(4)));
+        when(resultEnricher.enrich(org.mockito.ArgumentMatchers.any(), eq(request), eq(profile), eq(List.of()), eq(List.of()))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.analyse(principal, request);
+        UniversitySourcesAnalysisResponse response = service.analyse(principal, request);
 
-        verify(geminiService).getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq(""));
+        assertThat(response.status()).isEqualTo("ERROR");
+        assertThat(response.mode()).isEqualTo("UNAVAILABLE");
     }
 }

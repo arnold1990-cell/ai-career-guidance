@@ -32,9 +32,11 @@ public class UniversityGuidanceResultEnricher {
         List<String> scoreLimitations = buildScoreLimitations(programmes, safePages);
 
         return new UniversitySourcesAnalysisResponse(
+                response.status(),
                 response.aiLive(),
                 response.fallbackUsed(),
                 response.mode(),
+                response.message(),
                 response.groundingStatus(),
                 response.evidenceCoverage(),
                 response.warningMessage(),
@@ -60,7 +62,8 @@ public class UniversityGuidanceResultEnricher {
                 scoreSignals,
                 scoreLimitations,
                 sourceDiagnostics,
-                sourceCoverage
+                sourceCoverage,
+                response.diagnostics()
         );
     }
 

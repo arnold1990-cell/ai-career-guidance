@@ -3,9 +3,11 @@ package com.edurite.ai.dto;
 import java.util.List;
 
 public record UniversitySourcesAnalysisResponse(
+        String status,
         Boolean aiLive,
         Boolean fallbackUsed,
         String mode,
+        String message,
         String groundingStatus,
         Integer evidenceCoverage,
         String warningMessage,
@@ -31,7 +33,8 @@ public record UniversitySourcesAnalysisResponse(
         List<String> suitabilitySignalsUsed,
         List<String> suitabilityScoreLimitations,
         List<SourceDiagnostic> sourceDiagnostics,
-        SourceCoverage sourceCoverage
+        SourceCoverage sourceCoverage,
+        AnalysisDiagnostics diagnostics
 ) {
 
     public UniversitySourcesAnalysisResponse(
@@ -60,7 +63,7 @@ public record UniversitySourcesAnalysisResponse(
             Integer suitabilityScore,
             String rawModelUsed
     ) {
-        this(aiLive, fallbackUsed, mode, groundingStatus, evidenceCoverage, warningMessage, requestedSources, sourceUrls, successfullyAnalysedUrls, failedUrls, totalSourcesUsed, summary, inferredGuidance, recommendedCareers, recommendedProgrammes, bursarySuggestions, recommendedUniversities, minimumRequirements, keyRequirements, skillGaps, recommendedNextSteps, warnings, suitabilityScore, rawModelUsed, null, List.of(), List.of(), List.of(), null);
+        this("SUCCESS", aiLive, fallbackUsed, mode, null, groundingStatus, evidenceCoverage, warningMessage, requestedSources, sourceUrls, successfullyAnalysedUrls, failedUrls, totalSourcesUsed, summary, inferredGuidance, recommendedCareers, recommendedProgrammes, bursarySuggestions, recommendedUniversities, minimumRequirements, keyRequirements, skillGaps, recommendedNextSteps, warnings, suitabilityScore, rawModelUsed, null, List.of(), List.of(), List.of(), null, null);
     }
 
     public record RecommendedCareer(
@@ -117,6 +120,22 @@ public record UniversitySourcesAnalysisResponse(
             String failureReason,
             String university,
             boolean usableProgrammeData
+    ) {
+    }
+
+
+
+    public record AnalysisDiagnostics(
+            Integer institutionsRequested,
+            Integer institutionsAttempted,
+            Integer institutionsSucceeded,
+            Integer usableSources,
+            Integer rejectedSources,
+            Integer technicalFailures,
+            Integer protectedSources,
+            Integer timeouts,
+            Long crawlerDurationMs,
+            Long aiAnalysisDurationMs
     ) {
     }
 

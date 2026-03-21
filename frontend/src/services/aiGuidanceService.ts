@@ -12,6 +12,9 @@ const demoModeEnabled = import.meta.env.VITE_AI_GUIDANCE_DEMO_MODE === 'true';
 
 const normalizeUniversityResponse = (payload: UniversitySourcesAnalysisResponse): UniversitySourcesAnalysisResponse => ({
   ...payload,
+  status: payload.status ?? "ERROR",
+  mode: payload.mode ?? (payload.status === "ERROR" ? "UNAVAILABLE" : "PARTIAL"),
+  message: payload.message ?? payload.warningMessage ?? null,
   sourceUrls: payload.sourceUrls ?? payload.requestedSources ?? [],
   successfullyAnalysedUrls: payload.successfullyAnalysedUrls ?? [],
   failedUrls: payload.failedUrls ?? [],
@@ -26,6 +29,7 @@ const normalizeUniversityResponse = (payload: UniversitySourcesAnalysisResponse)
   suitabilitySignalsUsed: payload.suitabilitySignalsUsed ?? [],
   suitabilityScoreLimitations: payload.suitabilityScoreLimitations ?? [],
   sourceDiagnostics: payload.sourceDiagnostics ?? [],
+  diagnostics: payload.diagnostics ?? null,
 });
 
 export const aiGuidanceService = {
