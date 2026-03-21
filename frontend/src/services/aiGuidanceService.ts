@@ -9,12 +9,31 @@ import type {
 
 const demoModeEnabled = import.meta.env.VITE_AI_GUIDANCE_DEMO_MODE === 'true';
 
+
+const normalizeUniversityResponse = (payload: UniversitySourcesAnalysisResponse): UniversitySourcesAnalysisResponse => ({
+  ...payload,
+  sourceUrls: payload.sourceUrls ?? payload.requestedSources ?? [],
+  successfullyAnalysedUrls: payload.successfullyAnalysedUrls ?? [],
+  failedUrls: payload.failedUrls ?? [],
+  recommendedCareers: payload.recommendedCareers ?? [],
+  recommendedProgrammes: payload.recommendedProgrammes ?? [],
+  recommendedUniversities: payload.recommendedUniversities ?? [],
+  minimumRequirements: payload.minimumRequirements ?? [],
+  keyRequirements: payload.keyRequirements ?? [],
+  skillGaps: payload.skillGaps ?? [],
+  recommendedNextSteps: payload.recommendedNextSteps ?? [],
+  warnings: payload.warnings ?? [],
+  suitabilitySignalsUsed: payload.suitabilitySignalsUsed ?? [],
+  suitabilityScoreLimitations: payload.suitabilityScoreLimitations ?? [],
+  sourceDiagnostics: payload.sourceDiagnostics ?? [],
+});
+
 export const aiGuidanceService = {
   demoModeEnabled,
   getCareerAdvice: (payload: CareerAdviceRequest) =>
     apiClient.post<CareerAdviceResponse>('/ai/career-advice', payload).then((r) => r.data),
   analyseUniversitySources: (payload: UniversitySourcesAnalysisRequest) =>
-    apiClient.post<UniversitySourcesAnalysisResponse>('/ai/analyse-university-sources', payload).then((r) => r.data),
+    apiClient.post<UniversitySourcesAnalysisResponse>('/ai/analyse-university-sources', payload).then((r) => normalizeUniversityResponse(r.data)),
   getDefaultUniversitySources: () =>
     apiClient.get<string[]>('/ai/default-university-sources').then((r) => r.data),
   getDemoGuidance: () => apiClient.get<Recommendation>('/recommendations/me').then((r) => r.data),

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppQuery } from '@/hooks/useAppQuery';
 import { studentService } from '@/services/studentService';
+import { keepPreviousData } from '@tanstack/react-query';
 import { recommendationService } from '@/services/recommendationService';
 import { aiGuidanceService } from '@/services/aiGuidanceService';
 import { bursaryService } from '@/services/bursaryService';
@@ -115,6 +116,7 @@ export const StudentCareerRecommendationsPage = () => {
       maxRecommendations: 10,
     }),
     retry: false,
+    placeholderData: keepPreviousData,
   });
 
   const demoAdvice = useAppQuery({
@@ -123,10 +125,11 @@ export const StudentCareerRecommendationsPage = () => {
     queryFn: aiGuidanceService.getDemoGuidance,
   });
 
-  if (profile.isLoading || aiAdvice.isLoading || demoAdvice.isLoading || defaultSources.isLoading) return <LoadingState message="Generating AI guidance..." />;
+  if (profile.isLoading || demoAdvice.isLoading) return <LoadingState message="Generating AI guidance..." detail="We are matching your profile with the best-fit careers and programmes." />;
   if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
 
   const isDemoMode = aiGuidanceService.demoModeEnabled;
+  const isSearching = !isDemoMode && (aiAdvice.isLoading || aiAdvice.isFetching || defaultSources.isLoading || defaultSources.isFetching);
   if (!isDemoMode && profileReadinessMessage) return <ErrorState message={profileReadinessMessage} />;
 
   const aiAdviceErrorMessage = (aiAdvice.error as ApiError | null)?.message;
@@ -199,6 +202,7 @@ export const StudentCareerRecommendationsPage = () => {
 
   return <Section title="AI Guidance">
     <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : backendMode}</p>
+    {isSearching ? <LoadingState message="Searching for guidance results..." detail="Please wait while we analyse your profile and university sources." /> : null}
     {!isDemoMode && <>
       <div className="grid gap-3 md:grid-cols-3">
         <Card label="Sources used" value={analysedSources} />
