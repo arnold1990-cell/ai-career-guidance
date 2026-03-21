@@ -56,7 +56,16 @@ public class UniversitySourcesGuidanceService {
         StudentProfile profile = studentService.getProfileEntity(principal);
 
         int registrySize = registryService.configuredUniversityCount();
-        int activeInstitutions = registryService.getActiveUniversities().size();
+        List<com.edurite.ai.university.UniversityRegistryProperties.UniversityRegistryEntry> activeUniversityEntries = registryService.getActiveUniversities();
+        int activeInstitutions = activeUniversityEntries.size();
+        log.info("University analysis profile loaded: principalPresent={}, location={}, qualificationLevel={}, interests={}, skills={}, targetProgram={}, careerInterest={}",
+                principal != null,
+                sanitize(profile.getLocation()),
+                sanitize(profile.getQualificationLevel()),
+                sanitize(profile.getInterests()),
+                sanitize(profile.getSkills()),
+                sanitize(request.targetProgram()),
+                sanitize(request.careerInterest()));
         int targetSourceLimit = request.usesDefaultSources()
                 ? Math.min(Math.max(registrySize * 2, 24), 120)
                 : Math.min(Math.max(registrySize * 2, 40), 150);
@@ -67,11 +76,22 @@ public class UniversitySourcesGuidanceService {
                 request.usesDefaultSources(),
                 request.urls() == null ? 0 : request.urls().size(),
                 targetSourceLimit);
+        if (activeInstitutions > 0) {
+            long institutionsWithCuratedSources = activeUniversityEntries.stream()
+                    .filter(entry -> !registryService.curatedSourcesFor(entry, 8).isEmpty())
+                    .count();
+            log.info("University registry filtering completed: institutionsLoaded={}, institutionsWithCuratedOfficialSources={}",
+                    activeInstitutions, institutionsWithCuratedSources);
+        }
 
         List<String> urls = resolveUrls(profile, request, targetSourceLimit);
         List<UniversitySourcePageResult> fetchedPages = fetchPagesSafely(urls, request.usesDefaultSources());
         String combinedContext = buildCombinedContextSafely(fetchedPages, profile, request);
+        log.info("Gemini analysis starting: requestedSources={}, successfulFetchedPages={}, combinedContextLength={}",
+                urls.size(), fetchedPages.stream().filter(UniversitySourcePageResult::success).count(), combinedContext.length());
         UniversitySourcesAnalysisResponse baseResponse = geminiService.getUniversitySourcesAdvice(request, profile, urls, fetchedPages, combinedContext);
+        log.info("Gemini analysis completed: fallbackUsed={}, returnedMode={}, returnedStatus={}",
+                baseResponse.fallbackUsed(), baseResponse.mode(), baseResponse.status());
         UniversitySourcesAnalysisResponse response = enrichSafely(baseResponse, request, profile, urls, fetchedPages);
         response = applyPipelineStatus(response, urls, fetchedPages);
 
@@ -101,8 +121,8 @@ public class UniversitySourcesGuidanceService {
                 log.warn("University source discovery returned zero URLs; using registry fallback sources: requestedByDefaultSources={}, fallbackUrls={}",
                         request.usesDefaultSources(), urls.size());
             }
-            log.info("University source discovery completed: requestedByDefaultSources={}, discoveredUrlCount={}, registryFallbackUsed={}",
-                    request.usesDefaultSources(), urls.size(), request.usesDefaultSources() && !urls.isEmpty());
+            log.info("University source discovery completed: requestedByDefaultSources={}, discoveredUrlCount={}, sampleDiscoveredUrls={}, registryFallbackUsed={}",
+                    request.usesDefaultSources(), urls.size(), urls.stream().limit(3).toList(), !urls.isEmpty());
             return urls;
         } catch (RuntimeException ex) {
             List<String> fallbackUrls = registryService.getFallbackSources(targetSourceLimit);
@@ -192,9 +212,9 @@ public class UniversitySourcesGuidanceService {
         } else if (hasSuccessfulSources) {
             mode = response.fallbackUsed() ? "FALLBACK" : "LIVE";
         } else if (hasRequestedSources) {
-            mode = response.fallbackUsed() ? "PARTIAL" : "UNAVAILABLE";
+            mode = "PARTIAL";
             warningMessage = mergeWarning(warningMessage,
-                    "University sources were requested, but no official pages could be analysed successfully. Returning the best available profile-based guidance.");
+                    "University sources were requested, but no official pages could be analysed successfully. EduRite kept the official source list and returned the best available profile-based guidance instead of failing completely.");
         } else {
             mode = "UNAVAILABLE";
         }
@@ -252,7 +272,7 @@ public class UniversitySourcesGuidanceService {
         if ("LIVE".equalsIgnoreCase(mode) || "FALLBACK".equalsIgnoreCase(mode)) {
             return "SUCCESS";
         }
-        return "ERROR";
+        return hasRequestedSources ? "PARTIAL" : "ERROR";
     }
 
     private List<UniversitySourcePageResult> buildFailedFetchResults(List<String> urls, String failureReason) {
@@ -277,5 +297,9 @@ public class UniversitySourcesGuidanceService {
 
     public List<String> getDefaultSources() {
         return registryService.getDefaultSources();
+    }
+
+    private String sanitize(String value) {
+        return value == null || value.isBlank() ? "" : value.trim();
     }
 }

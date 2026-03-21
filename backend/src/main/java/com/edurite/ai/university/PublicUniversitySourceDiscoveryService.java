@@ -45,21 +45,27 @@ public class PublicUniversitySourceDiscoveryService {
     public List<String> discoverSources(StudentProfile profile, UniversitySourcesAnalysisRequest request, int maxUrls) {
         List<UniversityRegistryProperties.UniversityRegistryEntry> rankedUniversities = rankedUniversities(profile, request);
         Set<String> discovered = new LinkedHashSet<>();
-        log.info("University source discovery starting: registrySize={}, rankedUniversities={}, requestedSources={}, usesDefaultSources={}",
-                registryService.configuredUniversityCount(), rankedUniversities.size(), maxUrls, request.usesDefaultSources());
+        log.info("University source discovery starting: registrySize={}, rankedUniversities={}, requestedSources={}, usesDefaultSources={}, profileLocation={}, qualificationLevel={}, targetProgramPresent={}, careerInterestPresent={}",
+                registryService.configuredUniversityCount(), rankedUniversities.size(), maxUrls, request.usesDefaultSources(),
+                compact(profile.getLocation()), compact(request.qualificationLevel()),
+                request.targetProgram() != null && !request.targetProgram().isBlank(),
+                request.careerInterest() != null && !request.careerInterest().isBlank());
 
         for (UniversityRegistryProperties.UniversityRegistryEntry university : rankedUniversities) {
-            discovered.addAll(university.getSeedUrls());
+            List<String> curatedUrls = registryService.curatedSourcesFor(university, Math.max(6, Math.min(maxUrls, 12)));
+            discovered.addAll(curatedUrls);
             List<String> candidateUrls = pageFetcherService.discoverCandidateUrls(university, Math.max(4, maxUrls / 2));
             if (candidateUrls.isEmpty()) {
-                candidateUrls = fallbackToHomepages(university);
-                log.warn("University discovery produced no crawler candidates; using homepage fallback: university={}, fallbackUrls={}",
+                candidateUrls = curatedUrls.isEmpty() ? fallbackToHomepages(university) : curatedUrls;
+                log.warn("University discovery produced no crawler candidates; using curated official fallback: university={}, fallbackUrls={}",
                         university.getUniversityName(), candidateUrls.size());
             }
             discovered.addAll(candidateUrls);
             if (discovered.size() < maxUrls) {
                 discovered.addAll(searchOfficialPages(university, request, profile, maxUrls - discovered.size()));
             }
+            log.info("University discovery stage: university={}, curatedUrls={}, candidateUrls={}, discoveredSoFar={}",
+                    university.getUniversityName(), curatedUrls.size(), candidateUrls.size(), discovered.size());
             if (discovered.size() >= maxUrls) {
                 break;
             }

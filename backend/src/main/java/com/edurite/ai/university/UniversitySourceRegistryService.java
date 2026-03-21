@@ -2,6 +2,7 @@ package com.edurite.ai.university;
 
 import jakarta.annotation.PostConstruct;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,15 +30,21 @@ public class UniversitySourceRegistryService {
     @PostConstruct
     void logRegistryStatus() {
         int configured = configuredUniversityCount();
-        int active = getActiveUniversities().size();
-        long seedUrls = getActiveUniversities().stream()
+        List<UniversityRegistryProperties.UniversityRegistryEntry> activeUniversities = getActiveUniversities();
+        long seedUrls = activeUniversities.stream()
                 .map(UniversityRegistryProperties.UniversityRegistryEntry::getSeedUrls)
                 .filter(Objects::nonNull)
                 .mapToLong(List::size)
                 .sum();
-        log.info("University registry initialised: configuredUniversities={}, activeUniversities={}, seedUrls={}", configured, active, seedUrls);
-        if (active == 0) {
+        long curatedUrls = activeUniversities.stream()
+                .mapToLong(university -> curatedSourcesFor(university, 32).size())
+                .sum();
+        log.info("University registry initialised: configuredUniversities={}, activeUniversities={}, seedUrls={}, curatedOfficialUrls={}",
+                configured, activeUniversities.size(), seedUrls, curatedUrls);
+        if (activeUniversities.isEmpty()) {
             log.error("University registry is empty or all entries are inactive. University AI guidance cannot discover official sources until configuration is fixed.");
+        } else if (curatedUrls == 0) {
+            log.error("University registry loaded institutions but none expose curated official URLs. Requested sources would remain zero until registry seed URLs or candidate paths are fixed.");
         }
     }
 
@@ -50,33 +57,46 @@ public class UniversitySourceRegistryService {
     }
 
     public List<String> getDefaultSources() {
-        List<String> defaultSources = getActiveUniversities().stream()
-                .flatMap(entry -> entry.getSeedUrls().stream())
-                .map(urlNormalizer::normalize)
-                .filter(url -> !url.isBlank())
-                .distinct()
-                .limit(100)
-                .toList();
-        if (defaultSources.isEmpty()) {
-            log.warn("University registry returned zero default sources: configuredUniversities={}, activeUniversities={}",
-                    configuredUniversityCount(), getActiveUniversities().size());
-        }
-        return defaultSources;
+        return getFallbackSources(100);
     }
 
     public List<String> getFallbackSources(int maxUrls) {
         int limit = Math.max(1, maxUrls);
         List<String> fallbackSources = getActiveUniversities().stream()
-                .flatMap(entry -> entry.getSeedUrls().stream())
-                .map(urlNormalizer::normalize)
-                .filter(url -> !url.isBlank())
+                .flatMap(entry -> curatedSourcesFor(entry, limit).stream())
                 .distinct()
                 .limit(limit)
                 .toList();
         if (fallbackSources.isEmpty()) {
-            log.warn("University registry fallback sources are empty: limit={}, configuredUniversities={}", limit, configuredUniversityCount());
+            log.warn("University registry fallback sources are empty: limit={}, configuredUniversities={}, activeUniversities={}",
+                    limit, configuredUniversityCount(), getActiveUniversities().size());
         }
         return fallbackSources;
+    }
+
+    public List<String> curatedSourcesFor(UniversityRegistryProperties.UniversityRegistryEntry university, int maxUrls) {
+        if (university == null) {
+            return List.of();
+        }
+        int limit = Math.max(1, maxUrls);
+        LinkedHashSet<String> curated = new LinkedHashSet<>();
+        List<String> seedUrls = university.getSeedUrls() == null ? List.of() : university.getSeedUrls();
+        for (String seedUrl : seedUrls) {
+            String normalizedSeed = urlNormalizer.normalize(seedUrl);
+            if (normalizedSeed.isBlank() || !isAllowedUrlForUniversity(university.getUniversityName(), normalizedSeed)) {
+                continue;
+            }
+            curated.add(normalizedSeed);
+            curated.addAll(buildOfficialEntryPoints(university, normalizedSeed));
+            if (curated.size() >= limit) {
+                break;
+            }
+        }
+        if (curated.isEmpty()) {
+            log.warn("University registry entry has no curated official sources after normalization: university={}, seedUrls={}",
+                    university.getUniversityName(), seedUrls.size());
+        }
+        return curated.stream().limit(limit).toList();
     }
 
     public boolean isAllowedUrl(String url) {
@@ -110,6 +130,56 @@ public class UniversitySourceRegistryService {
 
     public int configuredUniversityCount() {
         return properties.getRegistry().size();
+    }
+
+    private List<String> buildOfficialEntryPoints(UniversityRegistryProperties.UniversityRegistryEntry university, String normalizedSeedUrl) {
+        LinkedHashSet<String> officialUrls = new LinkedHashSet<>();
+        String basePrefix = basePrefix(normalizedSeedUrl);
+        if (basePrefix.isBlank()) {
+            return List.of();
+        }
+        for (String candidatePath : candidatePaths()) {
+            String path = candidatePath == null ? "" : candidatePath.trim();
+            if (path.isBlank()) {
+                continue;
+            }
+            String normalized = urlNormalizer.normalize(basePrefix + (path.startsWith("/") ? path : "/" + path));
+            if (!normalized.isBlank() && isAllowedUrlForUniversity(university.getUniversityName(), normalized)) {
+                officialUrls.add(normalized);
+            }
+        }
+        return new ArrayList<>(officialUrls);
+    }
+
+    private List<String> candidatePaths() {
+        LinkedHashSet<String> paths = new LinkedHashSet<>();
+        paths.add("/");
+        paths.add("/admissions");
+        paths.add("/apply");
+        paths.add("/programmes");
+        paths.add("/programs");
+        paths.add("/study");
+        paths.add("/courses");
+        paths.add("/faculties");
+        paths.add("/qualifications");
+        paths.addAll(properties.getCrawl().getCandidatePaths());
+        return new ArrayList<>(paths);
+    }
+
+    private String basePrefix(String url) {
+        try {
+            URI uri = URI.create(url);
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return "";
+            }
+            String prefix = uri.getScheme() + "://" + uri.getHost();
+            if (uri.getPort() != -1) {
+                prefix += ":" + uri.getPort();
+            }
+            return prefix;
+        } catch (RuntimeException ex) {
+            return "";
+        }
     }
 
     private String host(String url) {
