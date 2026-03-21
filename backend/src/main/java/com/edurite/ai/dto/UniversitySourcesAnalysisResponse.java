@@ -5,6 +5,7 @@ import java.util.List;
 public record UniversitySourcesAnalysisResponse(
         Boolean aiLive,
         Boolean fallbackUsed,
+        String status,
         String mode,
         String groundingStatus,
         Integer evidenceCoverage,
@@ -37,6 +38,7 @@ public record UniversitySourcesAnalysisResponse(
     public UniversitySourcesAnalysisResponse(
             Boolean aiLive,
             Boolean fallbackUsed,
+            String status,
             String mode,
             String groundingStatus,
             Integer evidenceCoverage,
@@ -60,7 +62,7 @@ public record UniversitySourcesAnalysisResponse(
             Integer suitabilityScore,
             String rawModelUsed
     ) {
-        this(aiLive, fallbackUsed, mode, groundingStatus, evidenceCoverage, warningMessage, requestedSources, sourceUrls, successfullyAnalysedUrls, failedUrls, totalSourcesUsed, summary, inferredGuidance, recommendedCareers, recommendedProgrammes, bursarySuggestions, recommendedUniversities, minimumRequirements, keyRequirements, skillGaps, recommendedNextSteps, warnings, suitabilityScore, rawModelUsed, null, List.of(), List.of(), List.of(), null);
+        this(aiLive, fallbackUsed, status, mode, groundingStatus, evidenceCoverage, warningMessage, requestedSources, sourceUrls, successfullyAnalysedUrls, failedUrls, totalSourcesUsed, summary, inferredGuidance, recommendedCareers, recommendedProgrammes, bursarySuggestions, recommendedUniversities, minimumRequirements, keyRequirements, skillGaps, recommendedNextSteps, warnings, suitabilityScore, rawModelUsed, null, List.of(), List.of(), List.of(), null);
     }
 
     public record RecommendedCareer(

@@ -34,6 +34,7 @@ public class UniversityGuidanceResultEnricher {
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
                 response.fallbackUsed(),
+                response.status(),
                 response.mode(),
                 response.groundingStatus(),
                 response.evidenceCoverage(),

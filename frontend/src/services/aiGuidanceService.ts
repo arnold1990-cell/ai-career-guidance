@@ -17,6 +17,7 @@ const normalizeUniversityResponse = (payload: UniversitySourcesAnalysisResponse)
 
   return {
     ...payload,
+    status: payload.status ?? (payload.mode === 'PARTIAL' ? 'PARTIAL' : payload.mode === 'UNAVAILABLE' ? 'ERROR' : payload.fallbackUsed ? 'PARTIAL' : 'SUCCESS'),
     mode: payload.mode ?? (payload.fallbackUsed ? 'FALLBACK' : payload.aiLive ? 'LIVE' : 'UNAVAILABLE'),
     requestedSources,
     sourceUrls,

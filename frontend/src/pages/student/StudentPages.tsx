@@ -149,6 +149,7 @@ export const StudentCareerRecommendationsPage = () => {
   const warnings = aiAdvice.data?.warnings ?? [];
   const sourceDiagnostics = aiAdvice.data?.sourceDiagnostics ?? [];
   const sourceCoverage = aiAdvice.data?.sourceCoverage;
+  const responseStatus = aiAdvice.data?.status ?? 'ERROR';
   const backendMode = aiAdvice.data?.mode ?? (aiAdvice.data?.fallbackUsed ? 'FALLBACK' : aiAdvice.data?.aiLive ? 'LIVE' : 'UNAVAILABLE');
   const requestedSources = aiAdvice.data?.sourceCoverage?.requestedSourcesCount ?? aiAdvice.data?.requestedSources?.length ?? aiAdvice.data?.sourceUrls?.length ?? 0;
   const analysedSources = aiAdvice.data?.totalSourcesUsed ?? 0;
@@ -208,14 +209,17 @@ export const StudentCareerRecommendationsPage = () => {
     <p className="text-sm text-slate-500">Mode: {isDemoMode ? 'demo (seeded)' : backendMode}</p>
     {isSearching ? <LoadingState message="Searching for guidance results..." detail="Please wait while we analyse your profile and university sources." /> : null}
     {!isDemoMode && <>
+      {responseStatus === 'ERROR' && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+        <span className="font-semibold">AI Guidance unavailable.</span> {aiAdvice.data?.warningMessage ?? 'The backend could not complete a reliable university-source analysis for this request.'}
+      </div>}
+      {responseStatus === 'PARTIAL' && <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
+        EduRite returned partial guidance using the university sources that completed successfully.
+      </div>}
       <div className="grid gap-3 md:grid-cols-3">
         <Card label="Sources used" value={analysedSources} />
         <Card label="Requested sources" value={sourceCoverage?.requestedSourcesCount ?? requestedSources} />
         <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
       </div>
-      {backendMode === 'PARTIAL' && <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-        EduRite analysed some official university sources successfully and returned partial results while other sources failed.
-      </div>}
       {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
         <span className="font-semibold">Warning:</span> {aiAdvice.data.warningMessage}
       </div>}

@@ -551,7 +551,8 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 true,
                 false,
-                "live Gemini",
+                "SUCCESS",
+                "LIVE",
                 resolveGroundingStatus(successUrls, failedUrls, sourceUrls),
                 calculateEvidenceCoverage(sourceUrls, successUrls),
                 null,
@@ -662,6 +663,7 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
                 response.fallbackUsed(),
+                response.status(),
                 response.mode(),
                 response.groundingStatus(),
                 response.evidenceCoverage(),
@@ -700,6 +702,7 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 true,
                 false,
+                response.status(),
                 response.mode(),
                 response.groundingStatus(),
                 response.evidenceCoverage(),
@@ -749,7 +752,8 @@ public class GeminiService {
         return new UniversitySourcesAnalysisResponse(
                 false,
                 true,
-                "fallback recommendations",
+                successUrls.isEmpty() ? "ERROR" : "PARTIAL",
+                successUrls.isEmpty() ? "UNAVAILABLE" : "PARTIAL",
                 resolveGroundingStatus(successUrls, failedUrls, sourceUrls),
                 calculateEvidenceCoverage(sourceUrls, successUrls),
                 "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.",

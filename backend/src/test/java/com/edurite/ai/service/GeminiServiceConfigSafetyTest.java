@@ -57,7 +57,8 @@ class GeminiServiceConfigSafetyTest {
         assertThat(response.summary()).contains("Based on the available university sources");
         assertThat(response.recommendedCareers()).isNotEmpty();
         assertThat(response.warnings()).isNotEmpty();
-        assertThat(response.mode()).isEqualTo("fallback recommendations");
+        assertThat(response.status()).isEqualTo("PARTIAL");
+        assertThat(response.mode()).isEqualTo("PARTIAL");
         assertThat(response.groundingStatus()).isEqualTo("FULLY_GROUNDED");
         assertThat(response.bursarySuggestions()).isNotEmpty();
     }

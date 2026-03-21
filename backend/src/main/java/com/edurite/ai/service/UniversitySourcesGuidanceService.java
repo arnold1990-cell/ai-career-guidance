@@ -214,6 +214,7 @@ public class UniversitySourcesGuidanceService {
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
                 response.fallbackUsed(),
+                deriveStatus(mode, hasSuccessfulSources, hasRequestedSources),
                 mode,
                 response.groundingStatus(),
                 response.evidenceCoverage(),
@@ -242,6 +243,16 @@ public class UniversitySourcesGuidanceService {
                 response.sourceDiagnostics(),
                 response.sourceCoverage()
         );
+    }
+
+    private String deriveStatus(String mode, boolean hasSuccessfulSources, boolean hasRequestedSources) {
+        if ("PARTIAL".equalsIgnoreCase(mode) || (hasSuccessfulSources && hasRequestedSources)) {
+            return "PARTIAL";
+        }
+        if ("LIVE".equalsIgnoreCase(mode) || "FALLBACK".equalsIgnoreCase(mode)) {
+            return "SUCCESS";
+        }
+        return "ERROR";
     }
 
     private List<UniversitySourcePageResult> buildFailedFetchResults(List<String> urls, String failureReason) {
