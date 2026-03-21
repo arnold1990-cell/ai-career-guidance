@@ -40,7 +40,8 @@ class UniversityCrawlOrchestratorTest {
         }
 
         when(registryService.getActiveUniversities()).thenReturn(universities);
-        when(fetcherService.discoverCandidateUrls(any(), any(Integer.class))).thenAnswer(invocation -> List.of(invocation.getArgument(0, UniversityRegistryProperties.UniversityRegistryEntry.class).getSeedUrls().get(0)));
+        when(fetcherService.discoverCandidateUrls(any(UniversitySourceDefinition.class), any(Integer.class)))
+                .thenAnswer(invocation -> List.of(invocation.getArgument(0, UniversitySourceDefinition.class).seedUrls().get(0)));
         when(fetcherService.fetchPages(any())).thenReturn(List.of(
                 new UniversitySourcePageResult("https://www.university-1.ac.za/programmes", "Programmes", PROGRAMME_DETAIL, "text", Set.of("software"), true, null, null),
                 new UniversitySourcePageResult("https://www.university-1.ac.za/forbidden", "", UniversityPageType.UNKNOWN, "", Set.of(), false, "forbidden", UniversityCrawlFailureType.ACCESS_DENIED)
