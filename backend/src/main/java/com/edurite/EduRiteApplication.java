@@ -1,11 +1,14 @@
 package com.edurite;
 
 import org.springframework.boot.SpringApplication;
+import com.edurite.ai.config.GeminiProperties;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
+@EnableConfigurationProperties(GeminiProperties.class)
 /**
  * This class named EduRiteApplication is part of the Spring Boot application.
  * It groups related logic so the project stays organized and easier to learn.
