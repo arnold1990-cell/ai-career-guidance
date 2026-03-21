@@ -45,29 +45,23 @@ edurite:
     crawl:
       cron: "0 0 2 * * *"
       timeout-ms: 8000
-      max-fetch-retries: 3
-      max-discovered-candidates-per-university: 60
-      max-fetched-pages-per-university: 30
-      max-crawl-depth: 1
-      candidate-paths:
-        - "/programmes"
-        - "/programs"
-        - "/study"
-        - "/studies"
-        - "/courses"
-        - "/course-finder"
-        - "/undergraduate"
-        - "/postgraduate"
-        - "/faculties"
-        - "/admissions"
-        - "/academic-programmes"
+      max-fetch-retries: 2
+      max-discovered-candidates-per-university: 12
+      max-fetched-pages-per-university: 8
+      max-successful-pages-per-university: 5
+      max-failed-pages-per-university: 3
+      max-candidate-links-per-page: 20
+      polite-delay-ms: 150
     registry:
       - university-name: "University of Cape Town"
         base-domain: "uct.ac.za"
         allowed-domains: ["uct.ac.za"]
-        seed-urls:
-          - "https://www.uct.ac.za/"
-          - "https://www.uct.ac.za/programmes"
+        official-homepages: ["https://www.uct.ac.za/"]
+        admissions-pages: ["https://www.uct.ac.za/students/applications/undergraduate-applications"]
+        discovery-pages: ["https://www.uct.ac.za/"]
+        blocked-patterns: ["login", "portal", "accounts", "search"]
+        max-pages-to-fetch: 6
+        source-priority: "CRITICAL"
         qualification-levels-supported: ["Undergraduate", "Postgraduate"]
         active: true
         crawl-priority: 1
@@ -389,9 +383,12 @@ edurite:
       - university-name: "Academy of Sound Engineering"
         base-domain: "ase.co.za"
         allowed-domains: ["ase.co.za"]
-        seed-urls:
-          - "https://www.ase.co.za/"
-          - "https://www.ase.co.za/programmes"
+        official-homepages: ["https://ase.co.za/"]
+        programme-pages: ["https://ase.co.za/programmes/"]
+        discovery-pages: ["https://ase.co.za/"]
+        blocked-patterns: ["login", "portal", "account"]
+        max-pages-to-fetch: 5
+        source-priority: "HIGH"
         qualification-levels-supported: ["Undergraduate", "Postgraduate"]
         active: true
         crawl-priority: 37
