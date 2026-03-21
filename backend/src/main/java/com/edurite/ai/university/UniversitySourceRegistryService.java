@@ -1,5 +1,6 @@
 package com.edurite.ai.university;
 
+import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -8,10 +9,14 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UniversitySourceRegistryService {
+
+    private static final Logger log = LoggerFactory.getLogger(UniversitySourceRegistryService.class);
 
     private final UniversityRegistryProperties properties;
     private final UniversityUrlNormalizer urlNormalizer;
@@ -19,6 +24,21 @@ public class UniversitySourceRegistryService {
     public UniversitySourceRegistryService(UniversityRegistryProperties properties, UniversityUrlNormalizer urlNormalizer) {
         this.properties = properties;
         this.urlNormalizer = urlNormalizer;
+    }
+
+    @PostConstruct
+    void logRegistryStatus() {
+        int configured = configuredUniversityCount();
+        int active = getActiveUniversities().size();
+        long seedUrls = getActiveUniversities().stream()
+                .map(UniversityRegistryProperties.UniversityRegistryEntry::getSeedUrls)
+                .filter(Objects::nonNull)
+                .mapToLong(List::size)
+                .sum();
+        log.info("University registry initialised: configuredUniversities={}, activeUniversities={}, seedUrls={}", configured, active, seedUrls);
+        if (active == 0) {
+            log.error("University registry is empty or all entries are inactive. University AI guidance cannot discover official sources until configuration is fixed.");
+        }
     }
 
     public List<UniversityRegistryProperties.UniversityRegistryEntry> getActiveUniversities() {
@@ -30,13 +50,33 @@ public class UniversitySourceRegistryService {
     }
 
     public List<String> getDefaultSources() {
-        return getActiveUniversities().stream()
+        List<String> defaultSources = getActiveUniversities().stream()
                 .flatMap(entry -> entry.getSeedUrls().stream())
                 .map(urlNormalizer::normalize)
                 .filter(url -> !url.isBlank())
                 .distinct()
                 .limit(100)
                 .toList();
+        if (defaultSources.isEmpty()) {
+            log.warn("University registry returned zero default sources: configuredUniversities={}, activeUniversities={}",
+                    configuredUniversityCount(), getActiveUniversities().size());
+        }
+        return defaultSources;
+    }
+
+    public List<String> getFallbackSources(int maxUrls) {
+        int limit = Math.max(1, maxUrls);
+        List<String> fallbackSources = getActiveUniversities().stream()
+                .flatMap(entry -> entry.getSeedUrls().stream())
+                .map(urlNormalizer::normalize)
+                .filter(url -> !url.isBlank())
+                .distinct()
+                .limit(limit)
+                .toList();
+        if (fallbackSources.isEmpty()) {
+            log.warn("University registry fallback sources are empty: limit={}, configuredUniversities={}", limit, configuredUniversityCount());
+        }
+        return fallbackSources;
     }
 
     public boolean isAllowedUrl(String url) {

@@ -10,23 +10,33 @@ import type {
 const demoModeEnabled = import.meta.env.VITE_AI_GUIDANCE_DEMO_MODE === 'true';
 
 
-const normalizeUniversityResponse = (payload: UniversitySourcesAnalysisResponse): UniversitySourcesAnalysisResponse => ({
-  ...payload,
-  sourceUrls: payload.sourceUrls ?? payload.requestedSources ?? [],
-  successfullyAnalysedUrls: payload.successfullyAnalysedUrls ?? [],
-  failedUrls: payload.failedUrls ?? [],
-  recommendedCareers: payload.recommendedCareers ?? [],
-  recommendedProgrammes: payload.recommendedProgrammes ?? [],
-  recommendedUniversities: payload.recommendedUniversities ?? [],
-  minimumRequirements: payload.minimumRequirements ?? [],
-  keyRequirements: payload.keyRequirements ?? [],
-  skillGaps: payload.skillGaps ?? [],
-  recommendedNextSteps: payload.recommendedNextSteps ?? [],
-  warnings: payload.warnings ?? [],
-  suitabilitySignalsUsed: payload.suitabilitySignalsUsed ?? [],
-  suitabilityScoreLimitations: payload.suitabilityScoreLimitations ?? [],
-  sourceDiagnostics: payload.sourceDiagnostics ?? [],
-});
+const normalizeUniversityResponse = (payload: UniversitySourcesAnalysisResponse): UniversitySourcesAnalysisResponse => {
+  const requestedSources = payload.requestedSources ?? payload.sourceUrls ?? [];
+  const sourceUrls = payload.sourceUrls ?? requestedSources;
+  const sourceCoverage = payload.sourceCoverage ?? null;
+
+  return {
+    ...payload,
+    mode: payload.mode ?? (payload.fallbackUsed ? 'FALLBACK' : payload.aiLive ? 'LIVE' : 'UNAVAILABLE'),
+    requestedSources,
+    sourceUrls,
+    successfullyAnalysedUrls: payload.successfullyAnalysedUrls ?? [],
+    failedUrls: payload.failedUrls ?? [],
+    recommendedCareers: payload.recommendedCareers ?? [],
+    recommendedProgrammes: payload.recommendedProgrammes ?? [],
+    recommendedUniversities: payload.recommendedUniversities ?? [],
+    minimumRequirements: payload.minimumRequirements ?? [],
+    keyRequirements: payload.keyRequirements ?? [],
+    skillGaps: payload.skillGaps ?? [],
+    recommendedNextSteps: payload.recommendedNextSteps ?? [],
+    warnings: payload.warnings ?? [],
+    suitabilitySignalsUsed: payload.suitabilitySignalsUsed ?? [],
+    suitabilityScoreLimitations: payload.suitabilityScoreLimitations ?? [],
+    sourceDiagnostics: payload.sourceDiagnostics ?? [],
+    sourceCoverage,
+    totalSourcesUsed: payload.totalSourcesUsed ?? payload.successfullyAnalysedUrls?.length ?? sourceCoverage?.successfulSourcesCount ?? 0,
+  };
+};
 
 export const aiGuidanceService = {
   demoModeEnabled,

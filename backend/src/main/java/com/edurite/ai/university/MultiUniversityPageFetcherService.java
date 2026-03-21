@@ -17,6 +17,8 @@ import javax.net.ssl.SSLException;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jsoup.UnsupportedMimeTypeException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -24,6 +26,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class MultiUniversityPageFetcherService {
+
+    private static final Logger log = LoggerFactory.getLogger(MultiUniversityPageFetcherService.class);
 
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; EduRiteCrawler/1.0; +https://edurite.ai/bot)";
     private static final String ACCEPT_LANGUAGE = "en-ZA,en;q=0.9";
@@ -85,7 +89,10 @@ public class MultiUniversityPageFetcherService {
             }
         }
 
-        return discovered.stream().limit(cappedMaxUrls).toList();
+        List<String> results = discovered.stream().limit(cappedMaxUrls).toList();
+        log.info("University crawler discovery completed: university={}, seedUrls={}, discoveredUrls={}, requestedSources={}",
+                university.getUniversityName(), university.getSeedUrls().size(), results.size(), cappedMaxUrls);
+        return results;
     }
 
     public List<UniversitySourcePageResult> fetchPages(List<String> urls) {
@@ -130,11 +137,11 @@ public class MultiUniversityPageFetcherService {
                 }
                 UniversityPageType pageType = classifier.classify(url, title, visibleText);
                 Set<String> keywords = classifier.extractKeywords(title, visibleText);
-                if (visibleText.length() < 250 && !isThinButUsefulPage(url, title, visibleText, headings, pageType, keywords)) {
+                if (visibleText.length() < 250 && !isThinButUsefulPage(url, title, visibleText, headings, pageType, keywords) && !isFallbackAcceptablePage(url, title, visibleText, headings)) {
                     return new UniversitySourcePageResult(url, title, UniversityPageType.UNKNOWN, visibleText, Set.of(), headings, false,
                             "Visible body text was too thin for reliable grounding", UniversityCrawlFailureType.EMPTY_CONTENT);
                 }
-                if (classifier.shouldSkipPage(url, title, visibleText)) {
+                if (classifier.shouldSkipPage(url, title, visibleText) && !isFallbackAcceptablePage(url, title, visibleText, headings)) {
                     return new UniversitySourcePageResult(url, title, pageType, visibleText, keywords, headings, false,
                             "Page was deprioritised because it does not look like a useful official programme or admissions page",
                             UniversityCrawlFailureType.FETCH_ERROR);
@@ -214,6 +221,8 @@ public class MultiUniversityPageFetcherService {
                     .limit(Math.max(0, Math.min(maxUrls, MAX_LINKS_PER_SEED)))
                     .toList();
         } catch (IOException ex) {
+            log.warn("University crawler could not extract internal links: university={}, seedUrl={}, message={}",
+                    university.getUniversityName(), seedUrl, ex.getMessage());
             return List.of();
         }
     }
@@ -285,6 +294,29 @@ public class MultiUniversityPageFetcherService {
                 || combined.contains("degree")
                 || combined.contains("admission")
                 || combined.contains("qualification");
+    }
+
+
+    private boolean isFallbackAcceptablePage(String url, String title, String visibleText, List<String> headings) {
+        String combined = (url + " " + title + " " + String.join(" ", headings) + " " + visibleText).toLowerCase(Locale.ROOT);
+        return combined.contains("admission")
+                || combined.contains("apply")
+                || combined.contains("programme")
+                || combined.contains("program")
+                || combined.contains("qualification")
+                || combined.contains("undergraduate")
+                || combined.contains("postgraduate")
+                || isHomepage(url);
+    }
+
+    private boolean isHomepage(String url) {
+        try {
+            URI uri = URI.create(url);
+            String path = uri.getPath();
+            return path == null || path.isBlank() || "/".equals(path);
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     private Document connect(String url) throws IOException {
