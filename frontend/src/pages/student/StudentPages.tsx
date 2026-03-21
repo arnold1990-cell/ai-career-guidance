@@ -132,8 +132,12 @@ export const StudentCareerRecommendationsPage = () => {
   const isSearching = !isDemoMode && (aiAdvice.isLoading || aiAdvice.isFetching || defaultSources.isLoading || defaultSources.isFetching);
   if (!isDemoMode && profileReadinessMessage) return <ErrorState message={profileReadinessMessage} />;
 
-  const aiAdviceErrorMessage = (aiAdvice.error as ApiError | null)?.message;
-  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={aiAdviceErrorMessage || 'Unable to generate AI guidance right now. Please try again shortly.'} />;
+  const aiAdviceError = aiAdvice.error as ApiError | null;
+  const aiAdviceErrorMessage = aiAdviceError?.message;
+  const aiAdviceDisplayMessage = aiAdviceError?.code === 'AI_CONFIG_MISSING'
+    ? 'AI service is not configured on the server.'
+    : aiAdviceErrorMessage || 'Unable to generate AI guidance right now. Please try again shortly.';
+  if (!isDemoMode && aiAdvice.isError) return <ErrorState message={aiAdviceDisplayMessage} />;
 
   const demoRecommendations = (demoAdvice.data?.suggestedCareers ?? []).map((item) => item.title);
   const careers = aiAdvice.data?.recommendedCareers ?? [];

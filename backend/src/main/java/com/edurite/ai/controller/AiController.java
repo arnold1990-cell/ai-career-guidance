@@ -141,12 +141,13 @@ public class AiController {
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(HttpServletRequest httpRequest, AiServiceException ex) {
-        log.warn("AI guidance request failed: status={}, message={}", ex.getStatus().value(), ex.getMessage());
+        log.warn("AI guidance request failed: status={}, errorCode={}, message={}", ex.getStatus().value(), ex.getErrorCode(), ex.getMessage());
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", Instant.now().toString());
         body.put("status", ex.getStatus().value());
         body.put("error", ex.getStatus().getReasonPhrase());
-        body.put("message", "AI guidance is temporarily unavailable. Please try again shortly.");
+        body.put("message", ex.getUserMessage());
+        body.put("code", ex.getErrorCode());
         body.put("path", httpRequest.getRequestURI());
         return ResponseEntity.status(ex.getStatus()).body(body);
     }
