@@ -3,9 +3,11 @@ package com.edurite.ai.dto;
 import java.util.List;
 
 public record UniversitySourcesAnalysisResponse(
+        String status,
         Boolean aiLive,
         Boolean fallbackUsed,
         String mode,
+        String message,
         String groundingStatus,
         Integer evidenceCoverage,
         String warningMessage,
@@ -35,9 +37,11 @@ public record UniversitySourcesAnalysisResponse(
 ) {
 
     public UniversitySourcesAnalysisResponse(
+            String status,
             Boolean aiLive,
             Boolean fallbackUsed,
             String mode,
+            String message,
             String groundingStatus,
             Integer evidenceCoverage,
             String warningMessage,
@@ -60,7 +64,7 @@ public record UniversitySourcesAnalysisResponse(
             Integer suitabilityScore,
             String rawModelUsed
     ) {
-        this(aiLive, fallbackUsed, mode, groundingStatus, evidenceCoverage, warningMessage, requestedSources, sourceUrls, successfullyAnalysedUrls, failedUrls, totalSourcesUsed, summary, inferredGuidance, recommendedCareers, recommendedProgrammes, bursarySuggestions, recommendedUniversities, minimumRequirements, keyRequirements, skillGaps, recommendedNextSteps, warnings, suitabilityScore, rawModelUsed, null, List.of(), List.of(), List.of(), null);
+        this(status, aiLive, fallbackUsed, mode, message, groundingStatus, evidenceCoverage, warningMessage, requestedSources, sourceUrls, successfullyAnalysedUrls, failedUrls, totalSourcesUsed, summary, inferredGuidance, recommendedCareers, recommendedProgrammes, bursarySuggestions, recommendedUniversities, minimumRequirements, keyRequirements, skillGaps, recommendedNextSteps, warnings, suitabilityScore, rawModelUsed, null, List.of(), List.of(), List.of(), null);
     }
 
     public record RecommendedCareer(

@@ -35,8 +35,23 @@ const normalizeRefreshedUser = (payload: unknown): User | null => {
 
 export const apiClient = axios.create({
   baseURL,
+  timeout: 45000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+export const normalizeApiErrorMessage = (responseBody: unknown, errorCode?: string) => {
+  const payload = responseBody as { message?: string } | undefined;
+  const timeoutMessage = errorCode === 'ECONNABORTED'
+    ? 'The server took too long to respond. Please retry.'
+    : null;
+  return typeof payload?.message === 'string' && payload.message.trim()
+    ? payload.message
+    : timeoutMessage
+      ? timeoutMessage
+      : errorCode === 'ERR_NETWORK'
+        ? 'Could not connect to the server.'
+        : 'Unexpected error occurred';
+};
 
 apiClient.interceptors.request.use((config) => {
   const token = authStore.getAccessToken();
@@ -77,11 +92,7 @@ apiClient.interceptors.response.use(
       console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: responseBody, error });
     }
 
-    const message = typeof responseBody?.message === 'string' && responseBody.message.trim()
-      ? responseBody.message
-      : error.code === 'ERR_NETWORK'
-        ? 'Could not connect to the server.'
-        : 'Unexpected error occurred';
+    const message = normalizeApiErrorMessage(responseBody, error.code);
     const normalized: ApiError = {
       message,
       status: error.response?.status,

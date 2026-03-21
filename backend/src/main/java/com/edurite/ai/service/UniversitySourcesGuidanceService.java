@@ -54,12 +54,17 @@ public class UniversitySourcesGuidanceService {
     public UniversitySourcesAnalysisResponse analyse(Principal principal, UniversitySourcesAnalysisRequest request) {
         Instant startedAt = Instant.now();
         StudentProfile profile = studentService.getProfileEntity(principal);
+        log.info("University analysis profile loaded: studentId={}, qualificationLevel={}, interestsLength={}, skillsLength={}",
+                profile.getId(),
+                profile.getQualificationLevel(),
+                profile.getInterests() == null ? 0 : profile.getInterests().length(),
+                profile.getSkills() == null ? 0 : profile.getSkills().length());
 
         int registrySize = registryService.configuredUniversityCount();
         int activeInstitutions = registryService.getActiveUniversities().size();
         int targetSourceLimit = request.usesDefaultSources()
-                ? Math.min(Math.max(registrySize * 2, 24), 120)
-                : Math.min(Math.max(registrySize * 2, 40), 150);
+                ? Math.min(Math.max(registrySize, 8), 16)
+                : Math.min(Math.max(request.urls() == null ? 0 : request.urls().size(), 1), 12);
 
         log.info("University analysis pipeline starting: registrySize={}, activeInstitutions={}, usesDefaultSources={}, requestedSources={}, targetSourceLimit={}",
                 registrySize,
@@ -212,9 +217,11 @@ public class UniversitySourcesGuidanceService {
         }
 
         return new UniversitySourcesAnalysisResponse(
+                deriveStatus(response, hasSuccessfulSources, hasFailures),
                 response.aiLive(),
                 response.fallbackUsed(),
                 mode,
+                deriveMessage(response, mode, hasSuccessfulSources, hasFailures),
                 response.groundingStatus(),
                 response.evidenceCoverage(),
                 warningMessage,
@@ -242,6 +249,37 @@ public class UniversitySourcesGuidanceService {
                 response.sourceDiagnostics(),
                 response.sourceCoverage()
         );
+    }
+
+    private String deriveStatus(UniversitySourcesAnalysisResponse response,
+                                boolean hasSuccessfulSources,
+                                boolean hasFailures) {
+        if ("ERROR".equalsIgnoreCase(response.status())) {
+            return "ERROR";
+        }
+        if (hasSuccessfulSources && !hasFailures && !response.fallbackUsed()) {
+            return "SUCCESS";
+        }
+        if (hasSuccessfulSources || response.fallbackUsed() || hasFailures) {
+            return "PARTIAL";
+        }
+        return "ERROR";
+    }
+
+    private String deriveMessage(UniversitySourcesAnalysisResponse response,
+                                 String mode,
+                                 boolean hasSuccessfulSources,
+                                 boolean hasFailures) {
+        if (response.message() != null && !response.message().isBlank()) {
+            return response.message();
+        }
+        if ("LIVE".equalsIgnoreCase(mode) && hasSuccessfulSources && !hasFailures) {
+            return "EduRite analysed live university sources successfully.";
+        }
+        if ("PARTIAL".equalsIgnoreCase(mode)) {
+            return "EduRite returned partial guidance using the university sources that completed in time.";
+        }
+        return "EduRite could not analyse live university sources for this request.";
     }
 
     private List<UniversitySourcePageResult> buildFailedFetchResults(List<String> urls, String failureReason) {

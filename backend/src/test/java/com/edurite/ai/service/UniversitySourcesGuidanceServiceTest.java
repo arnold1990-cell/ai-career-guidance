@@ -68,7 +68,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(discoveredUrls);
         when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse("SUCCESS", true, false, "LIVE", "EduRite analysed live university sources successfully.", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context")))
                 .thenReturn(baseResponse);
         when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages))).thenReturn(baseResponse);
@@ -101,7 +101,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(registryService.deduplicate(request.urls())).thenReturn(dedupedUrls);
         when(pageFetcherService.fetchPages(dedupedUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "FULLY_GROUNDED", 100, null, dedupedUrls, dedupedUrls, dedupedUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 50, "gemini");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse("SUCCESS", true, false, "LIVE", "EduRite analysed live university sources successfully.", "FULLY_GROUNDED", 100, null, dedupedUrls, dedupedUrls, dedupedUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 50, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(dedupedUrls), eq(fetchedPages), eq("context")))
                 .thenReturn(baseResponse);
         when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(dedupedUrls), eq(fetchedPages))).thenReturn(baseResponse);
@@ -121,7 +121,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(registryService.configuredUniversityCount()).thenReturn(55);
         when(discoveryService.discoverSources(eq(profile), eq(request), eq(110))).thenReturn(List.of());
         when(registryService.getFallbackSources(110)).thenReturn(List.of());
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse("PARTIAL", true, false, "UNAVAILABLE", "EduRite could not analyse live university sources for this request.", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
                 "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
@@ -144,7 +144,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(registryService.getFallbackSources(24)).thenReturn(List.of());
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse("PARTIAL", true, false, "UNAVAILABLE", "EduRite could not analyse live university sources for this request.", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
                         "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq("")))
                 .thenReturn(baseResponse);
@@ -169,7 +169,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(registryService.getFallbackSources(24)).thenReturn(fallbackUrls);
         when(pageFetcherService.fetchPages(fallbackUrls)).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(false, true, "fallback recommendations", "NO_LIVE_SOURCES", 0, null, fallbackUrls, fallbackUrls, List.of(), fallbackUrls, 0,
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse("PARTIAL", false, true, "PARTIAL", "Live Gemini guidance was unavailable, so EduRite returned resilient profile-based recommendations.", "NO_LIVE_SOURCES", 0, null, fallbackUrls, fallbackUrls, List.of(), fallbackUrls, 0,
                 "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(fallbackUrls), eq(List.of()), eq(""))).thenReturn(baseResponse);
         when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(fallbackUrls), eq(List.of()))).thenReturn(baseResponse);
@@ -196,7 +196,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(registryService.getActiveUniversities()).thenReturn(List.of());
         when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
-        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "LIVE", "PARTIALLY_GROUNDED", 50, null, discoveredUrls, discoveredUrls, List.of(discoveredUrls.get(0)), List.of(discoveredUrls.get(1)), 1,
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse("PARTIAL", true, false, "PARTIAL", "EduRite returned partial guidance using the university sources that completed in time.", "PARTIALLY_GROUNDED", 50, null, discoveredUrls, discoveredUrls, List.of(discoveredUrls.get(0)), List.of(discoveredUrls.get(1)), 1,
                 "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
         when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context"))).thenReturn(baseResponse);
         when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages))).thenReturn(baseResponse);
