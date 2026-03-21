@@ -26,7 +26,8 @@ class UniversityGuidanceResultEnricherTest {
         UniversitySourcesAnalysisResponse response = new UniversitySourcesAnalysisResponse(
                 true,
                 false,
-                "live Gemini",
+                "PARTIAL",
+                "PARTIAL",
                 "PARTIALLY_GROUNDED",
                 50,
                 null,

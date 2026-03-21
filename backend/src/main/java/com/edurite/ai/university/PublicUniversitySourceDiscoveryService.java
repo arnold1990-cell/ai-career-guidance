@@ -28,6 +28,7 @@ public class PublicUniversitySourceDiscoveryService {
     private static final String SEARCH_ENDPOINT = "https://html.duckduckgo.com/html/?q=";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; EduRiteDiscovery/1.0; +https://edurite.ai/bot)";
     private static final int MAX_SEARCH_RESULTS_PER_QUERY = 8;
+    private static final int SEARCH_TIMEOUT_MS = 3_500;
 
     private final UniversitySourceRegistryService registryService;
     private final MultiUniversityPageFetcherService pageFetcherService;
@@ -56,7 +57,9 @@ public class PublicUniversitySourceDiscoveryService {
                         university.getUniversityName(), candidateUrls.size());
             }
             discovered.addAll(candidateUrls);
-            discovered.addAll(searchOfficialPages(university, request, profile));
+            if (discovered.size() < maxUrls) {
+                discovered.addAll(searchOfficialPages(university, request, profile, maxUrls - discovered.size()));
+            }
             if (discovered.size() >= maxUrls) {
                 break;
             }
@@ -91,7 +94,7 @@ public class PublicUniversitySourceDiscoveryService {
                                                                                            UniversitySourcesAnalysisRequest request) {
         return registryService.getActiveUniversities().stream()
                 .sorted(Comparator.comparingInt((UniversityRegistryProperties.UniversityRegistryEntry entry) -> relevanceScore(entry, profile, request)).reversed())
-                .limit(Math.min(Math.max(1, request.safeMaxRecommendations() * 4), registryService.configuredUniversityCount()))
+                .limit(Math.min(Math.max(1, request.safeMaxRecommendations() * 2), registryService.configuredUniversityCount()))
                 .toList();
     }
 
@@ -115,13 +118,17 @@ public class PublicUniversitySourceDiscoveryService {
 
     private List<String> searchOfficialPages(UniversityRegistryProperties.UniversityRegistryEntry university,
                                              UniversitySourcesAnalysisRequest request,
-                                             StudentProfile profile) {
+                                             StudentProfile profile,
+                                             int remainingCapacity) {
         Set<String> results = new LinkedHashSet<>();
         for (String query : buildQueries(university, request, profile)) {
+            if (results.size() >= remainingCapacity) {
+                break;
+            }
             try {
                 Document document = Jsoup.connect(SEARCH_ENDPOINT + URLEncoder.encode(query, StandardCharsets.UTF_8))
                         .userAgent(USER_AGENT)
-                        .timeout(10_000)
+                        .timeout(SEARCH_TIMEOUT_MS)
                         .get();
                 int count = 0;
                 for (Element link : document.select("a.result__a")) {
@@ -137,7 +144,7 @@ public class PublicUniversitySourceDiscoveryService {
                     }
                     results.add(url);
                     count++;
-                    if (count >= MAX_SEARCH_RESULTS_PER_QUERY) {
+                    if (count >= MAX_SEARCH_RESULTS_PER_QUERY || results.size() >= remainingCapacity) {
                         break;
                     }
                 }
