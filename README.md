@@ -286,6 +286,27 @@ Flyway is enabled in the `dev` profile and migrations are loaded from:
 
 To run migrations during startup, start the backend with the dev profile (default in this project).
 
+
+## Gemini environment setup
+
+EduRite AI Guidance reads Gemini settings from process environment variables or an optional `.env` file that Spring now imports from the project root/root-adjacent working directory. Required variables:
+
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (default: `gemini-2.5-flash`)
+- `GEMINI_BASE_URL` (default: `https://generativelanguage.googleapis.com`)
+
+Copy `.env.example` to `.env`, fill in placeholders only on your machine, and keep `.env` out of source control. Spring Boot does **not** auto-load arbitrary `.env` files by default, so this repository explicitly imports `.env` as properties for local development.
+
+Example `.env` values:
+
+```properties
+GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com
+```
+
+At startup, the backend logs whether the Gemini API key is present, plus the resolved model and base URL, without logging the secret itself. If Gemini config is missing and `GEMINI_FAIL_FAST=true` (default), the backend stops early with a clear configuration message.
+
 ## Run backend locally
 
 ```sh

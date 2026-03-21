@@ -77,11 +77,22 @@ apiClient.interceptors.response.use(
       console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: responseBody, error });
     }
 
-    const message = responseBody?.message ?? 'Unexpected error occurred';
+    const code = responseBody?.code as string | undefined;
+    const fallbackMessage = !error.response
+      ? 'Could not connect to the server. Please check your connection and try again.'
+      : responseStatus === 503
+        ? 'AI service is temporarily unavailable.'
+        : responseStatus === 502
+          ? 'Invalid AI provider configuration.'
+          : responseStatus === 504
+            ? 'Could not connect to the AI provider.'
+            : 'Unexpected error occurred';
+    const message = responseBody?.message ?? fallbackMessage;
     const normalized: ApiError = {
       message,
       status: error.response?.status,
       details: responseBody?.errors,
+      code,
     };
     return Promise.reject(Object.assign(new Error(message), normalized));
   },

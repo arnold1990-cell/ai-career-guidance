@@ -159,4 +159,4 @@ export interface UniversitySourcesAnalysisResponse {
 export interface Notification { id: string; title: string; message: string; read: boolean; type?: string; createdAt?: string; isRead?: boolean; }
 export interface Subscription { id: string; planCode: string; status: string; renewalDate: string; }
 export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; number: number; size: number; }
-export interface ApiError { message: string; status?: number; details?: Record<string, string[]>; }
+export interface ApiError { message: string; status?: number; details?: Record<string, string[]>; code?: string; }

@@ -25,3 +25,7 @@ security:
   jwt:
     secret: test-secret-key-change-me-please-test-secret-key-change-me-please
 
+
+
+gemini:
+  fail-fast: false

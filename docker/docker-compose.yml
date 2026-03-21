@@ -19,6 +19,8 @@ services:
 
   backend:
     image: maven:3.9.8-eclipse-temurin-21
+    env_file:
+      - ../.env
     working_dir: /workspace/backend
     volumes:
       - ../backend:/workspace/backend

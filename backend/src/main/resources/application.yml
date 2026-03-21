@@ -7,8 +7,11 @@ gemini:
   write-timeout-seconds: ${GEMINI_WRITE_TIMEOUT_SECONDS:45}
   call-timeout-seconds: ${GEMINI_CALL_TIMEOUT_SECONDS:60}
   max-retries: ${GEMINI_MAX_RETRIES:2}
+  fail-fast: ${GEMINI_FAIL_FAST:true}
 
 spring:
+  config:
+    import: "optional:file:.env[.properties],optional:file:../.env[.properties],optional:file:backend/.env[.properties]"
   application:
     name: edurite-backend
   profiles:
