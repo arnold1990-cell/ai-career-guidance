@@ -131,13 +131,13 @@ public class UniversityGuidanceResultEnricher {
         for (String requestedUrl : requestedUrls) {
             UniversitySourcePageResult page = pages.stream().filter(item -> requestedUrl.equals(item.sourceUrl())).findFirst().orElse(null);
             if (page == null) {
-                diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(requestedUrl, "FAILED", "Source was requested but no fetch result was recorded.", inferUniversity(requestedUrl), false));
+                diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(requestedUrl, "UNVERIFIED", "Some sources could not be verified.", inferUniversity(requestedUrl), false));
                 continue;
             }
             diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(
                     page.sourceUrl(),
                     diagnosticStatus(page),
-                    page.failureReason(),
+                    userFacingFailureReason(page),
                     inferUniversity(page.sourceUrl()),
                     page.success() && isProgrammeUsable(page)
             ));
@@ -148,10 +148,25 @@ public class UniversityGuidanceResultEnricher {
     private UniversitySourcesAnalysisResponse.SourceCoverage buildCoverage(List<String> requestedUrls,
                                                                           List<UniversitySourcePageResult> pages,
                                                                           List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes) {
+        int attempted = pages.size();
         int successCount = (int) pages.stream().filter(UniversitySourcePageResult::success).count();
-        int partialCount = (int) pages.stream().filter(page -> !page.success() && page.failureReason() != null && !page.failureReason().isBlank()).count();
+        int usableCount = (int) pages.stream().filter(page -> page.success() && isProgrammeUsable(page)).count();
+        int rejectedCount = (int) pages.stream().filter(page -> !page.success() && page.failureType() != null && switch (page.failureType()) {
+            case PROTECTED, FORBIDDEN, NOT_FOUND, TIMEOUT, NETWORK_ERROR, SSL_ERROR, FETCH_ERROR, ACCESS_DENIED -> false;
+            default -> true;
+        }).count();
+        int technicalFailures = (int) pages.stream().filter(page -> !page.success() && page.failureType() != null && switch (page.failureType()) {
+            case PROTECTED, FORBIDDEN, NOT_FOUND, TIMEOUT, NETWORK_ERROR, SSL_ERROR, FETCH_ERROR, ACCESS_DENIED -> true;
+            default -> false;
+        }).count();
+        int protectedCount = (int) pages.stream().filter(page -> page.failureType() == com.edurite.ai.university.UniversityCrawlFailureType.PROTECTED
+                || page.failureType() == com.edurite.ai.university.UniversityCrawlFailureType.FORBIDDEN).count();
+        int timeoutCount = (int) pages.stream().filter(page -> page.failureType() == com.edurite.ai.university.UniversityCrawlFailureType.TIMEOUT).count();
+        int failedCount = (int) pages.stream().filter(page -> !page.success()).count();
+        int partialCount = Math.max(0, successCount - usableCount) + rejectedCount;
         List<String> universities = dedupeStrings(programmes.stream().map(UniversitySourcesAnalysisResponse.RecommendedProgramme::university).collect(Collectors.toList()));
-        return new UniversitySourcesAnalysisResponse.SourceCoverage(requestedUrls.size(), successCount, Math.max(0, pages.size() - successCount), partialCount, universities);
+        return new UniversitySourcesAnalysisResponse.SourceCoverage(requestedUrls.size(), attempted, successCount, usableCount, rejectedCount,
+                technicalFailures, protectedCount, timeoutCount, failedCount, partialCount, universities);
     }
 
     private List<String> extractVerifiedFacts(String programmeName, String university, List<UniversitySourcePageResult> pages) {
@@ -395,7 +410,33 @@ public class UniversityGuidanceResultEnricher {
         if (page.success()) {
             return "PARTIAL";
         }
-        return page.failureType() != null && page.failureType().name().contains("TIMEOUT") ? "TIMEOUT" : "FAILED";
+        if (page.failureType() == null) {
+            return "FAILED";
+        }
+        return switch (page.failureType()) {
+            case TIMEOUT -> "TIMEOUT";
+            case PROTECTED, FORBIDDEN -> "PROTECTED";
+            case NOT_FOUND -> "NOT_FOUND";
+            case THIN_CONTENT, IRRELEVANT_CONTENT, NO_RESULT, EMPTY_CONTENT -> "PARTIAL";
+            default -> "FAILED";
+        };
+    }
+
+
+    private String userFacingFailureReason(UniversitySourcePageResult page) {
+        if (page == null || page.success()) {
+            return null;
+        }
+        if (page.failureType() == null) {
+            return "Some sources could not be verified.";
+        }
+        return switch (page.failureType()) {
+            case PROTECTED, FORBIDDEN -> "Official source blocked automated access.";
+            case NOT_FOUND -> "Official source URL could not be verified.";
+            case TIMEOUT -> "Official source took too long to respond.";
+            case THIN_CONTENT, IRRELEVANT_CONTENT, NO_RESULT, EMPTY_CONTENT -> "Official source did not provide usable programme details.";
+            default -> "Some sources could not be verified.";
+        };
     }
 
     private boolean isProgrammeUsable(UniversitySourcePageResult page) {

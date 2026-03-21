@@ -108,8 +108,7 @@ public record UniversitySourcesAnalysisResponse(
             String notes,
             List<String> sourceUrls,
             boolean officialSource
-    ) {
-    }
+    ) {}
 
     public record SourceDiagnostic(
             String sourceUrl,
@@ -117,15 +116,28 @@ public record UniversitySourcesAnalysisResponse(
             String failureReason,
             String university,
             boolean usableProgrammeData
-    ) {
-    }
+    ) {}
 
     public record SourceCoverage(
             Integer requestedSourcesCount,
+            Integer attemptedSourcesCount,
             Integer successfulSourcesCount,
+            Integer usableSourcesCount,
+            Integer rejectedSourcesCount,
+            Integer technicalFailuresCount,
+            Integer protectedSourcesCount,
+            Integer timeoutSourcesCount,
             Integer failedSourcesCount,
             Integer partialSourcesCount,
             List<String> universitiesWithUsableProgrammeData
     ) {
+        public SourceCoverage(Integer requestedSourcesCount,
+                              Integer successfulSourcesCount,
+                              Integer failedSourcesCount,
+                              Integer partialSourcesCount,
+                              List<String> universitiesWithUsableProgrammeData) {
+            this(requestedSourcesCount, requestedSourcesCount, successfulSourcesCount, successfulSourcesCount, partialSourcesCount,
+                    failedSourcesCount, 0, 0, failedSourcesCount, partialSourcesCount, universitiesWithUsableProgrammeData);
+        }
     }
 }

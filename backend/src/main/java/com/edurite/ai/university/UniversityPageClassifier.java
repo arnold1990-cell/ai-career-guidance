@@ -33,7 +33,7 @@ public class UniversityPageClassifier {
 
 
     private static final List<String> DEPRIORITIZED_HINTS = List.of(
-            "news", "event", "staff", "directory", "privacy", "cookie", "legal", "terms", "vacancy"
+            "news", "event", "staff", "directory", "privacy", "cookie", "legal", "terms", "vacancy", "portal", "login", "search results"
     );
 
     private static final List<String> HIGH_VALUE_HINTS = List.of(

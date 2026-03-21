@@ -8,12 +8,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UniversitySourceRegistryServiceTest {
 
     @Test
-    void supportsLargeRegistryAndValidatesDomains() {
-        UniversitySourceRegistryService service = new UniversitySourceRegistryService(buildProperties(50), new UniversityUrlNormalizer());
+    void mapsEntriesIntoValidatedSourceDefinitions() {
+        UniversitySourceRegistryService service = new UniversitySourceRegistryService(buildProperties(2), new UniversityUrlNormalizer());
 
-        assertThat(service.configuredUniversityCount()).isEqualTo(50);
-        assertThat(service.getDefaultSources()).hasSizeGreaterThan(40);
+        UniversitySourceDefinition definition = service.getActiveDefinitions().get(0);
+
+        assertThat(definition.displayName()).isEqualTo("University 1");
+        assertThat(definition.programmePages()).contains("https://www.university-1.ac.za/programmes");
+        assertThat(definition.sourcePriority()).isEqualTo(SourcePriority.HIGH);
+    }
+
+    @Test
+    void validatesAllowedDomainsAndBlockedPatterns() {
+        UniversitySourceRegistryService service = new UniversitySourceRegistryService(buildProperties(2), new UniversityUrlNormalizer());
+        UniversitySourceDefinition definition = service.getActiveDefinitions().get(0);
+
         assertThat(service.isAllowedUrl("https://www.university-1.ac.za/programmes")).isTrue();
+        assertThat(service.isAllowedUrlForDefinition(definition, "https://www.university-1.ac.za/student-portal")).isFalse();
         assertThat(service.isAllowedUrl("https://evil.example.com/programmes")).isFalse();
     }
 
@@ -40,8 +51,12 @@ class UniversitySourceRegistryServiceTest {
             entry.setUniversityName("University " + index);
             entry.setBaseDomain("university-" + index + ".ac.za");
             entry.setAllowedDomains(List.of("university-" + index + ".ac.za"));
-            entry.setSeedUrls(List.of("https://www.university-" + index + ".ac.za/programmes"));
+            entry.setOfficialHomepages(List.of("https://www.university-" + index + ".ac.za/"));
+            entry.setProgrammePages(List.of("https://www.university-" + index + ".ac.za/programmes"));
+            entry.setAdmissionsPages(List.of("https://www.university-" + index + ".ac.za/admissions"));
+            entry.setBlockedPatterns(List.of("portal", "login"));
             entry.setQualificationLevelsSupported(List.of("Undergraduate"));
+            entry.setSourcePriority("HIGH");
             entry.setActive(true);
             entry.setCrawlPriority(index);
             properties.getRegistry().add(entry);
