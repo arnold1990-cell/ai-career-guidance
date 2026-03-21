@@ -2,10 +2,31 @@ package com.edurite.ai.university;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.ClassPathResource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class UniversitySourceRegistryServiceTest {
+
+    @Test
+    void bindsSouthAfricanRegistryFromApplicationYaml() throws Exception {
+        StandardEnvironment environment = new StandardEnvironment();
+        YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
+        loader.load("application", new ClassPathResource("application.yml"))
+                .forEach(propertySource -> environment.getPropertySources().addLast(propertySource));
+
+        UniversityRegistryProperties properties = Binder.get(environment)
+                .bind("edurite.university", UniversityRegistryProperties.class)
+                .orElseThrow();
+        UniversitySourceRegistryService service = new UniversitySourceRegistryService(properties, new UniversityUrlNormalizer());
+
+        assertThat(service.configuredUniversityCount()).isGreaterThan(20);
+        assertThat(service.getActiveUniversities()).isNotEmpty();
+        assertThat(service.getFallbackSources(12)).isNotEmpty();
+    }
 
     @Test
     void supportsLargeRegistryAndValidatesDomains() {
