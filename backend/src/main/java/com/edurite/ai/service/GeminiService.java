@@ -55,13 +55,13 @@ public class GeminiService {
     private final Environment environment;
     private final int maxGeminiRetries;
 
-    @Value("${GEMINI_API_KEY:}")
+    @Value("${gemini.api-key:}")
     private String configuredApiKey;
 
-    @Value("${GEMINI_MODEL:gemini-2.5-flash}")
+    @Value("${gemini.model:gemini-2.5-flash}")
     private String model;
 
-    @Value("${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}")
+    @Value("${gemini.base-url:https://generativelanguage.googleapis.com}")
     private String baseUrl;
 
     public GeminiService(ObjectMapper objectMapper, Environment environment) {
@@ -174,7 +174,7 @@ public class GeminiService {
                     !config.apiKey().isBlank(), !config.model().isBlank(), !config.baseUrl().isBlank());
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
                     buildFallbackWarnings(sourceLimitations,
-                            "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                            missingConfigurationWarning(config)));
         }
 
         try {
@@ -187,7 +187,7 @@ public class GeminiService {
             log.warn("Fallback decision: Gemini failed after live attempt, fallbackUsed=true, reason={}", ex.getMessage(), ex);
             return fallbackUniversityResponse(request, safeSourceUrls, successUrls, failedUrls,
                     buildFallbackWarnings(sourceLimitations,
-                            "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data."));
+                            missingConfigurationWarning(config)));
         }
     }
 
@@ -195,7 +195,9 @@ public class GeminiService {
         if (resolveApiKey().isBlank()) {
             log.warn("Fallback path used: Gemini API key is missing, returning explicit AI unavailable error.");
             throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Career AI is currently unavailable. Gemini API key is not configured.");
+                    "AI_CONFIG_MISSING",
+                    "Career AI is currently unavailable. Gemini API key is not configured.",
+                    "AI service is not configured on the server.");
         }
     }
 
@@ -234,7 +236,9 @@ public class GeminiService {
                 if (response.isSuccessful()) {
                     if (bodySnippet.isBlank()) {
                         throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                                "Gemini returned an empty response body.");
+                                "AI_PROVIDER_RESPONSE_INVALID",
+                                "Gemini returned an empty response body.",
+                                "AI provider returned an empty response. Please try again shortly.");
                     }
                     return extractModelText(bodySnippet);
                 }
@@ -251,8 +255,7 @@ public class GeminiService {
                 HttpStatus status = statusCode == 401 || statusCode == 403 || statusCode == 400
                         ? HttpStatus.BAD_GATEWAY
                         : HttpStatus.SERVICE_UNAVAILABLE;
-                throw new AiServiceException(status,
-                        "Gemini request failed with status " + statusCode + ". " + trim(bodySnippet));
+                throw buildProviderFailure(statusCode, status, bodySnippet);
             } catch (IOException ex) {
                 boolean retryableIoFailure = retry && isRetryableIoFailure(ex);
                 log.warn("Gemini call IO failure: model={}, attempt={}, retried={}, retryableIoFailure={}, message={}",
@@ -262,12 +265,43 @@ public class GeminiService {
                     continue;
                 }
                 throw new AiServiceException(HttpStatus.GATEWAY_TIMEOUT,
-                        "Gemini request timed out or failed.");
+                        "AI_PROVIDER_TIMEOUT",
+                        "Gemini request timed out or failed.",
+                        "Could not connect to the AI service. Please try again shortly.");
             }
         }
 
         throw new AiServiceException(HttpStatus.SERVICE_UNAVAILABLE,
-                "Gemini request failed after retries.");
+                "AI_PROVIDER_UNAVAILABLE",
+                "Gemini request failed after retries.",
+                "AI guidance is temporarily unavailable. Please try again shortly.");
+    }
+
+    private String missingConfigurationWarning(GeminiRequestConfig config) {
+        if (config.apiKey().isBlank()) {
+            return "AI service is not configured on the server. Showing profile-based guidance instead.";
+        }
+        return "Live AI guidance is temporarily unavailable. Suggestions were generated from trusted EduRite data.";
+    }
+
+    private AiServiceException buildProviderFailure(int statusCode, HttpStatus status, String bodySnippet) {
+        String message = "Gemini request failed with status " + statusCode + ". " + trim(bodySnippet);
+        if (statusCode == 401 || statusCode == 403) {
+            return new AiServiceException(status,
+                    "AI_PROVIDER_AUTH",
+                    message,
+                    "AI provider rejected the server credentials. Please contact support.");
+        }
+        if (statusCode == 404 || statusCode == 400) {
+            return new AiServiceException(status,
+                    "AI_PROVIDER_CONFIGURATION_INVALID",
+                    message,
+                    "AI provider configuration is invalid. Please contact support.");
+        }
+        return new AiServiceException(status,
+                "AI_PROVIDER_REQUEST_FAILED",
+                message,
+                "AI provider request failed. Please try again shortly.");
     }
 
     private String buildPrompt(CareerAdviceRequest request) {
@@ -422,7 +456,9 @@ public class GeminiService {
             JsonArray candidates = root.has("candidates") ? root.getAsJsonArray("candidates") : null;
             if (candidates == null || candidates.isEmpty()) {
                 throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no candidates.");
+                        "AI_PROVIDER_RESPONSE_INVALID",
+                        "Gemini returned no candidates.",
+                        "AI provider returned an unexpected response. Please try again shortly.");
             }
 
             List<String> textParts = new ArrayList<>();
@@ -446,14 +482,18 @@ public class GeminiService {
 
             if (textParts.isEmpty()) {
                 throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no text parts.");
+                        "AI_PROVIDER_RESPONSE_INVALID",
+                        "Gemini returned no text parts.",
+                        "AI provider returned an unexpected response. Please try again shortly.");
             }
 
             return stripCodeFences(String.join("\n", textParts));
         } catch (IllegalStateException ex) {
             log.error("Gemini payload parsing failed before extracting model text.", ex);
             throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                    "Gemini returned malformed JSON payload.");
+                    "AI_PROVIDER_RESPONSE_INVALID",
+                    "Gemini returned malformed JSON payload.",
+                    "AI provider returned malformed data. Please try again shortly.");
         }
     }
 
@@ -462,7 +502,9 @@ public class GeminiService {
             CareerAdviceResponse response = objectMapper.readValue(extractLikelyJson(modelText), CareerAdviceResponse.class);
             if (response.recommendedCareers() == null || response.recommendedCareers().isEmpty()) {
                 throw new AiServiceException(HttpStatus.BAD_GATEWAY,
-                        "Gemini returned no career recommendations.");
+                        "AI_PROVIDER_RESPONSE_INVALID",
+                        "Gemini returned no career recommendations.",
+                        "AI provider returned an incomplete guidance response. Please try again shortly.");
             }
 
             List<CareerAdviceResponse.RecommendedCareer> sanitized = response.recommendedCareers().stream()

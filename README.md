@@ -326,6 +326,16 @@ Required JWT properties/env placeholders:
 
 Never use real production secrets in source control; inject them via environment variables or secret managers.
 
+### Gemini configuration
+
+Backend Gemini settings are read from Spring properties:
+
+- `gemini.api-key` via `GEMINI_API_KEY`
+- `gemini.model` via `GEMINI_MODEL`
+- `gemini.base-url` via `GEMINI_BASE_URL`
+
+For local development, the backend now imports an optional repo-level `.env` file automatically. For CI, Docker, IntelliJ, and production, prefer real process environment variables or your platform secret manager.
+
 
 ## Run backend tests
 

@@ -77,11 +77,16 @@ apiClient.interceptors.response.use(
       console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: responseBody, error });
     }
 
-    const message = responseBody?.message ?? 'Unexpected error occurred';
+    const message = typeof responseBody?.message === 'string' && responseBody.message.trim()
+      ? responseBody.message
+      : error.code === 'ERR_NETWORK'
+        ? 'Could not connect to the server.'
+        : 'Unexpected error occurred';
     const normalized: ApiError = {
       message,
       status: error.response?.status,
       details: responseBody?.errors,
+      code: responseBody?.code,
     };
     return Promise.reject(Object.assign(new Error(message), normalized));
   },
