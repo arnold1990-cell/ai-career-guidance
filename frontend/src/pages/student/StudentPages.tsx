@@ -149,8 +149,8 @@ export const StudentCareerRecommendationsPage = () => {
   const warnings = aiAdvice.data?.warnings ?? [];
   const sourceDiagnostics = aiAdvice.data?.sourceDiagnostics ?? [];
   const sourceCoverage = aiAdvice.data?.sourceCoverage;
-  const backendMode = aiAdvice.data?.fallbackUsed ? 'Fallback recommendations' : aiAdvice.data?.aiLive ? 'Live Gemini multi-source' : 'Unavailable';
-  const requestedSources = aiAdvice.data?.sourceUrls?.length ?? 0;
+  const backendMode = aiAdvice.data?.mode ?? (aiAdvice.data?.fallbackUsed ? 'FALLBACK' : aiAdvice.data?.aiLive ? 'LIVE' : 'UNAVAILABLE');
+  const requestedSources = aiAdvice.data?.sourceCoverage?.requestedSourcesCount ?? aiAdvice.data?.requestedSources?.length ?? aiAdvice.data?.sourceUrls?.length ?? 0;
   const analysedSources = aiAdvice.data?.totalSourcesUsed ?? 0;
 
   const renderSimpleList = (items: string[], emptyText: string) => {
@@ -213,6 +213,9 @@ export const StudentCareerRecommendationsPage = () => {
         <Card label="Requested sources" value={sourceCoverage?.requestedSourcesCount ?? requestedSources} />
         <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
       </div>
+      {backendMode === 'PARTIAL' && <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
+        EduRite analysed some official university sources successfully and returned partial results while other sources failed.
+      </div>}
       {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
         <span className="font-semibold">Warning:</span> {aiAdvice.data.warningMessage}
       </div>}

@@ -12,6 +12,7 @@ import com.edurite.student.service.StudentService;
 import java.security.Principal;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.edurite.ai.university.UniversityPageType.PROGRAMME_DETAIL;
 import static com.edurite.ai.university.UniversityPageType.QUALIFICATION_LIST;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +46,12 @@ class UniversitySourcesGuidanceServiceTest {
 
     @InjectMocks
     private UniversitySourcesGuidanceService service;
+
+    @BeforeEach
+    void setUp() {
+        when(registryService.getActiveUniversities()).thenReturn(List.of());
+        when(registryService.configuredUniversityCount()).thenReturn(0);
+    }
 
     @Test
     void analyseUsesAutomaticRetrievalWhenNoUrlsProvided() {
@@ -112,6 +120,7 @@ class UniversitySourcesGuidanceServiceTest {
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
         when(registryService.configuredUniversityCount()).thenReturn(55);
         when(discoveryService.discoverSources(eq(profile), eq(request), eq(110))).thenReturn(List.of());
+        when(registryService.getFallbackSources(110)).thenReturn(List.of());
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
                 "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
@@ -132,6 +141,7 @@ class UniversitySourcesGuidanceServiceTest {
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
         when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(List.of());
+        when(registryService.getFallbackSources(24)).thenReturn(List.of());
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "live Gemini", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
@@ -144,4 +154,58 @@ class UniversitySourcesGuidanceServiceTest {
 
         verify(geminiService).getUniversitySourcesAdvice(eq(request), eq(profile), eq(List.of()), eq(List.of()), eq(""));
     }
+
+    @Test
+    void analyseFallsBackToRegistrySourcesWhenDiscoveryReturnsNothing() {
+        Principal principal = () -> "student";
+        StudentProfile profile = new StudentProfile();
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
+        List<String> fallbackUrls = List.of("https://www.uct.ac.za/", "https://www.wits.ac.za/");
+
+        when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(registryService.configuredUniversityCount()).thenReturn(0);
+        when(registryService.getActiveUniversities()).thenReturn(List.of());
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(List.of());
+        when(registryService.getFallbackSources(24)).thenReturn(fallbackUrls);
+        when(pageFetcherService.fetchPages(fallbackUrls)).thenReturn(List.of());
+        when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(false, true, "fallback recommendations", "NO_LIVE_SOURCES", 0, null, fallbackUrls, fallbackUrls, List.of(), fallbackUrls, 0,
+                "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(fallbackUrls), eq(List.of()), eq(""))).thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(fallbackUrls), eq(List.of()))).thenReturn(baseResponse);
+
+        UniversitySourcesAnalysisResponse response = service.analyse(principal, request);
+
+        assertThat(response.requestedSources()).containsExactlyElementsOf(fallbackUrls);
+    }
+
+    @Test
+    void analyseMarksResponsePartialWhenSomeSourcesSucceed() {
+        Principal principal = () -> "student";
+        StudentProfile profile = new StudentProfile();
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
+        List<String> discoveredUrls = List.of("https://www.unisa.ac.za/a", "https://www.uj.ac.za/b");
+        List<UniversitySourcePageResult> fetchedPages = List.of(
+                new UniversitySourcePageResult(discoveredUrls.get(0), "A", PROGRAMME_DETAIL, "summary a", Set.of("software"), true, null, null),
+                new UniversitySourcePageResult(discoveredUrls.get(1), "B", QUALIFICATION_LIST, "summary b", Set.of("computing"), false, "timeout", com.edurite.ai.university.UniversityCrawlFailureType.TIMEOUT)
+        );
+
+        when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(discoveredUrls);
+        when(registryService.configuredUniversityCount()).thenReturn(0);
+        when(registryService.getActiveUniversities()).thenReturn(List.of());
+        when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
+        when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "LIVE", "PARTIALLY_GROUNDED", 50, null, discoveredUrls, discoveredUrls, List.of(discoveredUrls.get(0)), List.of(discoveredUrls.get(1)), 1,
+                "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context"))).thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages))).thenReturn(baseResponse);
+
+        UniversitySourcesAnalysisResponse response = service.analyse(principal, request);
+
+        assertThat(response.mode()).isEqualTo("PARTIAL");
+        assertThat(response.totalSourcesUsed()).isEqualTo(1);
+        assertThat(response.failedUrls()).containsExactly(discoveredUrls.get(1));
+    }
+
 }

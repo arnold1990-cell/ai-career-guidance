@@ -133,6 +133,7 @@ export interface UniversitySourceCoverage {
 export interface UniversitySourcesAnalysisResponse {
   aiLive: boolean;
   fallbackUsed: boolean;
+  mode?: string;
   warningMessage?: string | null;
   requestedSources?: string[];
   sourceUrls: string[];

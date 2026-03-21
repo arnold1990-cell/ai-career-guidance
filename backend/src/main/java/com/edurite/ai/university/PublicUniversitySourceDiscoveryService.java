@@ -14,12 +14,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.jsoup.Jsoup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 
 @Service
 public class PublicUniversitySourceDiscoveryService {
+
+    private static final Logger log = LoggerFactory.getLogger(PublicUniversitySourceDiscoveryService.class);
 
     private static final String SEARCH_ENDPOINT = "https://html.duckduckgo.com/html/?q=";
     private static final String USER_AGENT = "Mozilla/5.0 (compatible; EduRiteDiscovery/1.0; +https://edurite.ai/bot)";
@@ -38,20 +42,48 @@ public class PublicUniversitySourceDiscoveryService {
     }
 
     public List<String> discoverSources(StudentProfile profile, UniversitySourcesAnalysisRequest request, int maxUrls) {
+        List<UniversityRegistryProperties.UniversityRegistryEntry> rankedUniversities = rankedUniversities(profile, request);
         Set<String> discovered = new LinkedHashSet<>();
-        for (UniversityRegistryProperties.UniversityRegistryEntry university : rankedUniversities(profile, request)) {
+        log.info("University source discovery starting: registrySize={}, rankedUniversities={}, requestedSources={}, usesDefaultSources={}",
+                registryService.configuredUniversityCount(), rankedUniversities.size(), maxUrls, request.usesDefaultSources());
+
+        for (UniversityRegistryProperties.UniversityRegistryEntry university : rankedUniversities) {
             discovered.addAll(university.getSeedUrls());
-            discovered.addAll(pageFetcherService.discoverCandidateUrls(university, Math.max(4, maxUrls / 2)));
+            List<String> candidateUrls = pageFetcherService.discoverCandidateUrls(university, Math.max(4, maxUrls / 2));
+            if (candidateUrls.isEmpty()) {
+                candidateUrls = fallbackToHomepages(university);
+                log.warn("University discovery produced no crawler candidates; using homepage fallback: university={}, fallbackUrls={}",
+                        university.getUniversityName(), candidateUrls.size());
+            }
+            discovered.addAll(candidateUrls);
             discovered.addAll(searchOfficialPages(university, request, profile));
             if (discovered.size() >= maxUrls) {
                 break;
             }
         }
-        return discovered.stream()
+
+        List<String> normalized = discovered.stream()
                 .map(urlNormalizer::normalize)
                 .filter(url -> !url.isBlank())
                 .filter(registryService::isAllowedUrl)
                 .limit(maxUrls)
+                .toList();
+
+        if (normalized.isEmpty()) {
+            normalized = registryService.getFallbackSources(maxUrls);
+            log.warn("University source discovery returned zero URLs after filtering; falling back to registry seed URLs: fallbackUrls={}", normalized.size());
+        }
+
+        log.info("University source discovery completed: registrySize={}, rankedUniversities={}, discoveredUrls={}, requestedSources={}",
+                registryService.configuredUniversityCount(), rankedUniversities.size(), normalized.size(), maxUrls);
+        return normalized;
+    }
+
+
+    private List<String> fallbackToHomepages(UniversityRegistryProperties.UniversityRegistryEntry university) {
+        return university.getSeedUrls().stream()
+                .map(urlNormalizer::normalize)
+                .filter(url -> !url.isBlank())
                 .toList();
     }
 
@@ -109,8 +141,9 @@ public class PublicUniversitySourceDiscoveryService {
                         break;
                     }
                 }
-            } catch (IOException ignored) {
-                // Discovery should continue even if one search request fails.
+            } catch (IOException ex) {
+                log.warn("University search discovery failed for university={}, query={}, message={}",
+                        university.getUniversityName(), query, ex.getMessage());
             }
         }
         return List.copyOf(results);
