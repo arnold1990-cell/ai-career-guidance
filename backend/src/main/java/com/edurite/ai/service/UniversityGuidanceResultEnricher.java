@@ -5,7 +5,9 @@ import com.edurite.ai.dto.UniversitySourcesAnalysisResponse;
 import com.edurite.ai.university.UniversityPageType;
 import com.edurite.ai.university.UniversitySourcePageResult;
 import com.edurite.student.entity.StudentProfile;
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,10 +28,11 @@ public class UniversityGuidanceResultEnricher {
         List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes = enrichProgrammes(response, request, profile, safePages);
         List<UniversitySourcesAnalysisResponse.RecommendedCareer> careers = enrichCareers(response, request, profile, programmes, safePages);
         List<UniversitySourcesAnalysisResponse.SourceDiagnostic> sourceDiagnostics = buildDiagnostics(safeRequestedUrls, safePages);
-        UniversitySourcesAnalysisResponse.SourceCoverage sourceCoverage = buildCoverage(safeRequestedUrls, safePages, programmes);
+        UniversitySourcesAnalysisResponse.SourceCoverage sourceCoverage = buildCoverage(safeRequestedUrls, safePages, programmes, sourceDiagnostics);
         String scoreReason = buildScoreReason(response, request, profile, programmes, safePages);
         List<String> scoreSignals = buildScoreSignals(request, profile, programmes, safePages);
-        List<String> scoreLimitations = buildScoreLimitations(programmes, safePages);
+        List<String> scoreLimitations = buildScoreLimitations(programmes, sourceDiagnostics);
+        String summary = buildSummary(response, request, careers, programmes, sourceCoverage);
 
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
@@ -44,8 +47,8 @@ public class UniversityGuidanceResultEnricher {
                 response.successfullyAnalysedUrls(),
                 response.failedUrls(),
                 response.totalSourcesUsed(),
-                response.summary(),
-                response.inferredGuidance(),
+                summary,
+                dedupeStrings(response.inferredGuidance()),
                 careers,
                 programmes,
                 response.bursarySuggestions(),
@@ -71,28 +74,28 @@ public class UniversityGuidanceResultEnricher {
                                                                                            List<UniversitySourcePageResult> pages) {
         List<UniversitySourcesAnalysisResponse.RecommendedProgramme> base = response.recommendedProgrammes() == null ? List.of() : response.recommendedProgrammes();
         List<UniversitySourcesAnalysisResponse.RecommendedProgramme> result = new ArrayList<>();
-        int index = 0;
         for (UniversitySourcesAnalysisResponse.RecommendedProgramme programme : base) {
-            List<String> verifiedFacts = extractVerifiedFacts(programme.name(), programme.university(), pages);
-            List<String> missingData = buildMissingProgrammeData(programme, verifiedFacts);
+            List<UniversitySourcePageResult> relevantPages = relevantProgrammePages(programme, pages);
+            List<String> verifiedFacts = extractVerifiedFacts(programme.name(), programme.university(), relevantPages);
+            List<String> missingData = buildMissingProgrammeData(programme, verifiedFacts, relevantPages);
             List<String> nextBestActions = buildProgrammeActions(programme, missingData);
-            List<String> inferredInsights = dedupeStrings(java.util.Arrays.asList(programme.notes(), programme.recommendationReason()));
+            List<String> inferredInsights = buildProgrammeInsights(programme, request, profile, verifiedFacts);
             result.add(new UniversitySourcesAnalysisResponse.RecommendedProgramme(
                     programme.name(),
                     programme.university(),
                     dedupeRequirements(programme.admissionRequirements()),
                     programme.notes(),
-                    firstNonBlank(programme.recommendationReason(), buildProgrammeReason(programme, request, profile, verifiedFacts)),
+                    firstNonBlank(programme.recommendationReason(), buildProgrammeReason(programme, request, profile, verifiedFacts, relevantPages)),
                     firstNonBlank(programme.confidenceLevel(), confidenceLevel(verifiedFacts, missingData)),
                     verifiedFacts,
                     inferredInsights,
                     missingData,
-                    resolveSourceStatus(verifiedFacts, missingData, pages),
-                    rankingCategory(index++),
+                    resolveSourceStatus(verifiedFacts, missingData, relevantPages),
+                    null,
                     nextBestActions
             ));
         }
-        return result;
+        return sortProgrammes(result, request, profile);
     }
 
     private List<UniversitySourcesAnalysisResponse.RecommendedCareer> enrichCareers(UniversitySourcesAnalysisResponse response,
@@ -102,7 +105,6 @@ public class UniversityGuidanceResultEnricher {
                                                                                      List<UniversitySourcePageResult> pages) {
         List<UniversitySourcesAnalysisResponse.RecommendedCareer> base = response.recommendedCareers() == null ? List.of() : response.recommendedCareers();
         List<UniversitySourcesAnalysisResponse.RecommendedCareer> result = new ArrayList<>();
-        int index = 0;
         for (UniversitySourcesAnalysisResponse.RecommendedCareer career : base) {
             List<String> verifiedFacts = extractCareerFacts(career, programmes, pages);
             List<String> missingData = verifiedFacts.isEmpty()
@@ -116,14 +118,14 @@ public class UniversityGuidanceResultEnricher {
                     firstNonBlank(career.recommendationReason(), buildCareerReason(career, request, profile, programmes)),
                     firstNonBlank(career.confidenceLevel(), confidenceLevel(verifiedFacts, missingData)),
                     verifiedFacts,
-                    dedupeStrings(java.util.Collections.singletonList(career.reason())),
+                    buildCareerInsights(career, request, profile, programmes),
                     missingData,
                     resolveSourceStatus(verifiedFacts, missingData, pages),
-                    rankingCategory(index++),
+                    null,
                     buildCareerActions(career, programmes)
             ));
         }
-        return result;
+        return sortCareers(result, request, profile);
     }
 
     private List<UniversitySourcesAnalysisResponse.SourceDiagnostic> buildDiagnostics(List<String> requestedUrls,
@@ -138,7 +140,7 @@ public class UniversityGuidanceResultEnricher {
             diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(
                     page.sourceUrl(),
                     diagnosticStatus(page),
-                    page.failureReason(),
+                    fallbackFailureReason(page),
                     inferUniversity(page.sourceUrl()),
                     page.success() && isProgrammeUsable(page)
             ));
@@ -148,11 +150,19 @@ public class UniversityGuidanceResultEnricher {
 
     private UniversitySourcesAnalysisResponse.SourceCoverage buildCoverage(List<String> requestedUrls,
                                                                           List<UniversitySourcePageResult> pages,
-                                                                          List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes) {
-        int successCount = (int) pages.stream().filter(UniversitySourcePageResult::success).count();
-        int partialCount = (int) pages.stream().filter(page -> !page.success() && page.failureReason() != null && !page.failureReason().isBlank()).count();
+                                                                          List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes,
+                                                                          List<UniversitySourcesAnalysisResponse.SourceDiagnostic> sourceDiagnostics) {
+        int successCount = (int) sourceDiagnostics.stream().filter(item -> "SUCCESS".equalsIgnoreCase(item.fetchStatus())).count();
+        int partialCount = (int) sourceDiagnostics.stream().filter(item -> "PARTIAL".equalsIgnoreCase(item.fetchStatus())).count();
+        int failedCount = Math.max(0, requestedUrls.size() - successCount - partialCount);
         List<String> universities = dedupeStrings(programmes.stream().map(UniversitySourcesAnalysisResponse.RecommendedProgramme::university).collect(Collectors.toList()));
-        return new UniversitySourcesAnalysisResponse.SourceCoverage(requestedUrls.size(), successCount, Math.max(0, pages.size() - successCount), partialCount, universities);
+        if (universities.isEmpty()) {
+            universities = dedupeStrings(sourceDiagnostics.stream()
+                    .filter(UniversitySourcesAnalysisResponse.SourceDiagnostic::usableProgrammeData)
+                    .map(UniversitySourcesAnalysisResponse.SourceDiagnostic::university)
+                    .collect(Collectors.toList()));
+        }
+        return new UniversitySourcesAnalysisResponse.SourceCoverage(requestedUrls.size(), successCount, failedCount, partialCount, universities);
     }
 
     private List<String> extractVerifiedFacts(String programmeName, String university, List<UniversitySourcePageResult> pages) {
@@ -199,20 +209,25 @@ public class UniversityGuidanceResultEnricher {
     }
 
     private List<String> buildMissingProgrammeData(UniversitySourcesAnalysisResponse.RecommendedProgramme programme,
-                                                   List<String> verifiedFacts) {
+                                                   List<String> verifiedFacts,
+                                                   List<UniversitySourcePageResult> relevantPages) {
         List<String> missing = new ArrayList<>();
         String combinedRequirements = String.join(" ", programme.admissionRequirements() == null ? List.of() : programme.admissionRequirements()).toLowerCase(Locale.ROOT);
         String combinedFacts = String.join(" ", verifiedFacts).toLowerCase(Locale.ROOT);
-        if (!combinedRequirements.contains("aps") && !combinedFacts.contains("aps")) {
+        String combinedNotes = safe(programme.notes()).toLowerCase(Locale.ROOT);
+        if (!containsAny(combinedRequirements + " " + combinedFacts + " " + combinedNotes, List.of("aps", "admission point score"))) {
             missing.add("APS not found in fetched sources.");
         }
-        if (!combinedRequirements.contains("deadline") && !combinedFacts.contains("deadline")) {
+        if (!containsAny(combinedRequirements + " " + combinedFacts + " " + combinedNotes, List.of("deadline", "closing date", "application date"))) {
             missing.add("Deadline missing from fetched sources.");
         }
         if (verifiedFacts.isEmpty()) {
             missing.add("Official page unreachable or lacked programme-specific details.");
         }
-        return missing;
+        if (!relevantPages.isEmpty() && relevantPages.stream().allMatch(page -> !page.success())) {
+            missing.add("Source unavailable from official page.");
+        }
+        return dedupeStrings(missing);
     }
 
     private List<String> buildProgrammeActions(UniversitySourcesAnalysisResponse.RecommendedProgramme programme,
@@ -244,7 +259,8 @@ public class UniversityGuidanceResultEnricher {
     private String buildProgrammeReason(UniversitySourcesAnalysisResponse.RecommendedProgramme programme,
                                         UniversitySourcesAnalysisRequest request,
                                         StudentProfile profile,
-                                        List<String> verifiedFacts) {
+                                        List<String> verifiedFacts,
+                                        List<UniversitySourcePageResult> relevantPages) {
         List<String> reasons = new ArrayList<>();
         if (containsIgnoreCase(programme.name(), request.targetProgram())) {
             reasons.add("matches your target programme");
@@ -257,6 +273,9 @@ public class UniversityGuidanceResultEnricher {
         }
         if (!verifiedFacts.isEmpty()) {
             reasons.add("has supporting official source evidence");
+        }
+        if (relevantPages.stream().map(this::inferUniversity).distinct().count() > 1) {
+            reasons.add("appears across multiple usable official source pages");
         }
         return reasons.isEmpty() ? "Recommended as a practical next-fit programme based on your profile and available university evidence." :
                 "Recommended because it " + String.join(", ", reasons) + ".";
@@ -276,8 +295,14 @@ public class UniversityGuidanceResultEnricher {
         if (career.relatedProgrammes() != null && !career.relatedProgrammes().isEmpty()) {
             reasons.add("links to available programme pathways");
         }
-        if (!programmes.isEmpty()) {
-            reasons.add("is supported by multi-university programme options");
+        long supportingUniversities = programmes.stream()
+                .filter(programme -> career.relatedProgrammes() != null && career.relatedProgrammes().stream().anyMatch(item -> item.equalsIgnoreCase(programme.name())))
+                .map(UniversitySourcesAnalysisResponse.RecommendedProgramme::university)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .count();
+        if (supportingUniversities > 0) {
+            reasons.add("is supported by " + supportingUniversities + " university option(s)");
         }
         return reasons.isEmpty() ? "Recommended as a realistic pathway given your current profile." : "Recommended because it " + String.join(", ", reasons) + ".";
     }
@@ -288,10 +313,13 @@ public class UniversityGuidanceResultEnricher {
                                     List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes,
                                     List<UniversitySourcePageResult> pages) {
         int score = response.suitabilityScore() == null ? 0 : response.suitabilityScore();
-        int successCount = (int) pages.stream().filter(UniversitySourcePageResult::success).count();
-        return "Suitability score " + score + " was based on the match between your requested pathway, stored profile signals, and "
-                + successCount + " successfully fetched official source(s). "
-                + (programmes.isEmpty() ? "The score is lower-confidence because few programme matches were available." : "Programme matches and verified facts increased confidence.");
+        long successCount = pages.stream().filter(UniversitySourcePageResult::success).count();
+        long supportingUniversities = programmes.stream().map(UniversitySourcesAnalysisResponse.RecommendedProgramme::university).filter(value -> value != null && !value.isBlank()).distinct().count();
+        return "Suitability score " + score + " was based on your requested programme and career goals, stored profile interests/skills, and "
+                + successCount + " successfully fetched official source(s) across " + supportingUniversities + " university option(s). "
+                + (programmes.isEmpty()
+                ? "The score was reduced because few programme matches were verified from official pages."
+                : "The score improved when programme matches aligned with your stated interests and official university evidence.");
     }
 
     private List<String> buildScoreSignals(UniversitySourcesAnalysisRequest request,
@@ -313,15 +341,16 @@ public class UniversityGuidanceResultEnricher {
         }
         if (!programmes.isEmpty()) {
             signals.add("Programme matches identified: " + programmes.size());
+            signals.add("Universities contributing evidence: " + programmes.stream().map(UniversitySourcesAnalysisResponse.RecommendedProgramme::university).filter(value -> value != null && !value.isBlank()).distinct().count());
         }
         signals.add("Successful official sources: " + pages.stream().filter(UniversitySourcePageResult::success).count());
         return dedupeStrings(signals);
     }
 
     private List<String> buildScoreLimitations(List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes,
-                                               List<UniversitySourcePageResult> pages) {
+                                               List<UniversitySourcesAnalysisResponse.SourceDiagnostic> sourceDiagnostics) {
         List<String> limitations = new ArrayList<>();
-        if (pages.stream().anyMatch(page -> !page.success())) {
+        if (sourceDiagnostics.stream().anyMatch(item -> "FAILED".equalsIgnoreCase(item.fetchStatus()) || "TIMEOUT".equalsIgnoreCase(item.fetchStatus()))) {
             limitations.add("Some official pages failed or timed out, so source coverage is incomplete.");
         }
         if (programmes.stream().anyMatch(programme -> programme.missingData() != null && !programme.missingData().isEmpty())) {
@@ -333,6 +362,170 @@ public class UniversityGuidanceResultEnricher {
         return limitations;
     }
 
+    private String buildSummary(UniversitySourcesAnalysisResponse response,
+                                UniversitySourcesAnalysisRequest request,
+                                List<UniversitySourcesAnalysisResponse.RecommendedCareer> careers,
+                                List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes,
+                                UniversitySourcesAnalysisResponse.SourceCoverage coverage) {
+        String current = safe(response.summary());
+        boolean generic = current.isBlank() || current.length() < 40 || current.toLowerCase(Locale.ROOT).contains("based on your profile and current guidance context");
+        if (!generic && coverage != null && coverage.successfulSourcesCount() != null && coverage.successfulSourcesCount() > 1) {
+            return current;
+        }
+        String topCareer = careers.isEmpty() ? "" : safe(careers.get(0).name());
+        String topProgramme = programmes.isEmpty() ? "" : safe(programmes.get(0).name()) + (programmes.get(0).university() == null ? "" : " at " + programmes.get(0).university());
+        int successfulSources = coverage == null || coverage.successfulSourcesCount() == null ? 0 : coverage.successfulSourcesCount();
+        return (request.careerInterest() == null || request.careerInterest().isBlank() ? "Your current profile" : "Your interest in " + request.careerInterest())
+                + " is strongest for "
+                + (topCareer.isBlank() ? "the leading guidance options" : topCareer)
+                + ", with "
+                + (topProgramme.isBlank() ? "programme pathways still needing more official verification" : topProgramme)
+                + " standing out from " + successfulSources + " successful official source(s)."
+                + (coverage != null && coverage.partialSourcesCount() != null && coverage.partialSourcesCount() > 0 ? " Some sources were only partially usable, so verify deadlines and APS details on official admissions pages." : "");
+    }
+
+    private List<String> buildProgrammeInsights(UniversitySourcesAnalysisResponse.RecommendedProgramme programme,
+                                                UniversitySourcesAnalysisRequest request,
+                                                StudentProfile profile,
+                                                List<String> verifiedFacts) {
+        List<String> insights = new ArrayList<>();
+        if (containsIgnoreCase(programme.name(), request.careerInterest()) || containsIgnoreCase(programme.notes(), request.careerInterest())) {
+            insights.add("AI inference: this programme keeps you close to your stated career direction.");
+        }
+        if (containsIgnoreCase(profile.getInterests(), programme.name()) || containsIgnoreCase(profile.getSkills(), programme.name())) {
+            insights.add("AI inference: your stored interests or skills suggest you may adapt well to this programme.");
+        }
+        if (!verifiedFacts.isEmpty()) {
+            insights.add("AI inference: verified programme evidence improves confidence in this recommendation.");
+        }
+        insights.addAll(dedupeStrings(java.util.Arrays.asList(programme.notes(), programme.recommendationReason())));
+        return dedupeStrings(insights);
+    }
+
+    private List<String> buildCareerInsights(UniversitySourcesAnalysisResponse.RecommendedCareer career,
+                                             UniversitySourcesAnalysisRequest request,
+                                             StudentProfile profile,
+                                             List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes) {
+        List<String> insights = new ArrayList<>();
+        if (containsIgnoreCase(career.name(), request.careerInterest())) {
+            insights.add("AI inference: this career directly matches the pathway you asked EduRite to assess.");
+        }
+        if (containsIgnoreCase(profile.getInterests(), career.name()) || containsIgnoreCase(profile.getSkills(), career.name())) {
+            insights.add("AI inference: your profile suggests a stronger-than-generic fit for this career.");
+        }
+        long linkedProgrammes = programmes.stream().filter(programme -> career.relatedProgrammes() != null && career.relatedProgrammes().stream().anyMatch(item -> item.equalsIgnoreCase(programme.name()))).count();
+        if (linkedProgrammes > 0) {
+            insights.add("AI inference: there are " + linkedProgrammes + " linked programme option(s) supporting this pathway.");
+        }
+        insights.add(career.reason());
+        return dedupeStrings(insights);
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedProgramme> sortProgrammes(List<UniversitySourcesAnalysisResponse.RecommendedProgramme> programmes,
+                                                                                         UniversitySourcesAnalysisRequest request,
+                                                                                         StudentProfile profile) {
+        List<UniversitySourcesAnalysisResponse.RecommendedProgramme> sorted = programmes.stream()
+                .sorted(Comparator.comparingInt((UniversitySourcesAnalysisResponse.RecommendedProgramme programme) -> programmeRank(programme, request, profile)).reversed()
+                        .thenComparing(UniversitySourcesAnalysisResponse.RecommendedProgramme::university, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(UniversitySourcesAnalysisResponse.RecommendedProgramme::name, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+        List<UniversitySourcesAnalysisResponse.RecommendedProgramme> ranked = new ArrayList<>();
+        for (int index = 0; index < sorted.size(); index++) {
+            UniversitySourcesAnalysisResponse.RecommendedProgramme programme = sorted.get(index);
+            ranked.add(new UniversitySourcesAnalysisResponse.RecommendedProgramme(
+                    programme.name(),
+                    programme.university(),
+                    programme.admissionRequirements(),
+                    programme.notes(),
+                    programme.recommendationReason(),
+                    programme.confidenceLevel(),
+                    programme.verifiedFacts(),
+                    programme.inferredInsights(),
+                    programme.missingData(),
+                    programme.sourceStatus(),
+                    rankingCategory(index),
+                    programme.nextBestActions()
+            ));
+        }
+        return ranked;
+    }
+
+    private List<UniversitySourcesAnalysisResponse.RecommendedCareer> sortCareers(List<UniversitySourcesAnalysisResponse.RecommendedCareer> careers,
+                                                                                   UniversitySourcesAnalysisRequest request,
+                                                                                   StudentProfile profile) {
+        List<UniversitySourcesAnalysisResponse.RecommendedCareer> sorted = careers.stream()
+                .sorted(Comparator.comparingInt((UniversitySourcesAnalysisResponse.RecommendedCareer career) -> careerRank(career, request, profile)).reversed()
+                        .thenComparing(UniversitySourcesAnalysisResponse.RecommendedCareer::name, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+        List<UniversitySourcesAnalysisResponse.RecommendedCareer> ranked = new ArrayList<>();
+        for (int index = 0; index < sorted.size(); index++) {
+            UniversitySourcesAnalysisResponse.RecommendedCareer career = sorted.get(index);
+            ranked.add(new UniversitySourcesAnalysisResponse.RecommendedCareer(
+                    career.name(),
+                    career.reason(),
+                    career.requirements(),
+                    career.relatedProgrammes(),
+                    career.recommendationReason(),
+                    career.confidenceLevel(),
+                    career.verifiedFacts(),
+                    career.inferredInsights(),
+                    career.missingData(),
+                    career.sourceStatus(),
+                    rankingCategory(index),
+                    career.nextBestActions()
+            ));
+        }
+        return ranked;
+    }
+
+    private int programmeRank(UniversitySourcesAnalysisResponse.RecommendedProgramme programme,
+                              UniversitySourcesAnalysisRequest request,
+                              StudentProfile profile) {
+        int score = 0;
+        if (containsIgnoreCase(programme.name(), request.targetProgram())) {
+            score += 5;
+        }
+        if (containsIgnoreCase(programme.name(), request.careerInterest())) {
+            score += 4;
+        }
+        if (containsIgnoreCase(profile.getInterests(), programme.name()) || containsIgnoreCase(profile.getSkills(), programme.name())) {
+            score += 3;
+        }
+        score += programme.verifiedFacts() == null ? 0 : programme.verifiedFacts().size() * 2;
+        score -= programme.missingData() == null ? 0 : programme.missingData().size();
+        return score;
+    }
+
+    private int careerRank(UniversitySourcesAnalysisResponse.RecommendedCareer career,
+                           UniversitySourcesAnalysisRequest request,
+                           StudentProfile profile) {
+        int score = 0;
+        if (containsIgnoreCase(career.name(), request.careerInterest())) {
+            score += 5;
+        }
+        if (containsIgnoreCase(profile.getInterests(), career.name()) || containsIgnoreCase(profile.getSkills(), career.name())) {
+            score += 3;
+        }
+        score += career.verifiedFacts() == null ? 0 : career.verifiedFacts().size() * 2;
+        score += career.relatedProgrammes() == null ? 0 : career.relatedProgrammes().size();
+        return score;
+    }
+
+    private List<UniversitySourcePageResult> relevantProgrammePages(UniversitySourcesAnalysisResponse.RecommendedProgramme programme,
+                                                                    List<UniversitySourcePageResult> pages) {
+        String programmeNeedle = normalize(programme.name());
+        String universityNeedle = normalize(programme.university());
+        List<UniversitySourcePageResult> matched = pages.stream()
+                .filter(page -> containsIgnoreCase(page.sourceUrl(), programme.university())
+                        || containsIgnoreCase(page.pageTitle(), programme.name())
+                        || containsIgnoreCase(page.cleanedText(), programme.name())
+                        || containsIgnoreCase(String.join(" ", page.headings()), programme.name())
+                        || (!universityNeedle.isBlank() && normalize(inferUniversity(page.sourceUrl())).contains(universityNeedle))
+                        || (!programmeNeedle.isBlank() && normalize(String.join(" ", page.extractedKeywords())).contains(programmeNeedle)))
+                .toList();
+        return matched.isEmpty() ? pages : matched;
+    }
+
     private List<String> dedupeRequirements(List<String> requirements) {
         List<String> safe = dedupeStrings(requirements);
         Set<String> normalized = new LinkedHashSet<>();
@@ -340,7 +533,8 @@ public class UniversityGuidanceResultEnricher {
         for (String item : safe) {
             String canonical = normalize(item)
                     .replace("not found in fetched sources", "missing requirement data")
-                    .replace("verify exact programme requirements from official university programme pages.", "verify on official programme page");
+                    .replace("verify exact programme requirements from official university programme pages.", "verify on official programme page")
+                    .replace("please verify on official programme page", "verify on official programme page");
             if (normalized.add(canonical)) {
                 result.add(item);
             }
@@ -378,67 +572,104 @@ public class UniversityGuidanceResultEnricher {
         return "LOW";
     }
 
-    private String resolveSourceStatus(List<String> verifiedFacts, List<String> missingData, List<UniversitySourcePageResult> pages) {
-        long failures = pages.stream().filter(page -> !page.success()).count();
-        if (!verifiedFacts.isEmpty() && failures == 0) {
-            return "SUCCESS";
+    private String resolveSourceStatus(List<String> verifiedFacts,
+                                       List<String> missingData,
+                                       List<UniversitySourcePageResult> pages) {
+        if (verifiedFacts.isEmpty() && pages.stream().anyMatch(page -> !page.success())) {
+            return "FAILED";
         }
-        if (!verifiedFacts.isEmpty()) {
+        if (!verifiedFacts.isEmpty() && !missingData.isEmpty()) {
             return "PARTIAL";
         }
-        return missingData.isEmpty() ? "FAILED" : "PARTIAL";
+        if (!verifiedFacts.isEmpty()) {
+            return "SUCCESS";
+        }
+        return pages.isEmpty() ? "UNAVAILABLE" : "PARTIAL";
     }
 
     private String diagnosticStatus(UniversitySourcePageResult page) {
-        if (page.success() && isProgrammeUsable(page)) {
-            return "SUCCESS";
+        if (!page.success() && page.failureType() != null && page.failureType().name().equalsIgnoreCase("TIMEOUT")) {
+            return "TIMEOUT";
         }
-        if (page.success()) {
-            return "PARTIAL";
+        if (!page.success()) {
+            return "FAILED";
         }
-        return page.failureType() != null && page.failureType().name().contains("TIMEOUT") ? "TIMEOUT" : "FAILED";
+        return isProgrammeUsable(page) ? "SUCCESS" : "PARTIAL";
     }
 
     private boolean isProgrammeUsable(UniversitySourcePageResult page) {
+        if (page == null || !page.success()) {
+            return false;
+        }
         return page.pageType() == UniversityPageType.PROGRAMME_DETAIL
                 || page.pageType() == UniversityPageType.QUALIFICATION_LIST
-                || page.pageType() == UniversityPageType.ADMISSIONS_OVERVIEW;
+                || page.pageType() == UniversityPageType.ADMISSIONS_OVERVIEW
+                || page.pageType() == UniversityPageType.FEES_FUNDING;
+    }
+
+    private String fallbackFailureReason(UniversitySourcePageResult page) {
+        if (page.success() && !isProgrammeUsable(page)) {
+            return "Source fetched successfully but only provided partial or general information.";
+        }
+        return page.failureReason();
     }
 
     private String summarizeFact(UniversitySourcePageResult page) {
-        String text = firstNonBlank(String.join(" | ", page.headings()), page.pageTitle(), page.cleanedText());
-        text = text == null ? "Official page content was available." : text;
-        return text.length() <= 140 ? text : text.substring(0, 140).trim() + "...";
+        if (!page.headings().isEmpty()) {
+            return page.pageType() + " page referencing " + String.join(", ", page.headings().stream().limit(2).toList());
+        }
+        if (page.pageTitle() != null && !page.pageTitle().isBlank()) {
+            return page.pageType() + " page titled '" + page.pageTitle() + "'";
+        }
+        return page.pageType() + " page from official source";
     }
 
-    private String inferUniversity(String url) {
-        if (url == null) {
-            return "University Source";
+    private String inferUniversity(String sourceUrl) {
+        try {
+            URI uri = URI.create(sourceUrl);
+            if (uri.getHost() == null) {
+                return "Official university source";
+            }
+            String host = uri.getHost().replaceFirst("^www\\.", "");
+            String label = host.split("\\.")[0].replace('-', ' ').trim();
+            if (label.isBlank()) {
+                return host;
+            }
+            return java.util.Arrays.stream(label.split("\\s+"))
+                    .map(this::capitalize)
+                    .collect(Collectors.joining(" "));
+        } catch (RuntimeException ex) {
+            return "Official university source";
         }
-        String normalized = url.toLowerCase(Locale.ROOT);
-        if (normalized.contains("uct.ac.za")) return "University of Cape Town";
-        if (normalized.contains("wits")) return "University of the Witwatersrand";
-        if (normalized.contains("up.ac.za")) return "University of Pretoria";
-        if (normalized.contains("sun.ac.za")) return "Stellenbosch University";
-        if (normalized.contains("uj.ac.za")) return "University of Johannesburg";
-        if (normalized.contains("unisa")) return "University of South Africa";
-        return "University Source";
+    }
+
+    private String capitalize(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.substring(0, 1).toUpperCase(Locale.ROOT) + value.substring(1);
     }
 
     private boolean containsIgnoreCase(String haystack, String needle) {
-        return normalize(haystack).contains(normalize(needle)) && !normalize(needle).isBlank();
+        if (haystack == null || needle == null || haystack.isBlank() || needle.isBlank()) {
+            return false;
+        }
+        return normalize(haystack).contains(normalize(needle));
+    }
+
+    private boolean containsAny(String value, List<String> needles) {
+        return needles.stream().anyMatch(needle -> normalize(value).contains(normalize(needle)));
     }
 
     private String normalize(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 
-    private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        return null;
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first != null && !first.isBlank() ? first : second;
     }
 }

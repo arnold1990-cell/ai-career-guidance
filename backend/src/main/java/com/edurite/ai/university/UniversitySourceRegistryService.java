@@ -108,6 +108,17 @@ public class UniversitySourceRegistryService {
                 .collect(Collectors.collectingAndThen(Collectors.toCollection(LinkedHashSet::new), List::copyOf));
     }
 
+    public java.util.Optional<String> resolveUniversityName(String url) {
+        String host = host(url);
+        if (host == null) {
+            return java.util.Optional.empty();
+        }
+        return properties.getRegistry().stream()
+                .filter(university -> matchesAllowedDomain(host, university))
+                .map(UniversityRegistryProperties.UniversityRegistryEntry::getUniversityName)
+                .findFirst();
+    }
+
     public int configuredUniversityCount() {
         return properties.getRegistry().size();
     }

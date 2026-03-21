@@ -92,4 +92,42 @@ class UniversityGuidanceResultEnricherTest {
         assertThat(enriched.sourceCoverage()).isNotNull();
         assertThat(enriched.suitabilityScoreReason()).contains("Suitability score 78");
     }
+
+    @Test
+    void ranksProgrammesAcrossMultipleUniversitiesAndMarksPartialSourceStatus() {
+        StudentProfile profile = new StudentProfile();
+        profile.setInterests("software engineering data science");
+        profile.setSkills("mathematics python");
+
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(List.of(), "Computer Science", "Software Engineer", "Undergraduate", 5);
+        UniversitySourcesAnalysisResponse response = new UniversitySourcesAnalysisResponse(
+                true, false, "SUCCESS", "LIVE", "FULLY_GROUNDED", 80, null,
+                List.of("https://www.uj.ac.za/programmes/cs", "https://www.uct.ac.za/apply/cs"),
+                List.of("https://www.uj.ac.za/programmes/cs", "https://www.uct.ac.za/apply/cs"),
+                List.of("https://www.uj.ac.za/programmes/cs", "https://www.uct.ac.za/apply/cs"),
+                List.of(), 2,
+                "Based on your profile and current guidance context.", List.of(), List.of(),
+                List.of(
+                        new UniversitySourcesAnalysisResponse.RecommendedProgramme("BSc Computer Science", "University of Cape Town", List.of("Mathematics 70%"), "Strong theory and systems focus."),
+                        new UniversitySourcesAnalysisResponse.RecommendedProgramme("Diploma in IT", "University of Johannesburg", List.of("Mathematics 60%", "Deadline not found in fetched sources"), "Applied software pathway.")
+                ),
+                List.of(), List.of("University of Cape Town", "University of Johannesburg"), List.of(), List.of(), List.of(), List.of(), List.of(), 82, "gemini"
+        );
+
+        List<UniversitySourcePageResult> pages = List.of(
+                new UniversitySourcePageResult("https://www.uct.ac.za/apply/cs", "Computer Science", UniversityPageType.PROGRAMME_DETAIL,
+                        "Computer Science admission requirements include mathematics and application dates.", Set.of("computer science", "mathematics"), List.of("BSc Computer Science", "Admission requirements"), true, null, null),
+                new UniversitySourcePageResult("https://www.uj.ac.za/programmes/cs", "Diploma in IT", UniversityPageType.QUALIFICATION_LIST,
+                        "Diploma in IT has mathematics requirements but no APS detail on this page.", Set.of("information technology", "mathematics"), List.of("Diploma in IT"), true, null, null)
+        );
+
+        UniversitySourcesAnalysisResponse enriched = enricher.enrich(response, request, profile, response.sourceUrls(), pages);
+
+        assertThat(enriched.recommendedProgrammes()).hasSize(2);
+        assertThat(enriched.recommendedProgrammes().get(0).name()).isEqualTo("BSc Computer Science");
+        assertThat(enriched.recommendedProgrammes().get(0).rankingCategory()).isEqualTo("Best match");
+        assertThat(enriched.recommendedProgrammes().get(1).sourceStatus()).isEqualTo("PARTIAL");
+        assertThat(enriched.summary()).contains("Software Engineer");
+    }
+
 }

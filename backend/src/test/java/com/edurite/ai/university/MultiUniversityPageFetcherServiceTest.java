@@ -102,6 +102,41 @@ class MultiUniversityPageFetcherServiceTest {
         assertThat(results.get(1).success()).isFalse();
     }
 
+
+    @Test
+    void fetchPagesBalancesAcrossUniversitiesInsteadOfStoppingAtSingleGlobalLimit() {
+        UniversityRegistryProperties properties = buildProperties(8080);
+        properties.getCrawl().setMaxFetchedPagesPerUniversity(2);
+
+        UniversityRegistryProperties.UniversityRegistryEntry second = new UniversityRegistryProperties.UniversityRegistryEntry();
+        second.setUniversityName("University B");
+        second.setBaseDomain("127.0.0.1");
+        second.setAllowedDomains(List.of("127.0.0.1"));
+        second.setSeedUrls(List.of("http://127.0.0.1:8081/"));
+        properties.getRegistry().add(second);
+
+        UniversitySourceRegistryService registryService = new UniversitySourceRegistryService(properties, new UniversityUrlNormalizer());
+        MultiUniversityPageFetcherService service = new MultiUniversityPageFetcherService(
+                registryService,
+                new UniversityPageClassifier(),
+                new UniversityUrlNormalizer(),
+                properties
+        );
+
+        var results = service.fetchPages(List.of(
+                "https://localhost:8080/programmes/a",
+                "https://localhost:8080/programmes/b",
+                "https://localhost:8080/programmes/c",
+                "http://127.0.0.1:8081/programmes/a",
+                "http://127.0.0.1:8081/programmes/b",
+                "http://127.0.0.1:8081/programmes/c"
+        ));
+
+        assertThat(results).hasSize(4);
+        assertThat(results.stream().filter(item -> item.sourceUrl().contains("localhost")).count()).isEqualTo(2);
+        assertThat(results.stream().filter(item -> item.sourceUrl().contains("127.0.0.1:8081")).count()).isEqualTo(2);
+    }
+
     private void rootPage(HttpExchange exchange) throws IOException {
         String body = """
                 <html>

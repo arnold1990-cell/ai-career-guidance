@@ -5,8 +5,10 @@ import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -17,11 +19,11 @@ import javax.net.ssl.SSLException;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.jsoup.UnsupportedMimeTypeException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -48,7 +50,11 @@ public class MultiUniversityPageFetcherService {
             Map.entry("postgraduate", 2),
             Map.entry("qualification", 2),
             Map.entry("degree", 2),
-            Map.entry("diploma", 2)
+            Map.entry("diploma", 2),
+            Map.entry("prospectus", 2),
+            Map.entry("fees", 2),
+            Map.entry("financial-aid", 2),
+            Map.entry("bursary", 2)
     );
 
     private final UniversitySourceRegistryService registryService;
@@ -89,33 +95,73 @@ public class MultiUniversityPageFetcherService {
             }
         }
 
-        List<String> results = discovered.stream().limit(cappedMaxUrls).toList();
+        List<String> results = discovered.stream()
+                .sorted(Comparator.comparingInt(this::candidatePriority).reversed())
+                .limit(cappedMaxUrls)
+                .toList();
         log.info("University crawler discovery completed: university={}, seedUrls={}, discoveredUrls={}, requestedSources={}",
                 university.getUniversityName(), university.getSeedUrls().size(), results.size(), cappedMaxUrls);
         return results;
     }
 
     public List<UniversitySourcePageResult> fetchPages(List<String> urls) {
-        List<UniversitySourcePageResult> results = new ArrayList<>();
-        Set<String> seen = new LinkedHashSet<>();
-        int maxFetches = Math.max(1, Math.min(crawl().getMaxFetchedPagesPerUniversity(), urls.size()));
-
-        for (String rawUrl : urls) {
-            String url = urlNormalizer.normalize(rawUrl);
-            if (url.isBlank() || !seen.add(url)) {
-                continue;
-            }
-            if (results.size() >= maxFetches) {
-                break;
-            }
-            if (!registryService.isAllowedUrl(url)) {
-                results.add(new UniversitySourcePageResult(url, "", UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false,
-                        "URL domain is not allowlisted", UniversityCrawlFailureType.ACCESS_DENIED));
-                continue;
-            }
-            results.add(fetchSingle(url));
+        if (urls == null || urls.isEmpty()) {
+            return List.of();
         }
+
+        List<String> normalizedUrls = urls.stream()
+                .map(urlNormalizer::normalize)
+                .filter(url -> !url.isBlank())
+                .distinct()
+                .toList();
+
+        Map<String, Deque<String>> urlsByUniversity = new LinkedHashMap<>();
+        for (String url : normalizedUrls) {
+            String universityKey = registryService.resolveUniversityName(url).orElseGet(() -> hostKey(url));
+            urlsByUniversity.computeIfAbsent(universityKey, ignored -> new ArrayDeque<>()).add(url);
+        }
+
+        int maxFetchesPerUniversity = Math.max(1, crawl().getMaxFetchedPagesPerUniversity());
+        Map<String, Integer> fetchCounts = new LinkedHashMap<>();
+        Map<String, UniversitySourcePageResult> cache = new LinkedHashMap<>();
+        List<UniversitySourcePageResult> results = new ArrayList<>();
+        boolean progressed;
+
+        do {
+            progressed = false;
+            for (Map.Entry<String, Deque<String>> entry : urlsByUniversity.entrySet()) {
+                String universityKey = entry.getKey();
+                Deque<String> universityUrls = entry.getValue();
+                if (universityUrls.isEmpty()) {
+                    continue;
+                }
+                int currentCount = fetchCounts.getOrDefault(universityKey, 0);
+                if (currentCount >= maxFetchesPerUniversity) {
+                    universityUrls.clear();
+                    continue;
+                }
+                String url = universityUrls.pollFirst();
+                if (url == null) {
+                    continue;
+                }
+                progressed = true;
+                UniversitySourcePageResult result = cache.computeIfAbsent(url, this::fetchAllowlistedSingle);
+                results.add(result);
+                fetchCounts.put(universityKey, currentCount + 1);
+            }
+        } while (progressed);
+
+        log.info("University page fetch batching completed: requestedUrls={}, universities={}, fetchedPages={}, maxFetchesPerUniversity={}",
+                normalizedUrls.size(), urlsByUniversity.size(), results.size(), maxFetchesPerUniversity);
         return results;
+    }
+
+    private UniversitySourcePageResult fetchAllowlistedSingle(String url) {
+        if (!registryService.isAllowedUrl(url)) {
+            return new UniversitySourcePageResult(url, "", UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false,
+                    "URL domain is not allowlisted", UniversityCrawlFailureType.ACCESS_DENIED);
+        }
+        return fetchSingle(url);
     }
 
     private UniversitySourcePageResult fetchSingle(String url) {
@@ -208,7 +254,7 @@ public class MultiUniversityPageFetcherService {
                     return;
                 }
                 String context = (link.text() + " " + normalized).toLowerCase(Locale.ROOT);
-                int score = relevanceScore(context);
+                int score = relevanceScore(context) + candidatePriority(normalized);
                 if (score <= 0 || classifier.shouldDeprioritizeLink(normalized, link.text())) {
                     return;
                 }
@@ -275,6 +321,16 @@ public class MultiUniversityPageFetcherService {
         return score;
     }
 
+    private int candidatePriority(String url) {
+        String normalized = url == null ? "" : url.toLowerCase(Locale.ROOT);
+        return relevanceScore(normalized)
+                + (normalized.contains("undergraduate") ? 2 : 0)
+                + (normalized.contains("postgraduate") ? 2 : 0)
+                + (normalized.contains("admission") ? 2 : 0)
+                + (normalized.contains("programme") || normalized.contains("program") ? 2 : 0)
+                - (normalized.contains("news") || normalized.contains("privacy") || normalized.contains("cookie") ? 3 : 0);
+    }
+
     private boolean isThinButUsefulPage(String url,
                                         String title,
                                         String visibleText,
@@ -293,7 +349,9 @@ public class MultiUniversityPageFetcherService {
                 || combined.contains("program")
                 || combined.contains("degree")
                 || combined.contains("admission")
-                || combined.contains("qualification");
+                || combined.contains("qualification")
+                || combined.contains("prospectus")
+                || combined.contains("fees");
     }
 
 
@@ -306,6 +364,9 @@ public class MultiUniversityPageFetcherService {
                 || combined.contains("qualification")
                 || combined.contains("undergraduate")
                 || combined.contains("postgraduate")
+                || combined.contains("fees")
+                || combined.contains("financial aid")
+                || combined.contains("prospectus")
                 || isHomepage(url);
     }
 
@@ -340,11 +401,6 @@ public class MultiUniversityPageFetcherService {
         return true;
     }
 
-    private long backoffMillis(int attempt) {
-        long factor = 1L << (attempt - 1);
-        return INITIAL_BACKOFF.toMillis() * factor;
-    }
-
     private UniversityCrawlFailureType classifyFailure(IOException ex) {
         if (ex == null) {
             return UniversityCrawlFailureType.FETCH_ERROR;
@@ -356,37 +412,46 @@ public class MultiUniversityPageFetcherService {
             return UniversityCrawlFailureType.SSL_ERROR;
         }
         if (ex instanceof HttpStatusException statusException) {
-            int statusCode = statusException.getStatusCode();
-            if (statusCode == 404) {
-                return UniversityCrawlFailureType.NOT_FOUND;
-            }
-            if (statusCode == 401 || statusCode == 403) {
-                return UniversityCrawlFailureType.ACCESS_DENIED;
-            }
+            return switch (statusException.getStatusCode()) {
+                case 401, 403 -> UniversityCrawlFailureType.ACCESS_DENIED;
+                case 404 -> UniversityCrawlFailureType.NOT_FOUND;
+                case 408, 429 -> UniversityCrawlFailureType.TIMEOUT;
+                default -> UniversityCrawlFailureType.FETCH_ERROR;
+            };
         }
         return UniversityCrawlFailureType.FETCH_ERROR;
+    }
+
+    private long backoffMillis(int attempt) {
+        return INITIAL_BACKOFF.multipliedBy((long) Math.pow(2, Math.max(0, attempt - 1))).toMillis();
     }
 
     private void sleep(long millis) {
         try {
             Thread.sleep(millis);
-        } catch (InterruptedException interruptedException) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);
+    }
+
+    private String hostKey(String url) {
+        try {
+            URI uri = URI.create(url);
+            return uri.getHost() == null ? "unknown-host" : uri.getHost().toLowerCase(Locale.ROOT);
+        } catch (RuntimeException ex) {
+            return "unknown-host";
         }
     }
 
     private UniversityRegistryProperties.CrawlProperties crawl() {
         return properties.getCrawl();
-    }
-
-    private String truncate(String value, int maxChars) {
-        if (value == null) {
-            return "";
-        }
-        String normalized = value.replaceAll("\\s+", " ").trim();
-        if (normalized.length() <= maxChars) {
-            return normalized;
-        }
-        return normalized.substring(0, maxChars);
     }
 }
