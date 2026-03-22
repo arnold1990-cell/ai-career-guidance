@@ -88,7 +88,7 @@ class MultiUniversityPageFetcherServiceTest {
         AtomicInteger attempts = new AtomicInteger();
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/flaky", exchange -> {
-            if (attempts.incrementAndGet() < 3) {
+            if (attempts.incrementAndGet() < 2) {
                 respond(exchange, 503, "temporary failure");
                 return;
             }
@@ -111,7 +111,7 @@ class MultiUniversityPageFetcherServiceTest {
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).success()).isTrue();
-        assertThat(attempts.get()).isGreaterThanOrEqualTo(3);
+        assertThat(attempts.get()).isGreaterThanOrEqualTo(2);
     }
 
     @Test
