@@ -65,7 +65,7 @@ class UniversitySourcesGuidanceServiceTest {
         );
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(discoveredUrls);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(20))).thenReturn(discoveredUrls);
         when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
         when(aggregatorService.buildCombinedContext(fetchedPages, profile, request)).thenReturn("context");
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "SUCCESS", "LIVE", "FULLY_GROUNDED", 100, null, discoveredUrls, discoveredUrls, discoveredUrls, List.of(), 2, "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
@@ -75,7 +75,7 @@ class UniversitySourcesGuidanceServiceTest {
 
         service.analyse(principal, request);
 
-        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(24));
+        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(20));
         verify(geminiService).getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), eq(fetchedPages), eq("context"));
     }
 
@@ -112,15 +112,15 @@ class UniversitySourcesGuidanceServiceTest {
     }
 
     @Test
-    void analyseScalesDiscoveryLimitForLargeUniversityRegistry() {
+    void analyseCapsDiscoveryLimitForLargeUniversityRegistry() {
         Principal principal = () -> "student";
         StudentProfile profile = new StudentProfile();
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
         when(registryService.configuredUniversityCount()).thenReturn(55);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(110))).thenReturn(List.of());
-        when(registryService.getFallbackSources(110)).thenReturn(List.of());
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(20))).thenReturn(List.of());
+        when(registryService.getFallbackSources(20)).thenReturn(List.of());
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "SUCCESS", "LIVE", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
                 "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
@@ -130,7 +130,36 @@ class UniversitySourcesGuidanceServiceTest {
 
         service.analyse(principal, request);
 
-        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(110));
+        verify(discoveryService).discoverSources(eq(profile), eq(request), eq(20));
+    }
+
+
+    @Test
+    void analyseSynthesizesTerminalFailureWhenFetcherMissesARequestedSource() {
+        Principal principal = () -> "student";
+        StudentProfile profile = new StudentProfile();
+        UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
+        List<String> discoveredUrls = List.of("https://www.unisa.ac.za/a", "https://www.uj.ac.za/b");
+        List<UniversitySourcePageResult> fetchedPages = List.of(
+                new UniversitySourcePageResult(discoveredUrls.get(0), "A", PROGRAMME_DETAIL, "summary a", Set.of("software"), true, null, null)
+        );
+
+        when(studentService.getProfileEntity(principal)).thenReturn(profile);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(20))).thenReturn(discoveredUrls);
+        when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);
+        when(aggregatorService.buildCombinedContext(org.mockito.ArgumentMatchers.anyList(), eq(profile), eq(request))).thenReturn("context");
+        UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "SUCCESS", "LIVE", "PARTIALLY_GROUNDED", 50, null, discoveredUrls, discoveredUrls, List.of(discoveredUrls.get(0)), List.of(discoveredUrls.get(1)), 1,
+                "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 60, "gemini");
+        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(discoveredUrls), org.mockito.ArgumentMatchers.anyList(), eq("context"))).thenReturn(baseResponse);
+        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(discoveredUrls), org.mockito.ArgumentMatchers.anyList())).thenReturn(baseResponse);
+
+        UniversitySourcesAnalysisResponse response = service.analyse(principal, request);
+
+        assertThat(response.failedUrls()).contains(discoveredUrls.get(1));
+        assertThat(response.sourceDiagnostics()).anySatisfy(diagnostic -> {
+            assertThat(diagnostic.sourceUrl()).isEqualTo(discoveredUrls.get(1));
+            assertThat(diagnostic.failureReason()).contains("terminal failure was synthesized");
+        });
     }
 
     @Test
@@ -140,8 +169,8 @@ class UniversitySourcesGuidanceServiceTest {
         UniversitySourcesAnalysisRequest request = new UniversitySourcesAnalysisRequest(null, "Computer Science", "Software", "Undergraduate", 5);
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(List.of());
-        when(registryService.getFallbackSources(24)).thenReturn(List.of());
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(20))).thenReturn(List.of());
+        when(registryService.getFallbackSources(20)).thenReturn(List.of());
         when(pageFetcherService.fetchPages(List.of())).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(true, false, "SUCCESS", "LIVE", "NO_LIVE_SOURCES", 0, null, List.of(), List.of(), List.of(), List.of(), 0,
@@ -165,8 +194,8 @@ class UniversitySourcesGuidanceServiceTest {
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
         when(registryService.configuredUniversityCount()).thenReturn(0);
         when(registryService.getActiveUniversities()).thenReturn(List.of());
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(List.of());
-        when(registryService.getFallbackSources(24)).thenReturn(fallbackUrls);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(20))).thenReturn(List.of());
+        when(registryService.getFallbackSources(20)).thenReturn(fallbackUrls);
         when(pageFetcherService.fetchPages(fallbackUrls)).thenReturn(List.of());
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(false, true, "ERROR", "UNAVAILABLE", "NO_LIVE_SOURCES", 0, null, fallbackUrls, fallbackUrls, List.of(), fallbackUrls, 0,
@@ -191,7 +220,7 @@ class UniversitySourcesGuidanceServiceTest {
         );
 
         when(studentService.getProfileEntity(principal)).thenReturn(profile);
-        when(discoveryService.discoverSources(eq(profile), eq(request), eq(24))).thenReturn(discoveredUrls);
+        when(discoveryService.discoverSources(eq(profile), eq(request), eq(20))).thenReturn(discoveredUrls);
         when(registryService.configuredUniversityCount()).thenReturn(0);
         when(registryService.getActiveUniversities()).thenReturn(List.of());
         when(pageFetcherService.fetchPages(discoveredUrls)).thenReturn(fetchedPages);

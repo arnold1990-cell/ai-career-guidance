@@ -37,11 +37,14 @@ public class UniversityRegistryProperties {
                 "/qualifications", "/prospectus", "/fees", "/financial-aid", "/funding", "/apply"
         ));
 
-        private int maxDiscoveredCandidatesPerUniversity = 60;
-        private int maxFetchedPagesPerUniversity = 30;
+        private int maxDiscoveredCandidatesPerUniversity = 24;
+        private int maxFetchedPagesPerUniversity = 6;
         private int maxCrawlDepth = 1;
-        private int timeoutMs = 8_000;
-        private int maxFetchRetries = 3;
+        private int timeoutMs = 10_000;
+        private int maxFetchRetries = 2;
+        private int retryBackoffMaxMs = 2_000;
+        private int discoveryScoreThreshold = 3;
+        private int maxBodySizeBytes = 1_500_000;
 
         public List<String> getCandidatePaths() {
             return candidatePaths;
@@ -89,6 +92,30 @@ public class UniversityRegistryProperties {
 
         public void setMaxFetchRetries(int maxFetchRetries) {
             this.maxFetchRetries = maxFetchRetries;
+        }
+
+        public int getRetryBackoffMaxMs() {
+            return retryBackoffMaxMs;
+        }
+
+        public void setRetryBackoffMaxMs(int retryBackoffMaxMs) {
+            this.retryBackoffMaxMs = retryBackoffMaxMs;
+        }
+
+        public int getDiscoveryScoreThreshold() {
+            return discoveryScoreThreshold;
+        }
+
+        public void setDiscoveryScoreThreshold(int discoveryScoreThreshold) {
+            this.discoveryScoreThreshold = discoveryScoreThreshold;
+        }
+
+        public int getMaxBodySizeBytes() {
+            return maxBodySizeBytes;
+        }
+
+        public void setMaxBodySizeBytes(int maxBodySizeBytes) {
+            this.maxBodySizeBytes = maxBodySizeBytes;
         }
     }
 

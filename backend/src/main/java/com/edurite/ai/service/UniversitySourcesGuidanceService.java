@@ -57,9 +57,10 @@ public class UniversitySourcesGuidanceService {
 
         int registrySize = registryService.configuredUniversityCount();
         int activeInstitutions = registryService.getActiveUniversities().size();
+        int recommendationBudget = request.safeMaxRecommendations();
         int targetSourceLimit = request.usesDefaultSources()
-                ? Math.min(Math.max(registrySize * 2, 24), 120)
-                : Math.min(Math.max(registrySize * 2, 40), 150);
+                ? Math.min(Math.max(recommendationBudget * 4, 12), 48)
+                : Math.min(Math.max(recommendationBudget * 2, 10), 40);
 
         log.info("University analysis pipeline starting: registrySize={}, activeInstitutions={}, usesDefaultSources={}, requestedSources={}, targetSourceLimit={}",
                 registrySize,
@@ -114,7 +115,7 @@ public class UniversitySourcesGuidanceService {
 
     private List<UniversitySourcePageResult> fetchPagesSafely(List<String> urls, boolean requestedByDefaultSources) {
         try {
-            List<UniversitySourcePageResult> fetchedPages = pageFetcherService.fetchPages(urls);
+            List<UniversitySourcePageResult> fetchedPages = ensureTerminalResults(urls, pageFetcherService.fetchPages(urls));
             log.info("University page fetch completed: requestedByDefaultSources={}, requestedUrls={}, fetchedPages={}, successfulPages={}, failedPages={}",
                     requestedByDefaultSources,
                     urls.size(),
@@ -253,6 +254,24 @@ public class UniversitySourcesGuidanceService {
             return "SUCCESS";
         }
         return "ERROR";
+    }
+
+
+    private List<UniversitySourcePageResult> ensureTerminalResults(List<String> urls, List<UniversitySourcePageResult> fetchedPages) {
+        List<UniversitySourcePageResult> safeResults = fetchedPages == null ? new ArrayList<>() : new ArrayList<>(fetchedPages);
+        Set<String> recorded = new LinkedHashSet<>();
+        for (UniversitySourcePageResult page : safeResults) {
+            recorded.add(page.sourceUrl());
+        }
+        for (String requestedUrl : urls) {
+            if (recorded.contains(requestedUrl)) {
+                continue;
+            }
+            safeResults.add(new UniversitySourcePageResult(requestedUrl, "", com.edurite.ai.university.UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false,
+                    "Source was requested but no fetch result was recorded; terminal failure was synthesized by the pipeline.",
+                    com.edurite.ai.university.UniversityCrawlFailureType.FETCH_ERROR));
+        }
+        return List.copyOf(safeResults);
     }
 
     private List<UniversitySourcePageResult> buildFailedFetchResults(List<String> urls, String failureReason) {

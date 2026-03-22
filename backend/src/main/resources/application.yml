@@ -44,10 +44,13 @@ edurite:
   university:
     crawl:
       cron: "0 0 2 * * *"
-      timeout-ms: 8000
-      max-fetch-retries: 3
-      max-discovered-candidates-per-university: 60
-      max-fetched-pages-per-university: 30
+      timeout-ms: 10000
+      max-fetch-retries: 2
+      retry-backoff-max-ms: 2000
+      discovery-score-threshold: 3
+      max-body-size-bytes: 1500000
+      max-discovered-candidates-per-university: 24
+      max-fetched-pages-per-university: 6
       max-crawl-depth: 1
       candidate-paths:
         - "/programmes"
