@@ -71,6 +71,7 @@ public class UniversitySourcesGuidanceService {
 
         List<String> urls = resolveUrls(profile, request, targetSourceLimit);
         List<UniversitySourcePageResult> fetchedPages = fetchPagesSafely(urls, request.usesDefaultSources());
+        logFailedSourceDiagnostics(fetchedPages);
         String combinedContext = buildCombinedContextSafely(fetchedPages, profile, request);
         UniversitySourcesAnalysisResponse baseResponse = geminiService.getUniversitySourcesAdvice(request, profile, urls, fetchedPages, combinedContext);
         UniversitySourcesAnalysisResponse response = enrichSafely(baseResponse, request, profile, urls, fetchedPages);
@@ -264,16 +265,41 @@ public class UniversitySourcesGuidanceService {
                         .map(page -> new com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceDiagnostic(
                                 page.sourceUrl(),
                                 page.success() ? "SUCCESS" : "FAILED",
-                                page.failureReason(),
+                                sanitizeFailureReason(page),
                                 inferUniversity(url),
                                 page.success()))
                         .orElseGet(() -> new com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceDiagnostic(
                                 url,
                                 "FAILED",
-                                "Source was requested but no fetch result was recorded; terminal failure was synthesized by the pipeline.",
+                                sanitizeMissingResultFailureReason(),
                                 inferUniversity(url),
                                 false)))
                 .toList();
+    }
+
+
+    private void logFailedSourceDiagnostics(List<UniversitySourcePageResult> fetchedPages) {
+        fetchedPages.stream()
+                .filter(page -> !page.success())
+                .forEach(page -> log.warn(
+                        "University source unavailable for student-facing response: sourceUrl={}, failureType={}, rawReason={}",
+                        page.sourceUrl(),
+                        page.failureType(),
+                        page.failureReason()));
+    }
+
+    private String sanitizeFailureReason(UniversitySourcePageResult page) {
+        if (page == null || page.success()) {
+            return null;
+        }
+        if (page.failureType() == com.edurite.ai.university.UniversityCrawlFailureType.EMPTY_CONTENT) {
+            return "Some source pages could not be processed.";
+        }
+        return "Some official university sources were unavailable at the time of analysis.";
+    }
+
+    private String sanitizeMissingResultFailureReason() {
+        return "Some official university sources were unavailable at the time of analysis.";
     }
 
     private com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceCoverage buildSourceCoverage(List<String> urls,

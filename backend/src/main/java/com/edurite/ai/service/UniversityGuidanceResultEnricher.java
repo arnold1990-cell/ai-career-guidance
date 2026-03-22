@@ -132,18 +132,32 @@ public class UniversityGuidanceResultEnricher {
         for (String requestedUrl : requestedUrls) {
             UniversitySourcePageResult page = pages.stream().filter(item -> requestedUrl.equals(item.sourceUrl())).findFirst().orElse(null);
             if (page == null) {
-                diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(requestedUrl, "FAILED", "Source was requested but no fetch result was recorded.", inferUniversity(requestedUrl), false));
+                diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(requestedUrl, "FAILED", sanitizeFailureReason(null), inferUniversity(requestedUrl), false));
                 continue;
             }
             diagnostics.add(new UniversitySourcesAnalysisResponse.SourceDiagnostic(
                     page.sourceUrl(),
                     diagnosticStatus(page),
-                    page.failureReason(),
+                    sanitizeFailureReason(page),
                     inferUniversity(page.sourceUrl()),
                     page.success() && isProgrammeUsable(page)
             ));
         }
         return diagnostics;
+    }
+
+
+    private String sanitizeFailureReason(UniversitySourcePageResult page) {
+        if (page == null) {
+            return "Some official university sources were unavailable at the time of analysis.";
+        }
+        if (page.success()) {
+            return null;
+        }
+        if (page.failureType() == com.edurite.ai.university.UniversityCrawlFailureType.EMPTY_CONTENT) {
+            return "Some source pages could not be processed.";
+        }
+        return "Some official university sources were unavailable at the time of analysis.";
     }
 
     private UniversitySourcesAnalysisResponse.SourceCoverage buildCoverage(List<String> requestedUrls,
