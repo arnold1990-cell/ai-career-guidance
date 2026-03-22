@@ -57,9 +57,10 @@ public class UniversitySourcesGuidanceService {
 
         int registrySize = registryService.configuredUniversityCount();
         int activeInstitutions = registryService.getActiveUniversities().size();
+        int recommendationBudget = request.safeMaxRecommendations();
         int targetSourceLimit = request.usesDefaultSources()
-                ? Math.min(Math.max(registrySize * 2, 24), 120)
-                : Math.min(Math.max(registrySize * 2, 40), 150);
+                ? Math.min(Math.max(recommendationBudget * 4, 12), 48)
+                : Math.min(Math.max(recommendationBudget * 2, 10), 40);
 
         log.info("University analysis pipeline starting: registrySize={}, activeInstitutions={}, usesDefaultSources={}, requestedSources={}, targetSourceLimit={}",
                 registrySize,
@@ -114,7 +115,7 @@ public class UniversitySourcesGuidanceService {
 
     private List<UniversitySourcePageResult> fetchPagesSafely(List<String> urls, boolean requestedByDefaultSources) {
         try {
-            List<UniversitySourcePageResult> fetchedPages = pageFetcherService.fetchPages(urls);
+            List<UniversitySourcePageResult> fetchedPages = ensureTerminalResults(urls, pageFetcherService.fetchPages(urls));
             log.info("University page fetch completed: requestedByDefaultSources={}, requestedUrls={}, fetchedPages={}, successfulPages={}, failedPages={}",
                     requestedByDefaultSources,
                     urls.size(),
@@ -211,6 +212,14 @@ public class UniversitySourcesGuidanceService {
             warnings.add("Some requested university sources were unavailable or only partially usable, so EduRite continued with the successful sources.");
         }
 
+        List<com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceDiagnostic> diagnostics =
+                response.sourceDiagnostics() == null || response.sourceDiagnostics().isEmpty()
+                        ? buildSourceDiagnostics(urls, fetchedPages)
+                        : response.sourceDiagnostics();
+        com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceCoverage sourceCoverage = response.sourceCoverage() == null
+                ? buildSourceCoverage(urls, successfulUrls, failedUrls)
+                : response.sourceCoverage();
+
         return new UniversitySourcesAnalysisResponse(
                 response.aiLive(),
                 response.fallbackUsed(),
@@ -240,9 +249,54 @@ public class UniversitySourcesGuidanceService {
                 response.suitabilityScoreReason(),
                 response.suitabilitySignalsUsed(),
                 response.suitabilityScoreLimitations(),
-                response.sourceDiagnostics(),
-                response.sourceCoverage()
+                diagnostics,
+                sourceCoverage
         );
+    }
+
+
+    private List<com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceDiagnostic> buildSourceDiagnostics(List<String> urls,
+                                                                                                                 List<UniversitySourcePageResult> fetchedPages) {
+        return urls.stream()
+                .map(url -> fetchedPages.stream()
+                        .filter(page -> url.equals(page.sourceUrl()))
+                        .findFirst()
+                        .map(page -> new com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceDiagnostic(
+                                page.sourceUrl(),
+                                page.success() ? "SUCCESS" : "FAILED",
+                                page.failureReason(),
+                                inferUniversity(url),
+                                page.success()))
+                        .orElseGet(() -> new com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceDiagnostic(
+                                url,
+                                "FAILED",
+                                "Source was requested but no fetch result was recorded; terminal failure was synthesized by the pipeline.",
+                                inferUniversity(url),
+                                false)))
+                .toList();
+    }
+
+    private com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceCoverage buildSourceCoverage(List<String> urls,
+                                                                                                     List<String> successfulUrls,
+                                                                                                     List<String> failedUrls) {
+        return new com.edurite.ai.dto.UniversitySourcesAnalysisResponse.SourceCoverage(
+                urls.size(),
+                successfulUrls.size(),
+                failedUrls.size(),
+                failedUrls.size(),
+                List.of()
+        );
+    }
+
+    private String inferUniversity(String url) {
+        if (url == null || url.isBlank()) {
+            return "Unknown";
+        }
+        return registryService.getActiveUniversities().stream()
+                .filter(entry -> registryService.isAllowedUrlForUniversity(entry.getUniversityName(), url))
+                .map(com.edurite.ai.university.UniversityRegistryProperties.UniversityRegistryEntry::getUniversityName)
+                .findFirst()
+                .orElse("Unknown");
     }
 
     private String deriveStatus(String mode, boolean hasSuccessfulSources, boolean hasRequestedSources) {
@@ -253,6 +307,24 @@ public class UniversitySourcesGuidanceService {
             return "SUCCESS";
         }
         return "ERROR";
+    }
+
+
+    private List<UniversitySourcePageResult> ensureTerminalResults(List<String> urls, List<UniversitySourcePageResult> fetchedPages) {
+        List<UniversitySourcePageResult> safeResults = fetchedPages == null ? new ArrayList<>() : new ArrayList<>(fetchedPages);
+        Set<String> recorded = new LinkedHashSet<>();
+        for (UniversitySourcePageResult page : safeResults) {
+            recorded.add(page.sourceUrl());
+        }
+        for (String requestedUrl : urls) {
+            if (recorded.contains(requestedUrl)) {
+                continue;
+            }
+            safeResults.add(new UniversitySourcePageResult(requestedUrl, "", com.edurite.ai.university.UniversityPageType.UNKNOWN, "", Set.of(), List.of(), false,
+                    "Source was requested but no fetch result was recorded; terminal failure was synthesized by the pipeline.",
+                    com.edurite.ai.university.UniversityCrawlFailureType.FETCH_ERROR));
+        }
+        return List.copyOf(safeResults);
     }
 
     private List<UniversitySourcePageResult> buildFailedFetchResults(List<String> urls, String failureReason) {
