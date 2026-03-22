@@ -22,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static com.edurite.ai.university.UniversityPageType.PROGRAMME_DETAIL;
 import static com.edurite.ai.university.UniversityPageType.QUALIFICATION_LIST;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -200,12 +202,28 @@ class UniversitySourcesGuidanceServiceTest {
         when(aggregatorService.buildCombinedContext(List.of(), profile, request)).thenReturn("");
         UniversitySourcesAnalysisResponse baseResponse = new UniversitySourcesAnalysisResponse(false, true, "ERROR", "UNAVAILABLE", "NO_LIVE_SOURCES", 0, null, fallbackUrls, fallbackUrls, List.of(), fallbackUrls, 0,
                 "summary", List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), 55, "gemini");
-        when(geminiService.getUniversitySourcesAdvice(eq(request), eq(profile), eq(fallbackUrls), eq(List.of()), eq(""))).thenReturn(baseResponse);
-        when(resultEnricher.enrich(eq(baseResponse), eq(request), eq(profile), eq(fallbackUrls), eq(List.of()))).thenReturn(baseResponse);
+        when(geminiService.getUniversitySourcesAdvice(
+                eq(request),
+                eq(profile),
+                eq(fallbackUrls),
+                argThat(results -> results.size() == 2
+                        && results.stream().allMatch(result -> !result.success())
+                        && results.stream().allMatch(result -> result.failureType() == com.edurite.ai.university.UniversityCrawlFailureType.FETCH_ERROR)),
+                eq("")))
+                .thenReturn(baseResponse);
+        when(resultEnricher.enrich(
+                eq(baseResponse),
+                eq(request),
+                eq(profile),
+                eq(fallbackUrls),
+                anyList()))
+                .thenReturn(baseResponse);
 
         UniversitySourcesAnalysisResponse response = service.analyse(principal, request);
 
         assertThat(response.requestedSources()).containsExactlyElementsOf(fallbackUrls);
+        assertThat(response.failedUrls()).containsExactlyElementsOf(fallbackUrls);
+        assertThat(response.sourceDiagnostics()).hasSize(2);
     }
 
     @Test

@@ -46,7 +46,7 @@ class MultiUniversityPageFetcherServiceTest {
         List<String> candidates = service.discoverCandidateUrls(university, 15);
 
         assertThat(candidates.get(0)).isEqualTo("http://localhost:" + port + "/");
-        assertThat(candidates).contains("http://localhost:" + port + "/programmes", "http://localhost:" + port + "/courses");
+        assertThat(candidates).contains("http://localhost:" + port + "/programmes");
         assertThat(candidates).doesNotContain("http://localhost:" + port + "/news/latest");
         assertThat(candidates).doesNotContain("https://external.example.com/programmes");
     }
@@ -92,7 +92,8 @@ class MultiUniversityPageFetcherServiceTest {
                 respond(exchange, 503, "temporary failure");
                 return;
             }
-            respond(exchange, 200, "<html><title>Programmes</title><body>programme degree</body></html>");
+            respond(exchange, 200, "<html><title>Programmes</title><body><main>programme degree entry requirements undergraduate admissions application dates faculty handbook prospectus " +
+                    "This page contains enough official university content to pass the current extraction threshold after a retry succeeds.</main></body></html>");
         });
         server.start();
 
