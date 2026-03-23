@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Default API base URL is `/api/v1`, which uses the Vite dev proxy (`/api` -> `http://localhost:8080`). Override with `VITE_API_BASE_URL` for other environments (for example, `https://api.example.com/api/v1`).
+Default API base URL is `/api/v1`. When the app runs locally on common frontend dev ports (`3000`, `4173`, or `5173`) without `VITE_API_BASE_URL`, the client now auto-targets `http://localhost:8080/api/v1` so direct browser requests still reach the Spring Boot backend even outside the Vite proxy. Override with `VITE_API_BASE_URL` for other environments (for example, `https://api.example.com/api/v1`).
 
 ## Architecture Highlights
 - `src/app`: root app composition and providers

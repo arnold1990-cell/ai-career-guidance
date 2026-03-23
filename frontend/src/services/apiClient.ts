@@ -3,7 +3,25 @@ import { authStore } from '@/features/auth/authStore';
 import { normalizeBackendRole } from '@/features/auth/roleUtils';
 import type { ApiError, ApprovalStatus, BackendRole, User } from '@/types';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const DEFAULT_API_PATH = '/api/v1';
+const DEV_FRONTEND_PORTS = new Set(['3000', '4173', '5173']);
+
+const deriveApiBaseUrl = () => {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configuredBaseUrl) return configuredBaseUrl;
+
+  if (typeof window === 'undefined') return DEFAULT_API_PATH;
+
+  const { protocol, hostname, port } = window.location;
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+  if (isLocalHost && DEV_FRONTEND_PORTS.has(port)) {
+    return `${protocol}//${hostname}:8080${DEFAULT_API_PATH}`;
+  }
+
+  return DEFAULT_API_PATH;
+};
+
+const baseURL = deriveApiBaseUrl();
 
 const normalizeApprovalStatus = (status?: string | null): ApprovalStatus | undefined => {
   if (!status) return undefined;
@@ -74,7 +92,7 @@ apiClient.interceptors.response.use(
       }
     }
     if (import.meta.env.DEV) {
-      console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: responseBody, error });
+      console.error(`[api] ${requestMethod} ${requestUrl} failed`, { status: responseStatus, response: responseBody, error, baseURL });
     }
 
     const message = typeof responseBody?.message === 'string' && responseBody.message.trim()
