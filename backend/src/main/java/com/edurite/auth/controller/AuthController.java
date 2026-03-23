@@ -8,8 +8,12 @@ import com.edurite.auth.service.AuthService;
 import com.edurite.company.dto.CompanyForgotPasswordRequest;
 import com.edurite.company.dto.CompanyResetPasswordRequest;
 import com.edurite.company.service.CompanyService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
  * It groups related logic so the project stays organized and easier to learn.
  */
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthService authService;
     private final CompanyService companyService;
@@ -61,8 +67,32 @@ public class AuthController {
      * this method handles the "login" step of the feature.
      * It exists to keep this class focused and reusable.
      */
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+        String normalizedEmail = request.email() == null ? null : request.email().trim().toLowerCase(Locale.ROOT);
+        String requestedPortal = normalizePortal(servletRequest.getHeader("X-Auth-Portal"));
+        String forwardedFor = trimToNull(servletRequest.getHeader("X-Forwarded-For"));
+        String clientIp = forwardedFor != null ? forwardedFor.split(",")[0].trim() : trimToNull(servletRequest.getRemoteAddr());
+        String userAgent = trimToNull(servletRequest.getHeader("User-Agent"));
+
+        log.info(
+                "[auth] login http request email={} requestedPortal={} clientIp={} forwardedFor={} userAgent={} uri={}",
+                normalizedEmail,
+                requestedPortal,
+                clientIp,
+                forwardedFor,
+                userAgent,
+                servletRequest.getRequestURI()
+        );
+
+        AuthResponse response = authService.login(request);
+        log.info(
+                "[auth] login http response email={} requestedPortal={} resolvedPrimaryRole={} approvalStatus={}",
+                normalizedEmail,
+                requestedPortal,
+                response.primaryRole(),
+                response.user() == null ? null : response.user().approvalStatus()
+        );
+        return ResponseEntity.ok(response);
     }
 
 // @PostMapping handles HTTP POST requests for creating data.
@@ -99,4 +129,17 @@ public class AuthController {
         companyService.resetPassword(request);
         return Map.of("message", "Password reset complete");
     }
+    private String normalizePortal(String requestedPortal) {
+        String normalized = trimToNull(requestedPortal);
+        return normalized == null ? "UNKNOWN" : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
 }

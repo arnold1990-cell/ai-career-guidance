@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/apiClient';
 import { authStore } from '@/features/auth/authStore';
 import { normalizeBackendRole } from '@/features/auth/roleUtils';
-import type { ApprovalStatus, AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, StudentRegisterPayload, User } from '@/types';
+import type { ApprovalStatus, AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, Role, StudentRegisterPayload, User } from '@/types';
 
 const decodeBase64Url = (value: string): string | null => {
   try {
@@ -87,22 +87,24 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
 };
 
 export const authService = {
-  login: (payload: { email: string; password: string }) => {
+  login: (payload: { email: string; password: string }, options?: { portal?: Role }) => {
     authStore.clear();
     if (import.meta.env.DEV) {
-      console.info('[auth] login payload', { email: payload.email, passwordLength: payload.password.length });
+      console.info('[auth] login payload', { email: payload.email, passwordLength: payload.password.length, portal: options?.portal });
     }
-    return apiClient.post<AuthResponseRaw>('/auth/login', payload)
+    return apiClient.post<AuthResponseRaw>('/auth/login', payload, {
+      headers: options?.portal ? { 'X-Auth-Portal': options.portal } : undefined,
+    })
       .then((response) => {
         if (import.meta.env.DEV) {
-          console.info('[auth] login response', { status: response.status, body: response.data });
+          console.info('[auth] login response', { status: response.status, body: response.data, portal: options?.portal });
         }
         return normalizeAuthResponse(response.data);
       })
       .catch((error: unknown) => {
         if (import.meta.env.DEV) {
           console.error('[auth] login request failed', {
-            payload: { email: payload.email, passwordLength: payload.password.length },
+            payload: { email: payload.email, passwordLength: payload.password.length, portal: options?.portal },
             error,
           });
         }

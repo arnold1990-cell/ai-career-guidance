@@ -9,7 +9,7 @@ export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
-  login: (payload: { email: string; password: string }, options?: { rememberMe?: boolean }) => Promise<User>;
+  login: (payload: { email: string; password: string }, options?: { rememberMe?: boolean; portal?: Role }) => Promise<User>;
   logout: () => Promise<void>;
   registerStudent: (payload: StudentRegisterPayload) => Promise<User>;
   registerCompany: (payload: CompanyRegisterPayload) => Promise<User>;
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user,
       isHydrated,
       isAuthenticated: Boolean(authStore.getAccessToken() && user),
-      login: async (payload, options) => setSession(await authService.login(payload), options),
+      login: async (payload, options) => setSession(await authService.login(payload, { portal: options?.portal }), options),
       registerStudent: async (payload) => setSession(await authService.registerStudent(payload)),
       registerCompany: async (payload) => setSession(await authService.registerCompany(payload)),
       logout: async () => {
