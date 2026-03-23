@@ -1,10 +1,14 @@
 package com.edurite;
 
+import com.edurite.auth.config.EmailVerificationProperties;
+import com.edurite.auth.config.MailSenderProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableConfigurationProperties({EmailVerificationProperties.class, MailSenderProperties.class})
 @EnableScheduling
 /**
  * This class named EduRiteApplication is part of the Spring Boot application.

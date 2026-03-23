@@ -24,6 +24,15 @@ spring:
   cache:
     type: redis
 
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+
 security:
   jwt:
     secret: change-me-with-a-very-long-random-64-byte-secret-change-me-with-a-very-long-random-64-byte-secret
@@ -37,6 +46,12 @@ springdoc:
     path: /swagger-ui.html
 
 edurite:
+  mail:
+    sender-email: ${MAIL_SENDER_EMAIL:no-reply@edurite.local}
+  auth:
+    verification:
+      frontend-url-base: ${FRONTEND_VERIFICATION_URL_BASE:http://localhost:5173/verify-email}
+      token-validity-hours: ${EMAIL_VERIFICATION_TOKEN_VALIDITY_HOURS:24}
   bursary:
     fallback:
       trusted-domains: ${EDURITE_BURSARY_TRUSTED_DOMAINS:bursaries-southafrica.co.za,zabursaries.co.za,careerwise.co.za,gov.za}

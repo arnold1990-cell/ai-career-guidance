@@ -3,6 +3,9 @@ package com.edurite.auth;
 import com.edurite.student.entity.StudentProfile;
 import com.edurite.student.repository.StudentProfileRepository;
 import com.edurite.company.repository.CompanyProfileRepository;
+import com.edurite.email.service.EmailService;
+import com.edurite.auth.entity.EmailVerificationToken;
+import com.edurite.auth.repository.EmailVerificationTokenRepository;
 import com.edurite.user.entity.User;
 import com.edurite.user.repository.RoleRepository;
 import com.edurite.user.repository.UserRepository;
@@ -16,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -23,6 +27,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -75,6 +83,11 @@ class AuthFlowIntegrationTest {
     @Autowired
     CompanyProfileRepository companyProfileRepository;
 
+    @Autowired
+    EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @MockBean
+    EmailService emailService;
 
     @Test
     void arnoldStudentCanRegisterAndLoginEndToEnd() throws Exception {
@@ -84,8 +97,12 @@ class AuthFlowIntegrationTest {
                                 {"fullName":"Arnold Madamombe","email":"arnoldmadaz@gmail.com","password":"Arnold@123"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.user.email").value("arnoldmadaz@gmail.com"))
-                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_STUDENT"));
+                .andExpect(jsonPath("$.email").value("arnoldmadaz@gmail.com"))
+                .andExpect(jsonPath("$.verificationRequired").value(true));
+
+        String token = emailVerificationTokenRepository.findByUserIdAndUsedFalse(userRepository.findByEmail("arnoldmadaz@gmail.com").orElseThrow().getId()).orElseThrow().getToken();
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", token))
+                .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,8 +122,7 @@ class AuthFlowIntegrationTest {
                                 {"fullName":"Jane Student","email":"jane.student@example.com","password":"StrongPass@123"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_STUDENT"));
+                .andExpect(jsonPath("$.verificationRequired").value(true));
     }
 
 
@@ -119,7 +135,11 @@ class AuthFlowIntegrationTest {
                                 {"firstName":"Lina","lastName":"Moyo","email":"%s","password":"StrongPass@123","interests":"Engineering","location":"Johannesburg","phone":"+27110000000","dateOfBirth":"2004-09-15","gender":"Female","qualificationLevel":"High School"}
                                 """.formatted(email)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.user.email").value(email));
+                .andExpect(jsonPath("$.email").value(email));
+
+        String verificationToken = emailVerificationTokenRepository.findByUserIdAndUsedFalse(userRepository.findByEmail(email).orElseThrow().getId()).orElseThrow().getToken();
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", verificationToken))
+                .andExpect(status().isOk());
 
         User createdUser = userRepository.findByEmail(email).orElseThrow();
         StudentProfile profile = studentProfileRepository.findByUserId(createdUser.getId()).orElseThrow();
@@ -189,8 +209,7 @@ class AuthFlowIntegrationTest {
                                 {"companyName":"Acme Corp","email":"hr@acme.com","officialEmail":"hr@acme.com","contactPersonName":"Alex Recruiter","registrationNumber":"ACME-REG-001","password":"StrongPass@123","industry":"Tech"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_COMPANY"));
+                .andExpect(jsonPath("$.verificationRequired").value(true));
     }
 
     @Test
@@ -231,6 +250,8 @@ class AuthFlowIntegrationTest {
                 .content("""
                         {"companyName":"Contoso","email":"contact@contoso.com","officialEmail":"contact@contoso.com","contactPersonName":"Taylor Hiring","registrationNumber":"CONTOSO-REG-001","password":"StrongPass@123","industry":"Education"}
                         """)).andExpect(status().isCreated());
+        String companyToken = emailVerificationTokenRepository.findByUserIdAndUsedFalse(userRepository.findByEmail("contact@contoso.com").orElseThrow().getId()).orElseThrow().getToken();
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", companyToken)).andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -635,6 +656,103 @@ class AuthFlowIntegrationTest {
                 .andExpect(jsonPath("$").isArray());
     }
 
+
+    @Test
+    void signupCreatesUnverifiedAccountAndDispatchesVerificationEmail() throws Exception {
+        String email = "verify.student@example.com";
+
+        mockMvc.perform(post("/api/v1/auth/register/student")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Verify Student","email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.verificationRequired").value(true));
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(emailVerificationTokenRepository.findByUserIdAndUsedFalse(user.getId())).isPresent();
+        verify(emailService, times(1)).sendEmailVerification(anyString(), anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void loginBeforeVerificationIsBlockedAndLoginAfterVerificationSucceeds() throws Exception {
+        String email = "blocked.student@example.com";
+        mockMvc.perform(post("/api/v1/auth/register/student")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Blocked Student","email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Please verify your email before signing in."));
+
+        String token = emailVerificationTokenRepository.findByUserIdAndUsedFalse(userRepository.findByEmail(email).orElseThrow().getId()).orElseThrow().getToken();
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Email verified successfully. You can now sign in."));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    @Test
+    void invalidExpiredUsedAndResentVerificationTokensAreHandledSafely() throws Exception {
+        String email = "token.student@example.com";
+        mockMvc.perform(post("/api/v1/auth/register/student")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Token Student","email":"%s","password":"StrongPass@123"}
+                                """.formatted(email)))
+                .andExpect(status().isCreated());
+        User user = userRepository.findByEmail(email).orElseThrow();
+        EmailVerificationToken token = emailVerificationTokenRepository.findByUserIdAndUsedFalse(user.getId()).orElseThrow();
+
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", "not-real"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Verification link is invalid."));
+
+        token.setExpiresAt(token.getExpiresAt().minusDays(2));
+        emailVerificationTokenRepository.save(token);
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", token.getToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Verification link has expired."));
+
+        mockMvc.perform(post("/api/v1/auth/resend-verification")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s"}
+                                """.formatted(email)))
+                .andExpect(status().isOk());
+
+        EmailVerificationToken refreshed = emailVerificationTokenRepository.findByUserIdAndUsedFalse(user.getId()).orElseThrow();
+        assertThat(refreshed.getToken()).isNotEqualTo(token.getToken());
+
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", refreshed.getToken()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", refreshed.getToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Verification link has already been used."));
+    }
+
+    @Test
+    void existingSeededUsersRemainVerifiedAfterMigration() {
+        assertThat(userRepository.findByEmail("admin@test.local").orElseThrow().isEmailVerified()).isTrue();
+        assertThat(userRepository.findByEmail("company@edurite.com").orElseThrow().isEmailVerified()).isTrue();
+    }
+
     private void registerStudent(String email) throws Exception {
         mockMvc.perform(post("/api/v1/auth/register/student")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -642,6 +760,9 @@ class AuthFlowIntegrationTest {
                                 {"fullName":"Test Student","email":"%s","password":"StrongPass@123"}
                                 """.formatted(email)))
                 .andExpect(status().isCreated());
+        String token = emailVerificationTokenRepository.findByUserIdAndUsedFalse(userRepository.findByEmail(email).orElseThrow().getId()).orElseThrow().getToken();
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", token))
+                .andExpect(status().isOk());
     }
 
     private void registerCompany(String email, String registrationNumber) throws Exception {
@@ -651,6 +772,9 @@ class AuthFlowIntegrationTest {
                                 {"companyName":"Secure Co","email":"%s","officialEmail":"%s","contactPersonName":"Security Owner","registrationNumber":"%s","password":"StrongPass@123","industry":"Security"}
                                 """.formatted(email, email, registrationNumber)))
                 .andExpect(status().isCreated());
+        String token = emailVerificationTokenRepository.findByUserIdAndUsedFalse(userRepository.findByEmail(email).orElseThrow().getId()).orElseThrow().getToken();
+        mockMvc.perform(get("/api/v1/auth/verify-email").param("token", token))
+                .andExpect(status().isOk());
     }
 
     private String loginAndGetAccessToken(String email, String password) throws Exception {

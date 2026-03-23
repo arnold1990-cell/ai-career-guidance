@@ -101,6 +101,7 @@ public class AuthDataSeeder {
             user.setLastName(lastName);
             user.setPasswordHash(encodedPassword);
             user.setStatus(UserStatus.ACTIVE);
+            user.setEmailVerified(true);
             user.getRoles().add(adminRole);
             User savedUser = userRepository.save(user);
             log.info(
@@ -137,6 +138,7 @@ public class AuthDataSeeder {
             existingUser.setLastName(companyName);
             existingUser.setPasswordHash(encodedCompanyPassword);
             existingUser.setStatus(UserStatus.ACTIVE);
+            existingUser.setEmailVerified(true);
             existingUser.getRoles().removeIf(role -> Set.of("ROLE_ADMIN", "ROLE_STUDENT").contains(role.getName()));
             existingUser.getRoles().add(companyRole);
             User savedUser = userRepository.save(existingUser);
@@ -157,6 +159,7 @@ public class AuthDataSeeder {
             user.setLastName(companyName);
             user.setPasswordHash(encodedCompanyPassword);
             user.setStatus(UserStatus.ACTIVE);
+            user.setEmailVerified(true);
             user.getRoles().add(companyRole);
             User savedUser = userRepository.save(user);
             log.info(

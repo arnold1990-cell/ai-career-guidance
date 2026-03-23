@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/apiClient';
 import { authStore } from '@/features/auth/authStore';
 import { normalizeBackendRole } from '@/features/auth/roleUtils';
-import type { ApprovalStatus, AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, StudentRegisterPayload, User } from '@/types';
+import type { ApprovalStatus, AuthResponse, AuthResponseRaw, BackendRole, CompanyRegisterPayload, RegistrationResponse, StudentRegisterPayload, User, VerificationStatusResponse } from '@/types';
 
 const decodeBase64Url = (value: string): string | null => {
   try {
@@ -53,17 +53,6 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
   const normalizedPrimaryRole = normalizeBackendRole(payload.user?.primaryRole ?? payload.primaryRole ?? payload.user?.role ?? payload.role);
   const approvalStatus = normalizeApprovalStatus(payload.user?.approvalStatus ?? payload.approvalStatus ?? (typeof tokenPayload?.approvalStatus === 'string' ? tokenPayload.approvalStatus : undefined));
 
-  if (import.meta.env.DEV) {
-    console.info('[auth] frontend role normalization', {
-      tokenPayload,
-      responseRoles,
-      tokenRoles: getRolesFromAccessToken(payload.accessToken),
-      normalizedRoles,
-      normalizedPrimaryRole,
-      approvalStatus,
-    });
-  }
-
   const user: User = {
     id: payload.user?.id ?? '',
     email: payload.user?.email ?? '',
@@ -89,28 +78,12 @@ const normalizeAuthResponse = (payload: AuthResponseRaw): AuthResponse => {
 export const authService = {
   login: (payload: { email: string; password: string }) => {
     authStore.clear();
-    if (import.meta.env.DEV) {
-      console.info('[auth] login payload', { email: payload.email, passwordLength: payload.password.length });
-    }
-    return apiClient.post<AuthResponseRaw>('/auth/login', payload)
-      .then((response) => {
-        if (import.meta.env.DEV) {
-          console.info('[auth] login response', { status: response.status, body: response.data });
-        }
-        return normalizeAuthResponse(response.data);
-      })
-      .catch((error: unknown) => {
-        if (import.meta.env.DEV) {
-          console.error('[auth] login request failed', {
-            payload: { email: payload.email, passwordLength: payload.password.length },
-            error,
-          });
-        }
-        throw error;
-      });
+    return apiClient.post<AuthResponseRaw>('/auth/login', payload).then((response) => normalizeAuthResponse(response.data));
   },
-  registerStudent: (payload: StudentRegisterPayload) => apiClient.post<AuthResponseRaw>('/auth/register/student', payload).then((r) => normalizeAuthResponse(r.data)),
-  registerCompany: (payload: CompanyRegisterPayload) => apiClient.post<AuthResponseRaw>('/auth/register/company', payload).then((r) => normalizeAuthResponse(r.data)),
+  registerStudent: (payload: StudentRegisterPayload) => apiClient.post<RegistrationResponse>('/auth/register/student', payload).then((r) => r.data),
+  registerCompany: (payload: CompanyRegisterPayload) => apiClient.post<RegistrationResponse>('/auth/register/company', payload).then((r) => r.data),
+  verifyEmail: (token: string) => apiClient.get<VerificationStatusResponse>(`/auth/verify-email?token=${encodeURIComponent(token)}`).then((r) => r.data),
+  resendVerification: (email: string) => apiClient.post<VerificationStatusResponse>('/auth/resend-verification', { email }).then((r) => r.data),
   forgotPassword: (payload: { email?: string; mobileNumber?: string }) => apiClient.post('/auth/forgot-password', payload),
   resetPassword: (payload: { token: string; newPassword: string; confirmPassword: string }) => apiClient.post('/auth/reset-password', payload),
   logout: () => apiClient.post('/auth/logout'),

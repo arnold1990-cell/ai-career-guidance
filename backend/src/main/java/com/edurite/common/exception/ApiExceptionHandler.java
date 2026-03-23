@@ -1,5 +1,8 @@
 package com.edurite.common.exception;
 
+import com.edurite.auth.exception.EmailDispatchException;
+import com.edurite.auth.exception.EmailVerificationRequiredException;
+import com.edurite.auth.exception.InvalidVerificationTokenException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -41,13 +44,23 @@ public class ApiExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler({InvalidCredentialsException.class, AuthenticationException.class})
+    @ExceptionHandler({InvalidCredentialsException.class, AuthenticationException.class, EmailVerificationRequiredException.class})
     /**
      * this method handles the "handleUnauthorized" step of the feature.
      * It exists to keep this class focused and reusable.
      */
     public ResponseEntity<Map<String, Object>> handleUnauthorized(RuntimeException ex, HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(InvalidVerificationTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(RuntimeException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(EmailDispatchException.class)
+    public ResponseEntity<Map<String, Object>> handleServiceUnavailable(RuntimeException ex, HttpServletRequest request) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request.getRequestURI());
     }
 
     /**
