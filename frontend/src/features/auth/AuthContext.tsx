@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { authStore } from '@/features/auth/authStore';
 import { getNormalizedUserRoles, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { authService } from '@/services/authService';
-import type { CompanyRegisterPayload, Role, StudentRegisterPayload, User } from '@/types';
+import type { CompanyRegisterPayload, RegistrationResponse, Role, StudentRegisterPayload, User } from '@/types';
 
 export interface AuthContextType {
   user: User | null;
@@ -11,8 +11,8 @@ export interface AuthContextType {
   isHydrated: boolean;
   login: (payload: { email: string; password: string }, options?: { rememberMe?: boolean }) => Promise<User>;
   logout: () => Promise<void>;
-  registerStudent: (payload: StudentRegisterPayload) => Promise<User>;
-  registerCompany: (payload: CompanyRegisterPayload) => Promise<User>;
+  registerStudent: (payload: StudentRegisterPayload) => Promise<RegistrationResponse>;
+  registerCompany: (payload: CompanyRegisterPayload) => Promise<RegistrationResponse>;
   hasRole: (role: Role) => boolean;
   getPrimaryRole: () => Role | null;
 }
@@ -80,8 +80,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isHydrated,
       isAuthenticated: Boolean(authStore.getAccessToken() && user),
       login: async (payload, options) => setSession(await authService.login(payload), options),
-      registerStudent: async (payload) => setSession(await authService.registerStudent(payload)),
-      registerCompany: async (payload) => setSession(await authService.registerCompany(payload)),
+      registerStudent: async (payload) => authService.registerStudent(payload),
+      registerCompany: async (payload) => authService.registerCompany(payload),
       logout: async () => {
         try {
           await authService.logout();

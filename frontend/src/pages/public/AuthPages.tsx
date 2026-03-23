@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ErrorState, LoadingState } from '@/components/feedback/States';
 import { getCompanyPathForApprovalStatus, getDashboardPathForRole, getDashboardPathForUser, isAuthorizedPathForRole, resolvePrimaryRole } from '@/features/auth/roleUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/authService';
@@ -201,16 +202,10 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
     event.preventDefault();
     setServerError(null);
     setIsSubmitting(true);
-    if (import.meta.env.DEV) {
-      console.info('[auth] submit login form', { email: form.email, passwordLength: form.password.length, role });
-    }
 
     try {
       const loggedInUser = await login({ email: form.email, password: form.password }, { rememberMe: form.rememberMe });
       const primaryRole = resolvePrimaryRole(loggedInUser);
-      if (import.meta.env.DEV) {
-        console.info('[auth] normalized login user', loggedInUser);
-      }
       if (!primaryRole) {
         throw new Error('Signed in successfully, but no supported role was returned for this account.');
       }
@@ -221,9 +216,6 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
 
       if (primaryRole === 'ADMIN') {
         const finalPath = isAuthorizedPathForRole(from, primaryRole) ? from! : '/admin/dashboard';
-        if (import.meta.env.DEV) {
-          console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, approvalStatus: loggedInUser.approvalStatus, finalPath });
-        }
         navigate(finalPath, {
           replace: true,
           state: roleMismatch ? { roleMismatch } : undefined,
@@ -234,9 +226,6 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
       if (primaryRole === 'STUDENT') {
         const me = await studentService.getMe();
         const finalPath = me.profileCompleted ? '/student/dashboard' : '/student/profile';
-        if (import.meta.env.DEV) {
-          console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, approvalStatus: loggedInUser.approvalStatus, finalPath });
-        }
         navigate(finalPath, {
           replace: true,
           state: roleMismatch ? { roleMismatch } : undefined,
@@ -248,18 +237,12 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
         ? getCompanyPathForApprovalStatus(loggedInUser.approvalStatus)
         : getDashboardPathForRole(primaryRole);
       const finalPath = isAuthorizedPathForRole(from, primaryRole) ? from! : dashboardPath ?? '/auth/login';
-      if (import.meta.env.DEV) {
-        console.info('[auth] final redirect path', { email: loggedInUser.email, primaryRole, approvalStatus: loggedInUser.approvalStatus, finalPath });
-      }
       navigate(finalPath, {
         replace: true,
         state: roleMismatch ? { roleMismatch } : undefined,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sign you in.';
-      if (import.meta.env.DEV) {
-        console.error('[auth] displayed login error', { error, displayedMessage: message });
-      }
       setServerError(message);
     } finally {
       setIsSubmitting(false);
@@ -336,6 +319,56 @@ const SignInForm = ({ role }: { role: AuthRole }) => {
   );
 };
 
+const VerificationNoticeCard = ({
+  email,
+  role,
+  title,
+  message,
+}: {
+  email: string;
+  role: AuthRole;
+  title?: string;
+  message?: string;
+}) => {
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const resend = async () => {
+    setStatus(null);
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const response = await authService.resendVerification(email);
+      setStatus(response.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to resend verification email.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-8 space-y-5">
+      <div className="rounded-2xl border border-sky-100 bg-sky-50 px-5 py-4 text-sm text-slate-700">
+        <p className="font-semibold text-slate-900">{title ?? 'Check your inbox'}</p>
+        <p className="mt-2 leading-6">{message ?? 'Your account has been created, but it stays inactive until you confirm your email address.'}</p>
+        <p className="mt-3 font-medium text-slate-900">Verification email: {email}</p>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="button" disabled={isSubmitting || !email} onClick={resend} className="rounded-2xl px-6 py-3 text-sm">
+          {isSubmitting ? 'Resending...' : 'Resend verification email'}
+        </Button>
+        <Link to={buildAuthPath(role, 'login')} className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          Back to sign in
+        </Link>
+      </div>
+      {status ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{status}</div> : null}
+      {error ? <ErrorState message={error} /> : null}
+    </div>
+  );
+};
+
 export const LoginPage = () => {
   const { isAuthenticated, user, isHydrated } = useAuth();
   const location = useLocation();
@@ -357,8 +390,9 @@ export const LoginPage = () => {
 };
 
 export const RegisterStudentPage = () => {
-  const { registerStudent } = useAuth();
   const navigate = useNavigate();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
     <AuthShell role="STUDENT" mode="register">
@@ -369,6 +403,8 @@ export const RegisterStudentPage = () => {
           className="mt-8 grid gap-4 sm:grid-cols-2"
           onSubmit={async (event) => {
             event.preventDefault();
+            setServerError(null);
+            setIsSubmitting(true);
             const formData = new FormData(event.currentTarget);
             const firstName = String(formData.get('firstName') ?? '').trim();
             const lastName = String(formData.get('lastName') ?? '').trim();
@@ -381,20 +417,29 @@ export const RegisterStudentPage = () => {
             const gender = String(formData.get('gender') ?? '').trim();
             const qualificationLevel = String(formData.get('qualificationLevel') ?? '').trim();
 
-            await registerStudent({
-              fullName: `${firstName} ${lastName}`.trim(),
-              firstName,
-              lastName,
-              email,
-              password,
-              interests,
-              location,
-              phone,
-              dateOfBirth,
-              gender,
-              qualificationLevel,
-            });
-            navigate('/student/dashboard');
+            try {
+              const response = await authService.registerStudent({
+                fullName: `${firstName} ${lastName}`.trim(),
+                firstName,
+                lastName,
+                email,
+                password,
+                interests,
+                location,
+                phone,
+                dateOfBirth,
+                gender,
+                qualificationLevel,
+              });
+              navigate(`/verify-email/notice?email=${encodeURIComponent(response.email)}&role=STUDENT`, {
+                replace: true,
+                state: { message: response.message },
+              });
+            } catch (error) {
+              setServerError(error instanceof Error ? error.message : 'Unable to create your account.');
+            } finally {
+              setIsSubmitting(false);
+            }
           }}
         >
           <label className="block text-sm font-medium text-slate-700">
@@ -439,7 +484,8 @@ export const RegisterStudentPage = () => {
             <Input name="qualificationLevel" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" placeholder="High School" />
           </label>
           <div className="sm:col-span-2 space-y-4 pt-2">
-            <Button type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">Create student account</Button>
+            {serverError ? <ErrorState message={serverError} /> : null}
+            <Button disabled={isSubmitting} type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">{isSubmitting ? 'Creating account...' : 'Create student account'}</Button>
             <p className="text-center text-sm text-slate-600">Already have an account? <Link className="font-semibold text-primary-600 hover:text-primary-500" to="/auth/login">Sign in</Link></p>
           </div>
         </form>
@@ -450,6 +496,7 @@ export const RegisterStudentPage = () => {
 
 export const RegisterCompanyPage = () => {
   const navigate = useNavigate();
+  const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<CompanyRegisterPayload>({
     defaultValues: {
       companyName: '',
@@ -474,8 +521,16 @@ export const RegisterCompanyPage = () => {
           New company accounts are created with <span className="font-semibold">pending</span> access. Admin approval is required before bursary posting and talent search are unlocked.
         </div>
         <form className="mt-8 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit(async (data) => {
-          await authService.registerCompany(data);
-          navigate('/company/login', { replace: true });
+          try {
+            setServerError(null);
+            const response = await authService.registerCompany(data);
+            navigate(`/verify-email/notice?email=${encodeURIComponent(response.email)}&role=COMPANY`, {
+              replace: true,
+              state: { message: response.message },
+            });
+          } catch (error) {
+            setServerError(error instanceof Error ? error.message : 'Unable to create company account.');
+          }
         })}>
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">Company name<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('companyName', { required: true })} /></label>
           <label className="block text-sm font-medium text-slate-700">Registration number<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('registrationNumber', { required: true })} /></label>
@@ -488,10 +543,87 @@ export const RegisterCompanyPage = () => {
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">Password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('password', { required: true, minLength: 8 })} /><PasswordRequirementsPanel /></label>
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">Description<Input className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('description')} /></label>
           <div className="sm:col-span-2 space-y-4 pt-2">
+            {serverError ? <ErrorState message={serverError} /> : null}
             <Button disabled={isSubmitting} type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">{isSubmitting ? 'Creating account...' : 'Create company account'}</Button>
             <p className="text-center text-sm text-slate-600">Already have a company account? <Link className="font-semibold text-primary-600 hover:text-primary-500" to="/company/login">Sign in</Link></p>
           </div>
         </form>
+      </div>
+    </AuthShell>
+  );
+};
+
+export const VerifyEmailNoticePage = () => {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get('email') ?? '';
+  const role = (searchParams.get('role') === 'COMPANY' ? 'COMPANY' : 'STUDENT') as AuthRole;
+  const message = (location.state as { message?: string } | undefined)?.message;
+
+  return (
+    <AuthShell role={role} mode="login">
+      <AuthHeader role={role} mode="login" />
+      <VerificationNoticeCard email={email} role={role} message={message} />
+    </AuthShell>
+  );
+};
+
+export const VerifyEmailPage = () => {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') ?? '';
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(token ? 'loading' : 'error');
+  const [message, setMessage] = useState(token ? 'Verifying your email…' : 'Verification link is missing.');
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    authService.verifyEmail(token)
+      .then((response) => {
+        if (!active) return;
+        setStatus('success');
+        setMessage(response.message);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setStatus('error');
+        setMessage(error instanceof Error ? error.message : 'Unable to verify your email.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  return (
+    <AuthShell role="STUDENT" mode="login">
+      <AuthHeader role="STUDENT" mode="login" />
+      <div className="mt-8 space-y-5">
+        {status === 'loading' ? <LoadingState message="Confirming your email" detail="This can take a few seconds." /> : null}
+        {status === 'success' ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
+            <p className="font-semibold text-emerald-900">Email verified</p>
+            <p className="mt-2">{message}</p>
+          </div>
+        ) : null}
+        {status === 'error' ? <ErrorState message={message} /> : null}
+
+        {status !== 'loading' ? (
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5">
+            <p className="text-sm text-slate-600">Need another verification email?</p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email address" className="rounded-2xl border-slate-200 bg-slate-50 px-4 py-3" />
+              <Button type="button" onClick={async () => {
+                const response = await authService.resendVerification(email);
+                setStatus('success');
+                setMessage(response.message);
+              }} className="rounded-2xl px-6 py-3 text-sm">Resend email</Button>
+            </div>
+            <div className="mt-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <Link to="/auth/login" className="font-semibold text-primary-600 hover:text-primary-500">Go to student sign in</Link>
+              <Link to="/company/login" className="font-semibold text-primary-600 hover:text-primary-500">Go to company sign in</Link>
+            </div>
+          </div>
+        ) : null}
       </div>
     </AuthShell>
   );
@@ -519,26 +651,23 @@ export const ForgotPasswordPage = () => {
 };
 
 export const ResetPasswordPage = () => {
-  const { register, handleSubmit } = useForm<{ newPassword: string; confirmPassword: string }>();
-  const [params] = useSearchParams();
-  const [message, setMessage] = useState('');
+  const [searchParams] = useSearchParams();
   const location = useLocation();
   const role = useMemo(() => resolveRoleFromPath(location.pathname), [location.pathname]);
-  const token = params.get('token') ?? '';
+  const token = searchParams.get('token') ?? '';
+  const { register, handleSubmit } = useForm<{ newPassword: string; confirmPassword: string }>();
+  const [message, setMessage] = useState('');
   return (
     <AuthShell role={role} mode="login">
       <AuthHeader role={role} mode="login" />
-      <p className="mt-6 text-xs text-slate-500">Reset token: {token || 'missing token in URL'}</p>
-      <form className="mt-4 space-y-4" onSubmit={handleSubmit(async ({ newPassword, confirmPassword }) => {
-        if (!token) return;
+      <form className="mt-8 space-y-4" onSubmit={handleSubmit(async ({ newPassword, confirmPassword }) => {
         await authService.resetPassword({ token, newPassword, confirmPassword });
         setMessage('Password reset complete. You can now sign in.');
       })}>
-        <label className="text-sm font-medium text-slate-700">New password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('newPassword', { required: true })} /><PasswordRequirementsPanel /></label>
-        <label className="text-sm font-medium text-slate-700">Confirm password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('confirmPassword', { required: true })} /></label>
+        <label className="text-sm font-medium text-slate-700">New password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('newPassword')} /></label>
+        <label className="text-sm font-medium text-slate-700">Confirm password<Input type="password" className="mt-2 rounded-2xl border-slate-200 bg-slate-50 px-4 py-3.5" {...register('confirmPassword')} /></label>
         <Button type="submit" className="w-full rounded-2xl px-6 py-3.5 text-sm shadow-lg shadow-primary-600/20">Reset password</Button>
-        {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
-        {message ? <Link className="block text-center text-sm font-semibold text-primary-600 hover:text-primary-500" to={getResetPasswordLoginPath(role)}>Return to sign in</Link> : null}
+        {message ? <p className="text-sm text-emerald-700">{message} <Link className="font-semibold text-primary-600 hover:text-primary-500" to={getResetPasswordLoginPath(role)}>Sign in</Link></p> : null}
       </form>
     </AuthShell>
   );

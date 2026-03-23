@@ -3,7 +3,10 @@ package com.edurite.auth.controller;
 import com.edurite.auth.dto.AuthResponse;
 import com.edurite.auth.dto.CompanyRegisterRequest;
 import com.edurite.auth.dto.LoginRequest;
+import com.edurite.auth.dto.RegistrationResponse;
 import com.edurite.auth.dto.StudentRegisterRequest;
+import com.edurite.auth.dto.VerificationEmailRequest;
+import com.edurite.auth.dto.VerificationStatusResponse;
 import com.edurite.auth.service.AuthService;
 import com.edurite.company.dto.CompanyForgotPasswordRequest;
 import com.edurite.company.dto.CompanyResetPasswordRequest;
@@ -12,19 +15,15 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// @RestController tells Spring this class exposes REST API endpoints.
 @RestController
-// @RequestMapping defines the base URL path for endpoints in this controller.
 @RequestMapping("/api/v1/auth")
-/**
- * This class named AuthController is part of the Spring Boot application.
- * It groups related logic so the project stays organized and easier to learn.
- */
 public class AuthController {
 
     private final AuthService authService;
@@ -35,66 +34,45 @@ public class AuthController {
         this.companyService = companyService;
     }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/register/student")
-    /**
-     * this method handles the "registerStudent" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
-    public ResponseEntity<AuthResponse> registerStudent(@Valid @RequestBody StudentRegisterRequest request) {
+    public ResponseEntity<RegistrationResponse> registerStudent(@Valid @RequestBody StudentRegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerStudent(request));
     }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/register/company")
-    /**
-     * this method handles the "registerCompany" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
-    public ResponseEntity<AuthResponse> registerCompany(@Valid @RequestBody CompanyRegisterRequest request) {
+    public ResponseEntity<RegistrationResponse> registerCompany(@Valid @RequestBody CompanyRegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerCompany(request));
     }
 
-// @PostMapping handles HTTP POST requests for creating data.
+    @GetMapping("/verify-email")
+    public ResponseEntity<VerificationStatusResponse> verifyEmail(@RequestParam String token) {
+        return ResponseEntity.ok(authService.verifyEmail(token));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<VerificationStatusResponse> resendVerification(@Valid @RequestBody VerificationEmailRequest request) {
+        return ResponseEntity.ok(authService.resendVerification(request));
+    }
+
     @PostMapping("/login")
-    /**
-     * this method handles the "login" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/refresh")
-    /**
-     * this method handles the "refresh" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     public ResponseEntity<AuthResponse> refresh(@RequestBody Map<String, String> payload) {
         return ResponseEntity.ok(authService.refresh(payload.get("refreshToken")));
     }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/logout")
     public Map<String, String> logout() { return Map.of("message", "Logout successful"); }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/forgot-password")
-    /**
-     * this method handles the "forgotPassword" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     public Map<String, String> forgotPassword(@RequestBody CompanyForgotPasswordRequest request) {
         return Map.of("message", companyService.issuePasswordResetToken(request));
     }
 
-// @PostMapping handles HTTP POST requests for creating data.
     @PostMapping("/reset-password")
-    /**
-     * this method handles the "resetPassword" step of the feature.
-     * It exists to keep this class focused and reusable.
-     */
     public Map<String, String> resetPassword(@Valid @RequestBody CompanyResetPasswordRequest request) {
         companyService.resetPassword(request);
         return Map.of("message", "Password reset complete");

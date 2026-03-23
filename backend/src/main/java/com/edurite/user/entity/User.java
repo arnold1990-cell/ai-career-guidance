@@ -49,6 +49,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserStatus status = UserStatus.PENDING;
 
+    @Column(nullable = false)
+    private boolean emailVerified = true;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",

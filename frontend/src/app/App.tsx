@@ -5,7 +5,7 @@ import { RequireAuth } from '@/routes/RequireAuth';
 import { RequireRole } from '@/routes/RequireRole';
 import { RequireCompanyApproval } from '@/routes/RequireCompanyApproval';
 import { AboutPage, BursariesPage, BursaryDetailsPage, CareerDetailsPage, CareersPage, CourseDetailsPage, CoursesPage, InstitutionDetailsPage, InstitutionsPage, LandingPage, PricingPage } from '@/pages/public/PublicPages';
-import { ForgotPasswordPage, LoginPage, RegisterCompanyPage, RegisterStudentPage, ResetPasswordPage } from '@/pages/public/AuthPages';
+import { ForgotPasswordPage, LoginPage, RegisterCompanyPage, RegisterStudentPage, ResetPasswordPage, VerifyEmailNoticePage, VerifyEmailPage } from '@/pages/public/AuthPages';
 import { StudentAcademicProfilePage, StudentApplicationsPage, StudentBursaryRecommendationsPage, StudentCareerDetailsPage, StudentCareerRecommendationsPage, StudentDashboardPage, StudentDocumentsPage, StudentExperiencePage, StudentNotificationsPage, StudentProfilePage, StudentQualificationsPage, StudentSavedPage, StudentSettingsPage, StudentSubscriptionPage, StudentUniversitiesPage } from '@/pages/student/StudentPages';
 import { CompanyApplicantsPage, CompanyBursariesPage, CompanyCreateBursaryPage, CompanyDashboardPage, CompanyEditBursaryPage, CompanyNotificationsPage, CompanyPendingApprovalPage, CompanyProfilePage, CompanySettingsPage, CompanyShortlistedPage, CompanyTalentSearchPage, CompanyVerificationDocsPage } from '@/pages/company/CompanyPages';
 import { AdminAnalyticsPage, AdminAuditLogsPage, AdminBursaryModerationPage, AdminCompanyReviewPage, AdminDashboardPage, AdminNotificationTemplatesPage, AdminPaymentsPage, AdminPendingApprovalsPage, AdminRolesPage, AdminSettingsPage, AdminSubscriptionsPage, AdminUsersPage } from '@/pages/admin/AdminPages';
@@ -32,6 +32,8 @@ export const App = () => (
       <Route path="/auth/register/company" element={<RegisterCompanyPage />} />
       <Route path="/register/company" element={<RegisterCompanyPage />} />
       <Route path="/company/register" element={<RegisterCompanyPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/verify-email/notice" element={<VerifyEmailNoticePage />} />
       <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/company/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
