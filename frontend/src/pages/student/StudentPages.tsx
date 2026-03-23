@@ -57,6 +57,7 @@ export const StudentProfilePage = () => {
   const p = profile.data;
   const value = (key: string, fallback?: string) => form[key] ?? fallback ?? '';
   if (profile.isLoading) return <LoadingState />;
+  if (profile.isError) return <ErrorState message="Could not load your profile. Please refresh and try again." />;
   return <Section title="My Profile">
     <p className="text-sm">Profile completeness: <span className="font-semibold">{p?.profileCompleteness ?? 0}%</span></p>
     <div className="grid gap-3 md:grid-cols-2">

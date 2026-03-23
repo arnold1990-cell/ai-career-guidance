@@ -530,9 +530,21 @@ class AuthFlowIntegrationTest {
         registerStudent("student.data@example.com");
         String accessToken = loginAndGetAccessToken("student.data@example.com", "StrongPass@123");
 
+        mockMvc.perform(get("/api/v1/student/profile")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("student.data@example.com"))
+                .andExpect(jsonPath("$.profileCompleted").isBoolean())
+                .andExpect(jsonPath("$.profileCompleteness").isNumber());
+
         mockMvc.perform(get("/api/v1/student/dashboard")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/institutions")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
 
         mockMvc.perform(get("/api/v1/recommendations/me")
                         .header("Authorization", "Bearer " + accessToken))
@@ -610,9 +622,17 @@ class AuthFlowIntegrationTest {
     @Test
     void studentDataEndpointsRejectMissingAuth() throws Exception {
         mockMvc.perform(get("/api/v1/student/dashboard")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/student/profile")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/recommendations/me")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/subscriptions/me")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/student/settings")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void institutionsEndpointRemainsPublicForUniversityDirectoryPages() throws Exception {
+        mockMvc.perform(get("/api/v1/institutions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 
     private void registerStudent(String email) throws Exception {
