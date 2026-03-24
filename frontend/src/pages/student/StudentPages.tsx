@@ -147,8 +147,6 @@ export const StudentCareerRecommendationsPage = () => {
   const minimumRequirements = aiAdvice.data?.minimumRequirements ?? [];
   const skillGaps = aiAdvice.data?.skillGaps ?? [];
   const nextSteps = aiAdvice.data?.recommendedNextSteps ?? [];
-  const warnings = aiAdvice.data?.warnings ?? [];
-  const sourceDiagnostics = aiAdvice.data?.sourceDiagnostics ?? [];
   const sourceCoverage = aiAdvice.data?.sourceCoverage;
   const responseStatus = aiAdvice.data?.status ?? 'ERROR';
   const backendMode = aiAdvice.data?.mode ?? (aiAdvice.data?.fallbackUsed ? 'FALLBACK' : aiAdvice.data?.aiLive ? 'LIVE' : 'UNAVAILABLE');
@@ -214,14 +212,14 @@ export const StudentCareerRecommendationsPage = () => {
         <span className="font-semibold">AI Guidance unavailable.</span> {aiAdvice.data?.warningMessage ?? 'The backend could not complete a reliable university-source analysis for this request.'}
       </div>}
       {responseStatus === 'PARTIAL' && <div className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">
-        EduRite returned partial guidance using the university sources that completed successfully.
+        <span className="font-semibold">Some official university sources were unavailable.</span> EduRite used the successfully verified official sources to generate your guidance.
       </div>}
       <div className="grid gap-3 md:grid-cols-3">
         <Card label="Sources used" value={analysedSources} />
         <Card label="Requested sources" value={sourceCoverage?.requestedSourcesCount ?? requestedSources} />
         <Card label="Suitability score" value={`${aiAdvice.data?.suitabilityScore ?? 0}%`} />
       </div>
-      {aiAdvice.data?.warningMessage && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      {aiAdvice.data?.warningMessage && responseStatus !== 'PARTIAL' && <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
         <span className="font-semibold">Warning:</span> {aiAdvice.data.warningMessage}
       </div>}
       {analysedSources === 0 && <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
@@ -270,15 +268,6 @@ export const StudentCareerRecommendationsPage = () => {
         {renderSimpleList(nextSteps, 'No next steps provided.')}
       </div>
 
-      {warnings.length > 0 && <div className="space-y-2">
-        <h3 className="font-semibold">Warnings</h3>
-        {renderSimpleList(warnings, 'No warnings.')}
-      </div>}
-
-      {sourceDiagnostics.length > 0 && <div className="space-y-2">
-        <h3 className="font-semibold">Source fetch status</h3>
-        <div className="grid gap-2 md:grid-cols-2">{sourceDiagnostics.map((item) => <div key={item.sourceUrl} className="rounded border p-3 text-sm"><p className="font-medium">{item.university ?? 'University Source'}</p><p className="break-all text-slate-500">{item.sourceUrl}</p><p className="mt-1"><span className="font-medium">Status:</span> {item.fetchStatus}</p>{item.failureReason && <p><span className="font-medium">Reason:</span> {item.failureReason}</p>}</div>)}</div>
-      </div>}
 
       {aiAdvice.data?.summary && <div className="rounded border p-3 bg-slate-50">
         <h3 className="font-semibold mb-1">Summary</h3>
