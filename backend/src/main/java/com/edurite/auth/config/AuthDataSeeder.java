@@ -82,18 +82,23 @@ public class AuthDataSeeder {
             });
         }
 
+        Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseThrow();
         userRepository.findByEmail(normalizedAdminEmail).ifPresentOrElse(existingUser -> {
-            Set<String> existingRoles = existingUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet());
+            existingUser.setFirstName(firstName);
+            existingUser.setLastName(lastName);
+            existingUser.setPasswordHash(passwordEncoder.encode(adminPassword));
+            existingUser.setStatus(UserStatus.ACTIVE);
+            if (existingUser.getRoles().stream().noneMatch(role -> "ROLE_ADMIN".equals(role.getName()))) {
+                existingUser.getRoles().add(adminRole);
+            }
+            User savedUser = userRepository.save(existingUser);
             log.info(
-                    "[auth-seed] admin user already exists, skipping creation email={} rawPassword={} encodedPassword={} roles={} status={}",
-                    existingUser.getEmail(),
-                    adminPassword,
-                    existingUser.getPasswordHash(),
-                    existingRoles,
-                    existingUser.getStatus()
+                    "[auth-seed] ensured admin user email={} roles={} status={}",
+                    savedUser.getEmail(),
+                    savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
+                    savedUser.getStatus()
             );
         }, () -> {
-            Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseThrow();
             String encodedPassword = passwordEncoder.encode(adminPassword);
             User user = new User();
             user.setEmail(normalizedAdminEmail);
@@ -105,10 +110,8 @@ public class AuthDataSeeder {
             user.getRoles().add(adminRole);
             User savedUser = userRepository.save(user);
             log.info(
-                    "[auth-seed] created admin user email={} rawPassword={} encodedPassword={} roles={} status={}",
+                    "[auth-seed] created admin user email={} roles={} status={}",
                     savedUser.getEmail(),
-                    adminPassword,
-                    encodedPassword,
                     savedUser.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
                     savedUser.getStatus()
             );
